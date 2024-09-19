@@ -90,7 +90,7 @@ const Header = () => {
             <AppBar position="static" sx={{
                 backgroundColor: 'white',
                 color: 'black',
-                boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.12)',
+                boxShadow: '0px 3px 2px rgba(0, 0, 0, 0.12)',
                 fontFamily: 'Roboto, sans-serif'
             }}>
                 <Toolbar variant="dense">
@@ -111,7 +111,7 @@ const Header = () => {
                             onClose={handleMenuClose}
                             sx={sharedMenuSx}
                         >
-                            <List>
+                            <List dense='true'>
                                 <ListItem button onClick={() => handleFrameChange(FILECREATOR)} sx={sharedListItemSx}>
                                     <ListItemText primary="File Creator"
                                         secondary="Create Pyramid files" />
@@ -142,7 +142,7 @@ const Header = () => {
                             onClose={handleMenuClose}
                             sx={sharedMenuSx}
                         >
-                            <List>
+                            <List dense='true'>
                                 <ListItem button onClick={() => handleFrameChange(WEBALIGN_URL)} sx={sharedListItemSx}>
                                     <ListItemText primary="WebAlign"
                                         secondary="VisuAlign for linear forming" />
@@ -161,7 +161,7 @@ const Header = () => {
                     <Box sx={{ flexGrow: 1 }} />
                     <Box>
                         <Tooltip title="Account, settings and FAQ">
-                            <Typography variant="h6" onClick={toggleDrawer} sx={{ cursor: 'pointer', fontWeight: 200, fontFamily: 'Roboto, sans-serif' }}>
+                            <Typography variant="h6" onClick={toggleDrawer} sx={{ cursor: 'pointer', fontSize: 24, fontFamily: 'Dosis' }}>
                                 Rodent Workbench
                             </Typography>
                         </Tooltip>
@@ -173,7 +173,7 @@ const Header = () => {
                     onClose={toggleDrawer}
                 >
                     <Box sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
-                        <List>
+                        <List >
                             <ListItem button sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <AccountCircleIcon />

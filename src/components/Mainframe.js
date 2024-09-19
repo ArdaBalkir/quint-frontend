@@ -20,7 +20,8 @@ const Mainframe = ({ url }) => {
                     width: '97.5%',
                     height: '95%',
                     border: 'none',
-                    bgcolor: 'white'
+                    bgcolor: 'white',
+                    borderRadius: '4px',
                 }}
                 src={url || ''}
                 title="Mainframe Content"
