@@ -21,6 +21,9 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import EqualizerIcon from '@mui/icons-material/Equalizer';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
+import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
+
 import Mainframe from './Mainframe';
 
 import handleLogin from '../actions/handleLogin';
@@ -40,6 +43,7 @@ const Header = () => {
     const [anchorEl1, setAnchorEl1] = useState(null);
     const [anchorEl2, setAnchorEl2] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
+    // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
     const [currentUrl, setCurrentUrl] = useState(null);
 
     const handleMenu1Click = (event) => {
@@ -128,9 +132,8 @@ const Header = () => {
                             <IconButton
                                 color="inherit"
                                 aria-label="apps and analysis"
-                                onClick={handleMenu2Click}
-                            >
-                                <EqualizerIcon />
+                                onClick={handleMenu2Click}>
+                                <DisplaySettingsIcon />
                             </IconButton>
                         </Tooltip>
                         <Menu
@@ -189,6 +192,12 @@ const Header = () => {
                                 </ListItemIcon>
                                 <ListItemText primary="Download Example Dataset" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
+                            <ListItem button sx={sharedListItemSx} onClick={() => window.open('https://www.ebrains.eu/contact/', '_blank')}>
+                                <ListItemIcon>
+                                    <HelpRoundedIcon />
+                                </ListItemIcon>
+                                <ListItemText primary="Contact Us" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
+                            </ListItem>
                             <ListItem button sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <ExitToAppIcon />
@@ -198,7 +207,7 @@ const Header = () => {
                         </List>
                         <Box sx={{ padding: '16px', marginTop: 'auto' }}>
                             <Typography variant="body2" color="textSecondary">
-                                Rodent
+                                Rodent Workbench v1.0.0, NeSys, UiO 2024
                             </Typography>
                         </Box>
                     </Box>
