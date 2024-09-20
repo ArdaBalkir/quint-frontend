@@ -23,6 +23,8 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 import Mainframe from './Mainframe';
 
@@ -85,6 +87,15 @@ const Header = () => {
         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
     };
 
+
+
+    const [value, setValue] = React.useState('one');
+
+    const handleChange = (event, newValue) => {
+        setValue(newValue);
+    };
+
+
     return (
         <Box sx={{ flexGrow: 1 }}>
             <AppBar position="static" sx={{
@@ -94,6 +105,28 @@ const Header = () => {
                 fontFamily: 'Roboto, sans-serif'
             }}>
                 <Toolbar variant="dense">
+                    <Tabs
+                        value={value}
+                        onChange={handleChange}
+                        textColor="black"
+                        indicatorColor="secondary"
+                        aria-label="secondary tabs example"
+                        TabIndicatorProps={{
+                            style: {
+                                backgroundColor: "red",
+                                borderRadius: '4px',
+                                justifyContent: 'center',
+                                height: 3
+                            }
+                        }}
+                    >
+                        <Tab value="one" label="File Creator" />
+                        <Tab value="two" label="WebAlign" />
+                        <Tab value="three" label="WebWarp" />
+                    </Tabs>
+
+                    <Box sx={{ flexGrow: 1 }} />
+
                     <Box sx={{ display: 'flex', alignItems: 'center', height: 'auto' }}>
                         <Tooltip title="Tools">
                             <IconButton
