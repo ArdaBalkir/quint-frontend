@@ -4,8 +4,9 @@ import { Box } from '@mui/material';
 import Fab from '@mui/material/Fab';
 import { Menu, MenuItem } from '@mui/material';
 import ChangeCircleOutlinedIcon from '@mui/icons-material/ChangeCircleOutlined';
+import QuintStepper from './QuintStepper';
 
-const Mainframe = ({ url, menuItems }) => {
+const Mainframe = ({ url, native, menuItems }) => {
     const [anchorEl, setAnchorEl] = React.useState(null);
 
     const handleClick = (event) => {
@@ -15,7 +16,6 @@ const Mainframe = ({ url, menuItems }) => {
     const handleClose = () => {
         setAnchorEl(null);
     };
-
     return (
         <Box
             sx={{
@@ -28,20 +28,35 @@ const Mainframe = ({ url, menuItems }) => {
                 position: 'relative',
             }}
         >
-            <Box
-                component="iframe"
-                sx={{
-                    width: '98%',
-                    height: '98%',
-                    border: 'none',
-                    bgcolor: 'white',
-                    borderRadius: '4px',
-                }}
-                src={url || ''}
-                title="Mainframe Content"
-                allowFullScreen
-            />
-            <Fab
+            {native ? (
+                // The native application goes here
+                <Box
+                    sx={{
+                        width: '85%',
+                        height: '85%',
+                        bgcolor: 'white',
+                        borderRadius: '4px',
+                    }}
+                >
+                    <QuintStepper />
+
+                </Box>
+            ) : (
+                <Box
+                    component="iframe"
+                    sx={{
+                        width: '98%',
+                        height: '98%',
+                        border: 'none',
+                        bgcolor: 'white',
+                        borderRadius: '4px',
+                    }}
+                    src={url || ''}
+                    title="Mainframe Content"
+                    allowFullScreen
+                />
+            )}
+            {/* <Fab
                 variant="extended"
                 onClick={handleClick}
                 sx={{
@@ -55,7 +70,7 @@ const Mainframe = ({ url, menuItems }) => {
             >
                 <ChangeCircleOutlinedIcon sx={{ mr: 1 }} />
                 Change Brain
-            </Fab>
+            </Fab> 
             <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
@@ -74,9 +89,9 @@ const Mainframe = ({ url, menuItems }) => {
                         <MenuItem onClick={handleClose}>Placeholder 3</MenuItem>
                     </>
                 )}
-            </Menu>
+            </Menu>*/}
         </Box>
-    );
+    )
 };
 
 export default Mainframe;

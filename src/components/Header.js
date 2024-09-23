@@ -16,8 +16,6 @@ import {
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import ConstructionIcon from '@mui/icons-material/Construction';
-import DescriptionIcon from '@mui/icons-material/Description';
-import Logout from '@mui/icons-material/Logout';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
@@ -31,6 +29,7 @@ const WEBWARP_URL = process.env.REACT_APP_WEBWARP_URL;
 const WEBNUTIL_URL = process.env.REACT_APP_WEBNUTIL_URL;
 const FILECREATOR = process.env.REACT_APP_FILECREATOR_URL;
 const LOCALIZOOM = process.env.REACT_APP_LOCALIZOOM_URL;
+const FAPI_URL = process.env.REACT_APP_FAPI_URL;
 
 console.log(`You are running this application in ${process.env.NODE_ENV} mode`)
 
@@ -46,6 +45,7 @@ const Header = () => {
     // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
     // Mainly for Native use of the applications and the webalign etc i frame ones
     const [currentUrl, setCurrentUrl] = useState(null);
+    const [nativeSelection, setNativeSelection] = useState(false);
 
     const handleMenu1Click = (event) => {
         setAnchorEl1(event.currentTarget);
@@ -67,6 +67,12 @@ const Header = () => {
     const handleFrameChange = (url) => {
         console.log(`Changing frame to ${url}`);
         setCurrentUrl(url);
+        setNativeSelection(false);
+        handleMenuClose();
+    };
+
+    const handleNativeApp = () => {
+        setNativeSelection(true);
         handleMenuClose();
     };
 
@@ -86,6 +92,8 @@ const Header = () => {
         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
     };
 
+    // Setting up the token and user info for use
+    // token and user variables are populated
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionParam = urlParams.get('session');
@@ -111,7 +119,7 @@ const Header = () => {
                 });
             } else {
                 // dont forget to update this one from the env
-                window.location.href = 'localhost:8000/login';
+                window.location.href = `${FAPI_URL}login`;
             }
         }
     }, []);
@@ -119,14 +127,13 @@ const Header = () => {
     return (
         <Box sx={{ flexGrow: 1 }}>
             <AppBar position="static" sx={{
-                backgroundColor: 'white',
+                backgroundColor: '#F2F2F2',
                 color: 'black',
                 boxShadow: '0px 3px 2px rgba(0, 0, 0, 0.12)',
                 fontFamily: 'Roboto, sans-serif'
             }}>
-                <Toolbar variant="dense">
-
-                    <Box sx={{ display: 'flex', alignItems: 'center', height: 'auto' }}>
+                <Toolbar variant="dense" sx={{ justifyContent: 'space-between' }}>
+                    <Box>
                         <Tooltip title="Tools">
                             <IconButton
                                 edge="start"
@@ -152,8 +159,8 @@ const Header = () => {
                                     <ListItemText primary="LocaliZoom"
                                         secondary="View Pyramid files" />
                                 </ListItem>
-                                <ListItem button onClick={handleMenuClose} sx={sharedListItemSx}>
-                                    <ListItemText primary="File Manager" />
+                                <ListItem button onClick={handleNativeApp} sx={sharedListItemSx}>
+                                    <ListItemText primary="Project Manager" />
                                 </ListItem>
                                 <ListItem button onClick={handleMenuClose} sx={sharedListItemSx}>
                                     <ListItemText primary="Manage Buckets" />
@@ -190,12 +197,25 @@ const Header = () => {
                             </List>
                         </Menu>
                     </Box>
-                    <Box sx={{ flexGrow: 1 }} />
+
+                    <Box>
+                        <Typography variant="h6" sx={{ fontSize: 24, fontFamily: 'Dosis' }}>
+                            Rodent Workbench
+                        </Typography>
+                    </Box>
                     <Box>
                         <Tooltip title="Account, settings and FAQ">
-                            <Typography variant="h6" onClick={toggleDrawer} sx={{ cursor: 'pointer', fontSize: 24, fontFamily: 'Dosis' }}>
-                                Rodent Workbench
-                            </Typography>
+                            <ListItemText
+                                onClick={toggleDrawer}
+                                primary={user?.email}
+                                primaryTypographyProps={{
+                                    variant: 'body2',
+                                    color: 'text.primary',
+                                    align: 'right',
+                                    fontWeight: 'bold',
+                                }}
+                                sx={{ cursor: 'pointer' }}
+                            />
                         </Tooltip>
                     </Box>
                 </Toolbar>
@@ -239,7 +259,7 @@ const Header = () => {
                     </Box>
                 </Drawer>
             </AppBar>
-            <Mainframe url={currentUrl} />
+            <Mainframe url={currentUrl} native={nativeSelection} />
         </Box>
     );
 };
