@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     AppBar,
     Box,
@@ -9,7 +9,6 @@ import {
     ListItemIcon,
     ListItemText,
     Menu,
-    MenuItem,
     Toolbar,
     Tooltip,
     Typography
@@ -18,17 +17,13 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import ConstructionIcon from '@mui/icons-material/Construction';
 import DescriptionIcon from '@mui/icons-material/Description';
-import EqualizerIcon from '@mui/icons-material/Equalizer';
-import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import Logout from '@mui/icons-material/Logout';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 
 import Mainframe from './Mainframe';
 
-import handleLogin from '../actions/handleLogin';
 
 // Variable loading for URLs
 const WEBALIGN_URL = process.env.REACT_APP_WEBALIGN_URL;
@@ -41,11 +36,15 @@ console.log(`You are running this application in ${process.env.NODE_ENV} mode`)
 
 console.log(`Logging in`)
 
+
 const Header = () => {
+    const [token, setToken] = useState(null);
+    const [user, setUser] = useState(null);
     const [anchorEl1, setAnchorEl1] = useState(null);
     const [anchorEl2, setAnchorEl2] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
+    // Mainly for Native use of the applications and the webalign etc i frame ones
     const [currentUrl, setCurrentUrl] = useState(null);
 
     const handleMenu1Click = (event) => {
@@ -87,14 +86,35 @@ const Header = () => {
         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
     };
 
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionParam = urlParams.get('session');
 
+        if (sessionParam) {
+            const userInfo = JSON.parse(sessionParam);
+            const user = {
+                name: userInfo.preferred_username,
+                email: userInfo.email,
+            };
+            setUser(user);
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            setToken(userInfo);
 
-    const [value, setValue] = React.useState('one');
-
-    const handleChange = (event, newValue) => {
-        setValue(newValue);
-    };
-
+        } else {
+            const storedUserInfo = localStorage.getItem('userInfo');
+            if (storedUserInfo) {
+                const parsedUserInfo = JSON.parse(storedUserInfo);
+                setToken(parsedUserInfo);
+                setUser({
+                    name: parsedUserInfo.preferred_username,
+                    email: parsedUserInfo.email,
+                });
+            } else {
+                // dont forget to update this one from the env
+                window.location.href = 'localhost:8000/login';
+            }
+        }
+    }, []);
 
     return (
         <Box sx={{ flexGrow: 1 }}>
@@ -105,27 +125,6 @@ const Header = () => {
                 fontFamily: 'Roboto, sans-serif'
             }}>
                 <Toolbar variant="dense">
-                    <Tabs
-                        value={value}
-                        onChange={handleChange}
-                        textColor="black"
-                        indicatorColor="secondary"
-                        aria-label="secondary tabs example"
-                        TabIndicatorProps={{
-                            style: {
-                                backgroundColor: "red",
-                                borderRadius: '4px',
-                                justifyContent: 'center',
-                                height: 3
-                            }
-                        }}
-                    >
-                        <Tab value="one" label="File Creator" />
-                        <Tab value="two" label="WebAlign" />
-                        <Tab value="three" label="WebWarp" />
-                    </Tabs>
-
-                    <Box sx={{ flexGrow: 1 }} />
 
                     <Box sx={{ display: 'flex', alignItems: 'center', height: 'auto' }}>
                         <Tooltip title="Tools">
@@ -205,13 +204,13 @@ const Header = () => {
                     open={drawerOpen}
                     onClose={toggleDrawer}
                 >
-                    <Box sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
+                    <Box sx={{ width: 280, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
                         <List >
                             <ListItem button sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <AccountCircleIcon />
                                 </ListItemIcon>
-                                <ListItemText primary="Account" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
+                                <ListItemText primary={user?.email} secondary={user?.name} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
                             <ListItem button sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
                                 <ListItemIcon>
@@ -230,12 +229,6 @@ const Header = () => {
                                     <HelpRoundedIcon />
                                 </ListItemIcon>
                                 <ListItemText primary="Contact Us" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
-                            </ListItem>
-                            <ListItem button sx={sharedListItemSx}>
-                                <ListItemIcon>
-                                    <ExitToAppIcon />
-                                </ListItemIcon>
-                                <ListItemText primary="Logout" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
                         </List>
                         <Box sx={{ padding: '16px', marginTop: 'auto' }}>
