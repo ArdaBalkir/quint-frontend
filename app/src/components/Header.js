@@ -99,20 +99,23 @@ const Header = () => {
         const sessionParam = urlParams.get('session');
 
         if (sessionParam) {
-            const userInfo = JSON.parse(sessionParam);
+            const decodedToken = JSON.parse(atob(sessionParam.split('.')[1]));
             const user = {
-                name: userInfo.preferred_username,
-                email: userInfo.email,
+                name: decodedToken.preferred_username,
+                email: decodedToken.email,
             };
             setUser(user);
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            setToken(userInfo);
+            // to fetch some user info to display and email etc.
+            localStorage.setItem('userInfo', JSON.stringify(decodedToken));
+            // To make requests to the storage etc.
+            localStorage.setItem('userToken', sessionParam);
+            setToken(sessionParam);
 
         } else {
             const storedUserInfo = localStorage.getItem('userInfo');
             if (storedUserInfo) {
                 const parsedUserInfo = JSON.parse(storedUserInfo);
-                setToken(parsedUserInfo);
+                setToken(localStorage.getItem('userToken'));
                 setUser({
                     name: parsedUserInfo.preferred_username,
                     email: parsedUserInfo.email,
@@ -160,7 +163,7 @@ const Header = () => {
                                         secondary="View Pyramid files" />
                                 </ListItem>
                                 <ListItem button onClick={handleNativeApp} sx={sharedListItemSx}>
-                                    <ListItemText primary="Project Manager" />
+                                    <ListItemText primary="Project Manager" secondary="Manage Projects, Quick Actions" />
                                 </ListItem>
                                 <ListItem button onClick={handleMenuClose} sx={sharedListItemSx}>
                                     <ListItemText primary="Manage Buckets" />
