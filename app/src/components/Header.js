@@ -153,19 +153,19 @@ const Header = () => {
                             onClose={handleMenuClose}
                             sx={sharedMenuSx}
                         >
-                            <List dense='true'>
-                                <ListItem button onClick={() => handleFrameChange(FILECREATOR)} sx={sharedListItemSx}>
+                            <List dense={true}>
+                                <ListItem onClick={() => handleFrameChange(FILECREATOR)} sx={sharedListItemSx}>
                                     <ListItemText primary="File Creator"
                                         secondary="Create Pyramid files" />
                                 </ListItem>
-                                <ListItem button onClick={() => handleFrameChange(LOCALIZOOM)} sx={sharedListItemSx}>
+                                <ListItem onClick={() => handleFrameChange(LOCALIZOOM)} sx={sharedListItemSx}>
                                     <ListItemText primary="LocaliZoom"
                                         secondary="View Pyramid files" />
                                 </ListItem>
-                                <ListItem button onClick={handleNativeApp} sx={sharedListItemSx}>
+                                <ListItem onClick={handleNativeApp} sx={sharedListItemSx}>
                                     <ListItemText primary="Project Manager" secondary="Manage Projects, Quick Actions" />
                                 </ListItem>
-                                <ListItem button onClick={handleMenuClose} sx={sharedListItemSx}>
+                                <ListItem onClick={handleMenuClose} sx={sharedListItemSx}>
                                     <ListItemText primary="Manage Buckets" />
                                 </ListItem>
                             </List>
@@ -184,16 +184,16 @@ const Header = () => {
                             onClose={handleMenuClose}
                             sx={sharedMenuSx}
                         >
-                            <List dense='true'>
-                                <ListItem button onClick={() => handleFrameChange(WEBALIGN_URL)} sx={sharedListItemSx}>
+                            <List dense={true}>
+                                <ListItem onClick={() => handleFrameChange(WEBALIGN_URL)} sx={sharedListItemSx}>
                                     <ListItemText primary="WebAlign"
                                         secondary="VisuAlign for linear forming" />
                                 </ListItem>
-                                <ListItem button onClick={() => handleFrameChange(WEBWARP_URL)} sx={sharedListItemSx}>
+                                <ListItem onClick={() => handleFrameChange(WEBWARP_URL)} sx={sharedListItemSx}>
                                     <ListItemText primary="WebWarp"
                                         secondary="Non-linear warping for brain images" />
                                 </ListItem>
-                                <ListItem button onClick={() => handleFrameChange(WEBNUTIL_URL)} sx={sharedListItemSx}>
+                                <ListItem onClick={() => handleFrameChange(WEBNUTIL_URL)} sx={sharedListItemSx}>
                                     <ListItemText primary="WebNUtil"
                                         secondary="NeuroUtilities module" />
                                 </ListItem>
@@ -229,25 +229,25 @@ const Header = () => {
                 >
                     <Box sx={{ width: 280, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation">
                         <List >
-                            <ListItem button sx={sharedListItemSx}>
+                            <ListItem sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <AccountCircleIcon />
                                 </ListItemIcon>
                                 <ListItemText primary={user?.email} secondary={user?.name} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
-                            <ListItem button sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
+                            <ListItem sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
                                 <ListItemIcon>
                                     <MenuBookIcon />
                                 </ListItemIcon>
                                 <ListItemText primary="Documentation" secondary='QUINT Online Documentation' primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
-                            <ListItem button sx={sharedListItemSx}>
+                            <ListItem sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <CloudDownloadIcon />
                                 </ListItemIcon>
                                 <ListItemText primary="Download Example Dataset" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
-                            <ListItem button sx={sharedListItemSx} onClick={() => window.open('https://www.ebrains.eu/contact/', '_blank')}>
+                            <ListItem sx={sharedListItemSx} onClick={() => window.open('https://www.ebrains.eu/contact/', '_blank')}>
                                 <ListItemIcon>
                                     <HelpRoundedIcon />
                                 </ListItemIcon>

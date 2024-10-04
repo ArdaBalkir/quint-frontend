@@ -5,7 +5,7 @@ import Fab from '@mui/material/Fab';
 import { Menu, MenuItem } from '@mui/material';
 import ChangeCircleOutlinedIcon from '@mui/icons-material/ChangeCircleOutlined';
 import QuintTable from './QuintTable';
-import TableQ from './Table';
+
 
 // Example response data
 const responseData = {
