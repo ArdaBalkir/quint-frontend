@@ -7,7 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 // Project handling
 import { fetchCollab, fetchBucketDir, fetchBrainNums, fetchBrainStats } from '../actions/handleCollabs.js';
 import ArrowBack from '@mui/icons-material/ArrowBack';
-
+import ProcessCard from './ProcessCard.js';
 import CreationDialog from './CreationDialog.js';
 
 
@@ -26,6 +26,7 @@ export default function QuintTable() {
 
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
+    const [processes, setProcesses] = React.useState([]);
 
 
     // onMount
@@ -47,6 +48,23 @@ export default function QuintTable() {
                     console.error('Error fetching projects:', error);
                 });
         }
+
+        setProcesses([{
+            title: 'Pyramid File Creator',
+            description: '',
+            progress: 65
+
+        },
+        {
+            title: 'Align Images',
+            description: 'Description of Process 2',
+            progress: 20
+        },
+        {
+            title: 'Some other process',
+            description: 'Description of Process 3',
+            progress: 10
+        }])
 
 
     }, []);
@@ -159,25 +177,27 @@ export default function QuintTable() {
                 <Box sx={{ flex: 3, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
                     {selectedProject && (
                         <><Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                            <Button
-                                size="small"
-                                color='inherit'
-                                onClick={() => setSelectedProject(null)}
-                                sx={{ maxWidth: 180 }}
-                                startIcon={<ArrowBack />}
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Button
+                                    size="small"
+                                    color='inherit'
+                                    onClick={() => setSelectedProject(null)}
+                                    sx={{ maxWidth: 180 }}
+                                    startIcon={<ArrowBack />}
+                                >
+                                    Back to Projects
+                                </Button>
+                                <Button
+                                    size="small"
+                                    color='inherit'
+                                    sx={{ maxWidth: 180 }}
+                                    startIcon={<Add />}
+                                    onClick={handleOpenDialog}
+                                >
+                                    Add Brain
+                                </Button>
+                            </Box>
 
-                            >
-                                Back to Projects
-                            </Button>
-                            <Button
-                                size="small"
-                                color='inherit'
-                                sx={{ maxWidth: 180 }}
-                                startIcon={<Add />}
-                                onClick={handleOpenDialog}
-                            >
-                                Add Brain
-                            </Button>
                             <Typography variant="h6" color="black" gutterBottom>
                                 {selectedProject.name}
                             </Typography>
@@ -187,13 +207,8 @@ export default function QuintTable() {
                                 rows={rows}
                                 columns={columns}
                                 initialState={{
-                                    pagination: {
-                                        paginationModel: {
-                                            pageSize: 5,
-                                        },
-                                    },
                                 }}
-                                pageSizeOptions={[5]}
+                                pageSizeOptions={10}
                                 disableColumnResize
                                 rowHeight={42}
                                 onRowClick={handleBrainSelect}
@@ -210,21 +225,28 @@ export default function QuintTable() {
 
 
                 {selectedProject && (
-                    <Box sx={{ flex: 1.5, overflow: 'auto' }}>
-                        <Typography variant="h6" color="black" gutterBottom>
-                            Additional Information
-                        </Typography>
-                        <List>
-                            <ListItem>
-                                <ListItemText primary="Total Entries" secondary={rows.length} />
-                            </ListItem>
-                            <ListItem>
-                                <ListItemText primary="Last Updated" secondary={new Date().toLocaleDateString()} />
-                            </ListItem>
-                            <ListItem>
-                                <ListItemText primary="Data Source" secondary="Game of Thrones API" />
-                            </ListItem>
-                        </List>
+                    <Box sx={{ flex: 1.8, overflow: 'auto', alignContent: 'flex-start', paddingLeft: 2, borderRadius: '4px' }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+                            <Typography variant="h6" color="black" gutterBottom>
+                                Additional Information
+                            </Typography>
+                            <List>
+                                <ListItem>
+                                    <ListItemText primary="Total Entries" secondary={rows.length} />
+                                </ListItem>
+                                <ListItem>
+                                    <ListItemText primary="Last Updated" secondary={new Date().toLocaleDateString()} />
+                                </ListItem>
+                                <ListItem>
+                                    <ListItemText primary="Data Source" secondary="Game of Thrones API" />
+                                </ListItem>
+                            </List>
+                        </Box>
+                        <Box sx={{ gap: 4, padding: 2, flexGrow: 2, justifyContent: 'space-between', }}>
+                            {processes.map((process, index) => (
+                                <ProcessCard key={index} process={process} />
+                            ))}
+                        </Box>
                     </Box>
                 )}
             </Box> </Box>
