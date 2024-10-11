@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import axios from 'axios';
 import {
     Button,
     Dialog,
@@ -13,28 +13,51 @@ import {
 } from '@mui/material';
 
 export default function CreationDialog({ open, onClose, onSubmit, project }) {
-
-    // Likely will disallow folder
     const [name, setName] = useState('');
-    const [folder, setFolder] = useState(null);
     const [files, setFiles] = useState([]);
-
+    const [uploadedFiles, setUploadedFiles] = useState([]);
 
     const handleNameChange = (event) => {
         setName(event.target.value);
     };
 
-    const handleFolderChange = (event) => {
-        setFiles(Array.from(event.target.files));
+    const handleMultipleChange = (event) => {
+        setFiles([...event.target.files]);
     };
 
+    const handleMultipleSubmit = async (event) => {
+        event.preventDefault();
+        const bucket_name = 'your-bucket-name';
+
+        for (const file of files) {
+            const object_name = file.name;
+            try {
+                // Get upload URL
+                const urlResponse = await axios.put(`/v1/buckets/${bucket_name}/${object_name}`);
+                const uploadUrl = urlResponse.data.url;
+
+                // Upload file
+                const formData = new FormData();
+                formData.append('file', file);
+                const config = {
+                    headers: { 'content-type': 'multipart/form-data' },
+                };
+                const uploadResponse = await axios.post(uploadUrl, formData, config);
+                console.log(uploadResponse.data);
+            } catch (error) {
+                console.error("Error uploading file: ", error);
+            }
+        }
+
+        // Update uploaded files
+        setUploadedFiles(files.map(file => file.name));
+    };
 
     const handleSubmit = () => {
-        onSubmit({ name, folder });
+        onSubmit({ name, files: uploadedFiles });
         onClose();
     };
 
-    // Currently listed files, should stay in component
     const FileList = ({ files }) => (
         <ul>
             {files.map((file, index) => (
@@ -43,13 +66,12 @@ export default function CreationDialog({ open, onClose, onSubmit, project }) {
         </ul>
     );
 
-
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ style: { minHeight: '80vh' } }}>
             <DialogTitle>Create a new Brain in Project {project?.name || ''}</DialogTitle>
             <DialogContent sx={{ padding: '20px' }}>
                 <DialogContentText sx={{ marginBottom: '20px' }}>
-                    Enter the name of the brain, input the Metadata and select the folder containing the brain files.
+                    Enter the name of the brain, input the Metadata and select the files for the brain.
                 </DialogContentText>
                 <TextField
                     autoFocus
@@ -65,11 +87,13 @@ export default function CreationDialog({ open, onClose, onSubmit, project }) {
                 />
                 <Input
                     type="file"
-                    inputProps={{ webkitdirectory: "", directory: "", multiple: true }}
-                    onChange={handleFolderChange}
+                    inputProps={{ multiple: true }}
+                    onChange={handleMultipleChange}
                     sx={{ marginBottom: '20px' }}
                 />
-                <Typography sx={{ marginBottom: '10px' }}> Files uploaded: {files.length}</Typography>
+                <Button onClick={handleMultipleSubmit}>Upload Files</Button>
+                <Typography sx={{ marginBottom: '10px' }}> Files selected: {files.length}</Typography>
+                <Typography sx={{ marginBottom: '10px' }}> Files uploaded: {uploadedFiles.length}</Typography>
                 <FileList files={files} />
             </DialogContent>
             <DialogActions sx={{ padding: '20px' }}>
@@ -78,4 +102,4 @@ export default function CreationDialog({ open, onClose, onSubmit, project }) {
             </DialogActions>
         </Dialog>
     );
-};
+}

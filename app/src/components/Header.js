@@ -30,6 +30,8 @@ const WEBNUTIL_URL = process.env.REACT_APP_WEBNUTIL_URL;
 const FILECREATOR = process.env.REACT_APP_FILECREATOR_URL;
 const LOCALIZOOM = process.env.REACT_APP_LOCALIZOOM_URL;
 const FAPI_URL = process.env.REACT_APP_FAPI_URL;
+const OIDC = process.env.REACT_APP_OIDC;
+const USER_INFO_URL = process.env.REACT_APP_USER_INFO_URL;
 
 console.log(`You are running this application in ${process.env.NODE_ENV} mode`)
 
@@ -46,6 +48,10 @@ const Header = () => {
     // Mainly for Native use of the applications and the webalign etc i frame ones
     const [currentUrl, setCurrentUrl] = useState(null);
     const [nativeSelection, setNativeSelection] = useState(false);
+
+    const handleLogin = () => {
+        window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintwebtest&redirect_uri=${window.location.origin}`
+    }
 
     const handleMenu1Click = (event) => {
         setAnchorEl1(event.currentTarget);
@@ -92,39 +98,54 @@ const Header = () => {
         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
     };
 
-    // Setting up the token and user info for use
-    // token and user variables are populated
+    // OnMount for all logins etc.
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        const sessionParam = urlParams.get('session');
-
-        if (sessionParam) {
-            const decodedToken = JSON.parse(atob(sessionParam.split('.')[1]));
-            const user = {
-                name: decodedToken.preferred_username,
-                email: decodedToken.email,
-            };
-            setUser(user);
-            // to fetch some user info to display and email etc.
-            localStorage.setItem('userInfo', JSON.stringify(decodedToken));
-            // To make requests to the storage etc.
-            localStorage.setItem('userToken', sessionParam);
-            setToken(sessionParam);
-
-        } else {
-            const storedUserInfo = localStorage.getItem('userInfo');
-            if (storedUserInfo) {
-                const parsedUserInfo = JSON.parse(storedUserInfo);
-                setToken(localStorage.getItem('userToken'));
-                setUser({
-                    name: parsedUserInfo.preferred_username,
-                    email: parsedUserInfo.email,
-                });
-            } else {
-                // dont forget to update this one from the env
-                window.location.href = `${FAPI_URL}login`;
-            }
+        const code = urlParams.get('code');
+        if (code) {
+            fetch(`${FAPI_URL}token?code=${code}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    localStorage.setItem('accessToken', data.token.access_token);
+                    localStorage.setItem('tokenExpiry', new Date(Date.now() + data.token.expires_in * 1000).toISOString())
+                    localStorage.setItem('refreshToken', data.token.refresh_token)
+                    localStorage.setItem('tokenType', data.token.token_type)
+                    localStorage.setItem('scope', data.token.scope)
+                    setToken(data.token.access_token);
+                })
+                // clean the url
+                .then(
+                    window.history.replaceState(null, null, window.location.pathname)
+                )
+                //if user is not set, refresh the user info
+                .then(() => {
+                    fetch(USER_INFO_URL, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log(data);
+                            localStorage.setItem('userInfo', JSON.stringify(data));
+                            setUser(data);
+                            console.log(data);
+                        })
+                        .catch(error => console.error("User info couldn't be retrieved", error))
+                })
+                .catch(error => console.error("Token couldn't be retrieved", error))
         }
+
+
+        const tokenExpiry = localStorage.getItem('tokenExpiry');
+        if (tokenExpiry && new Date(tokenExpiry) < new Date()) {
+            setUser(null)
+            localStorage.removeItem('userInfo')
+            localStorage.removeItem('tokenExpiry')
+        }
+
     }, []);
 
     return (
@@ -202,22 +223,22 @@ const Header = () => {
                     </Box>
 
                     <Box>
-                        <Typography variant="h6" sx={{ fontSize: 24, fontFamily: 'Dosis' }}>
+                        <Typography sx={{ fontSize: 24, fontFamily: 'Dosis', fontWeight: 300 }}>
                             Rodent Workbench
                         </Typography>
                     </Box>
                     <Box>
                         <Tooltip title="Account, settings and FAQ">
                             <ListItemText
-                                onClick={toggleDrawer}
-                                primary={user?.email}
+                                onClick={user ? toggleDrawer : handleLogin}
+                                primary={user?.email || 'Login'}
                                 primaryTypographyProps={{
                                     variant: 'body2',
                                     color: 'text.primary',
                                     align: 'right',
                                     fontWeight: 'bold',
                                 }}
-                                sx={{ cursor: 'pointer' }}
+                                sx={{ cursor: user ? 'pointer' : 'default' }}
                             />
                         </Tooltip>
                     </Box>
