@@ -21,6 +21,7 @@ import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
 
 import Mainframe from './Mainframe';
+import callUser from '../actions/createUser';
 
 
 // Variable loading for URLs
@@ -39,6 +40,7 @@ console.log(`Logging in`)
 
 
 const Header = () => {
+    const [auth, setAuth] = useState(false);
     const [token, setToken] = useState(null);
     const [user, setUser] = useState(null);
     const [anchorEl1, setAnchorEl1] = useState(null);
@@ -50,7 +52,7 @@ const Header = () => {
     const [nativeSelection, setNativeSelection] = useState(false);
 
     const handleLogin = () => {
-        window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintwebtest&redirect_uri=${window.location.origin}`
+        window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintweb&redirect_uri=https://127.00.0.1:3000`
     }
 
     const handleMenu1Click = (event) => {
@@ -98,10 +100,12 @@ const Header = () => {
         '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
     };
 
+
     // OnMount for all logins etc.
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+
         if (code) {
             fetch(`${FAPI_URL}token?code=${code}`)
                 .then(response => response.json())
@@ -116,34 +120,20 @@ const Header = () => {
                 })
                 // clean the url
                 .then(
-                    window.history.replaceState(null, null, window.location.pathname)
-                )
-                //if user is not set, refresh the user info
-                .then(() => {
-                    fetch(USER_INFO_URL, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log(data);
-                            localStorage.setItem('userInfo', JSON.stringify(data));
-                            setUser(data);
-                            console.log(data);
-                        })
-                        .catch(error => console.error("User info couldn't be retrieved", error))
-                })
+                    window.history.replaceState(null, null, window.location.pathname))
                 .catch(error => console.error("Token couldn't be retrieved", error))
         }
 
+        // callUser();
 
         const tokenExpiry = localStorage.getItem('tokenExpiry');
         if (tokenExpiry && new Date(tokenExpiry) < new Date()) {
             setUser(null)
-            localStorage.removeItem('userInfo')
-            localStorage.removeItem('tokenExpiry')
+            handleLogin();
+        } else {
+            setUser(JSON.parse(localStorage.getItem('userInfo')));
+            console.log(user)
+            setAuth(true);
         }
 
     }, []);
@@ -231,7 +221,7 @@ const Header = () => {
                         <Tooltip title="Account, settings and FAQ">
                             <ListItemText
                                 onClick={user ? toggleDrawer : handleLogin}
-                                primary={user?.email || 'Login'}
+                                primary={user?.preferred_username || 'Login'}
                                 primaryTypographyProps={{
                                     variant: 'body2',
                                     color: 'text.primary',
@@ -254,7 +244,8 @@ const Header = () => {
                                 <ListItemIcon>
                                     <AccountCircleIcon />
                                 </ListItemIcon>
-                                <ListItemText primary={user?.email} secondary={user?.name} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
+                                {<ListItemText primary={user?.name} secondary={user?.email} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />}
+
                             </ListItem>
                             <ListItem sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
                                 <ListItemIcon>

@@ -1,16 +1,20 @@
 
 const BUCKET_URL = 'https://data-proxy.ebrains.eu/api/v1/buckets/'
 
+let token = localStorage.getItem('accessToken')
+console.log(token)
+
 export const fetchCollab = async (collabName) => {
     try {
-        const userToken = localStorage.getItem('userToken')
+
         const response = await fetch(`https://wiki.ebrains.eu/rest/v1/collabs/${collabName}`, {
             method: 'GET',
             headers: {
                 'accept': 'application/json',
-                'Authorization': 'Bearer ' + userToken
+                'Authorization': 'Bearer ' + token
             }
         })
+        console.log(response)
         if (!response.ok) {
             throw new Error('Failed to fetch collab')
         }
@@ -23,7 +27,6 @@ export const fetchCollab = async (collabName) => {
 }
 export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000, depth = 0) => {
     try {
-        const userToken = localStorage.getItem('userToken')
         let url = `${BUCKET_URL}${bucketName}?`
         const params = new URLSearchParams()
 
@@ -37,7 +40,7 @@ export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000
             method: 'GET',
             headers: {
                 'accept': 'application/json',
-                'Authorization': 'Bearer ' + userToken
+                'Authorization': 'Bearer ' + token
             }
         })
         if (!response.ok) {
@@ -79,7 +82,6 @@ export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000
 export const fetchBrainStats = async (bucketName, brainPrefix) => {
     let res = []
     try {
-        const userToken = localStorage.getItem('userToken')
         let url = `${BUCKET_URL}${bucketName}?`
         const params = new URLSearchParams();
 
@@ -98,7 +100,7 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
                 method: 'GET',
                 headers: {
                     'accept': 'application/json',
-                    'Authorization': 'Bearer ' + userToken
+                    'Authorization': 'Bearer ' + token
                 }
             })
             if (!response.ok) {

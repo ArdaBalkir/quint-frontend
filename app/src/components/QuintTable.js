@@ -91,7 +91,6 @@ export default function QuintTable() {
         }));
         setRows(newRows);
 
-        // Set columns for the DataGrid
         const newColumns = [
             { field: 'name', headerName: 'Name', flex: 1 },
             { field: 'type', headerName: 'Type', width: 120 },
@@ -101,7 +100,6 @@ export default function QuintTable() {
     };
 
     const handleBrainSelect = (params) => {
-        // Fetch the brain data
         console.log('Params passed down', params);
         setSelectedBrain(params.row);
         console.log(`Selected brain: ${params.row.name}`);
