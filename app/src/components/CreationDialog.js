@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import {
     Button,
     Dialog,
@@ -8,49 +7,22 @@ import {
     DialogContentText,
     DialogTitle,
     TextField,
-    Input,
     Typography,
+    Box
 } from '@mui/material';
+import UploadZone from './UploadZone';
+
 
 export default function CreationDialog({ open, onClose, onSubmit, project }) {
     const [name, setName] = useState('');
-    const [files, setFiles] = useState([]);
     const [uploadedFiles, setUploadedFiles] = useState([]);
 
     const handleNameChange = (event) => {
         setName(event.target.value);
     };
 
-    const handleMultipleChange = (event) => {
-        setFiles([...event.target.files]);
-    };
-
-    const handleMultipleSubmit = async (event) => {
-        event.preventDefault();
-        const bucket_name = 'your-bucket-name';
-
-        for (const file of files) {
-            const object_name = file.name;
-            try {
-                // Get upload URL
-                const urlResponse = await axios.put(`/v1/buckets/${bucket_name}/${object_name}`);
-                const uploadUrl = urlResponse.data.url;
-
-                // Upload file
-                const formData = new FormData();
-                formData.append('file', file);
-                const config = {
-                    headers: { 'content-type': 'multipart/form-data' },
-                };
-                const uploadResponse = await axios.post(uploadUrl, formData, config);
-                console.log(uploadResponse.data);
-            } catch (error) {
-                console.error("Error uploading file: ", error);
-            }
-        }
-
-        // Update uploaded files
-        setUploadedFiles(files.map(file => file.name));
+    const handleUploadComplete = (files) => {
+        setUploadedFiles(files);
     };
 
     const handleSubmit = () => {
@@ -58,13 +30,9 @@ export default function CreationDialog({ open, onClose, onSubmit, project }) {
         onClose();
     };
 
-    const FileList = ({ files }) => (
-        <ul>
-            {files.map((file, index) => (
-                <li key={index}>{file.name}</li>
-            ))}
-        </ul>
-    );
+    useEffect(() => {
+        console.log(project);
+    });
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ style: { minHeight: '80vh' } }}>
@@ -85,16 +53,12 @@ export default function CreationDialog({ open, onClose, onSubmit, project }) {
                     onChange={handleNameChange}
                     sx={{ marginBottom: '20px' }}
                 />
-                <Input
-                    type="file"
-                    inputProps={{ multiple: true }}
-                    onChange={handleMultipleChange}
-                    sx={{ marginBottom: '20px' }}
-                />
-                <Button onClick={handleMultipleSubmit}>Upload Files</Button>
-                <Typography sx={{ marginBottom: '10px' }}> Files selected: {files.length}</Typography>
-                <Typography sx={{ marginBottom: '10px' }}> Files uploaded: {uploadedFiles.length}</Typography>
-                <FileList files={files} />
+                <Box sx={{ width: '50%' }}>
+                    <UploadZone
+                        brain_name={name}
+                        onUploadComplete={handleUploadComplete}
+                    />
+                </Box>
             </DialogContent>
             <DialogActions sx={{ padding: '20px' }}>
                 <Button onClick={onClose}>Cancel</Button>

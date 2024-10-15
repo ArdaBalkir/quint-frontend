@@ -33,7 +33,7 @@ export default function QuintTable() {
     React.useEffect(() => {
         // fetch user name from local storage
         const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        const userName = userInfo.preferred_username;
+        const userName = userInfo.username;
         const collabName = `${userName}-rwb`
 
         setBucketName(collabName);
@@ -52,13 +52,13 @@ export default function QuintTable() {
         setProcesses([{
             title: 'Pyramid File Creator',
             description: '',
-            progress: 65
+            progress: 100
 
         },
         {
             title: 'Align Images',
             description: 'Description of Process 2',
-            progress: 20
+            progress: 65
         },
         {
             title: 'Some other process',

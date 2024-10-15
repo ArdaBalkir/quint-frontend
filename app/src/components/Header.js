@@ -97,7 +97,7 @@ const Header = () => {
     };
 
     const sharedListItemSx = {
-        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)' },
+        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)', cursor: 'pointer' },
     };
 
 
@@ -124,16 +124,26 @@ const Header = () => {
                 .catch(error => console.error("Token couldn't be retrieved", error))
         }
 
-        // callUser();
+        try {
+            callUser();
+        } catch {
+            console.log("User couldn't be retrieved")
+
+            setAuth(false);
+        }
 
         const tokenExpiry = localStorage.getItem('tokenExpiry');
         if (tokenExpiry && new Date(tokenExpiry) < new Date()) {
             setUser(null)
-            handleLogin();
         } else {
-            setUser(JSON.parse(localStorage.getItem('userInfo')));
-            console.log(user)
-            setAuth(true);
+            try {
+                setUser(JSON.parse(localStorage.getItem('userInfo')));
+                console.log(user)
+                setAuth(true);
+            } catch {
+                setAuth(false);
+                console.log("User not logged in")
+            }
         }
 
     }, []);
@@ -213,15 +223,20 @@ const Header = () => {
                     </Box>
 
                     <Box>
-                        <Typography sx={{ fontSize: 24, fontFamily: 'Dosis', fontWeight: 300 }}>
+                        <Typography sx={{
+                            fontSize: 20,
+                            fontFamily: '"Roboto Mono", monospace',
+                            fontWeight: 300
+                        }}>
                             Rodent Workbench
                         </Typography>
+
                     </Box>
                     <Box>
                         <Tooltip title="Account, settings and FAQ">
                             <ListItemText
                                 onClick={user ? toggleDrawer : handleLogin}
-                                primary={user?.preferred_username || 'Login'}
+                                primary={user?.username || 'Login'}
                                 primaryTypographyProps={{
                                     variant: 'body2',
                                     color: 'text.primary',
@@ -244,7 +259,7 @@ const Header = () => {
                                 <ListItemIcon>
                                     <AccountCircleIcon />
                                 </ListItemIcon>
-                                {<ListItemText primary={user?.name} secondary={user?.email} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />}
+                                {<ListItemText primary={user?.fullname} secondary={user?.email} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />}
 
                             </ListItem>
                             <ListItem sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>

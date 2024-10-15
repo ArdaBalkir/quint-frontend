@@ -1,6 +1,7 @@
 import React from 'react';
 import { Accordion, AccordionSummary, AccordionDetails, Typography, CircularProgress, Box } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import LinearProgress from '@mui/material/LinearProgress';
 
@@ -23,7 +24,7 @@ const ProcessCard = ({ process }) => {
     return (
         <Accordion sx={{ alignContent: 'left' }}>
             <AccordionSummary
-                expandIcon={<ExpandMoreIcon />}
+                expandIcon={process.progress === 100 ? <CheckCircleIcon /> : <ExpandMoreIcon />}
                 aria-controls="panel1a-content"
                 id="panel1a-header"
                 sx={{ justifyContent: 'space-between', flexGrow: 1, width: '100%' }}
