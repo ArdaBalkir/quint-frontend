@@ -2,6 +2,23 @@ import React from 'react';
 import { Box, Typography, List, ListItem, ListItemText } from '@mui/material';
 import ProcessCard from './ProcessCard';
 
+const processes = [{
+    title: 'Pyramid File Creator',
+    description: '',
+    progress: 100
+
+},
+{
+    title: 'Align Images',
+    description: 'Description of Process 2',
+    progress: 65
+},
+{
+    title: 'Some other process',
+    description: 'Description of Process 3',
+    progress: 10
+}]
+
 const ProcessList = ({ processes }) => {
     return (
         <Box sx={{ gap: 4, padding: 2, flexGrow: 2, justifyContent: 'space-between' }}>
@@ -12,7 +29,7 @@ const ProcessList = ({ processes }) => {
     );
 };
 
-const AdditionalInfo = ({ rows, processes }) => {
+const AdditionalInfo = ({ rows }) => {
     return (
         <Box sx={{ flex: 1.8, overflow: 'auto', alignContent: 'flex-start', paddingLeft: 2, borderRadius: '4px' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>

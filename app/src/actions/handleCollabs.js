@@ -28,6 +28,7 @@ export const fetchCollab = async (collabName) => {
         throw error
     }
 }
+
 export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000, depth = 0) => {
     try {
         const token = refreshToken();
@@ -126,13 +127,13 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
     }
     return res
 }
-
+// For initial upload of brains
 export const uploadToPath = async (bucketName, projectName, brainName, file) => {
     const token = refreshToken();
     const objectName = `${projectName}/${brainName}/${file.name}`.replace(/\/+/g, '/');
     const getUrlEndpoint = `${BUCKET_URL}${bucketName}/${objectName}`;
 
-    // Step 1: Get the upload URL
+    // Step 1:
     const urlResponse = await fetch(getUrlEndpoint, {
         method: 'PUT',
         headers: {
@@ -147,7 +148,7 @@ export const uploadToPath = async (bucketName, projectName, brainName, file) => 
 
     const { url: uploadUrl } = await urlResponse.json();
 
-    // Step 2: Upload the file to the received URL
+    // Step 2: 
     const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: file
@@ -159,48 +160,3 @@ export const uploadToPath = async (bucketName, projectName, brainName, file) => 
 
     return { url: uploadUrl, status: uploadResponse.status === 204 };
 }
-
-
-// Fix
-// export const getUploadUrls = async (bucketName, objectNames) => {
-//     const token = refreshToken();
-//     const uploadUrls = []
-
-//     for (const objectName of objectNames) {
-//         const response = await fetch(`${BUCKET_URL}${bucketName}/${objectName}`, {
-//             method: 'PUT',
-//             headers: {
-//                 'Authorization': 'Bearer ' + token,
-//                 'Accept': 'application/json'
-//             }
-//         })
-
-//         if (!response.ok) {
-//             throw new Error(`Failed to get upload URL for ${objectName}`)
-//         }
-
-//         const data = await response.json()
-//         uploadUrls.push(data.url)
-//     }
-
-//     return uploadUrls
-// }
-
-// export const uploadToPath = async (bucketName, objectName, file) => {
-//     const uploadUrls = await getUploadUrls(bucketName, [objectName])
-//     const uploadUrl = uploadUrls[0]
-
-//     const formData = new FormData()
-//     formData.append('file', file)
-
-//     const response = await fetch(uploadUrl, {
-//         method: 'PUT',
-//         body: formData
-//     })
-
-//     if (!response.ok) {
-//         throw new Error('Failed to upload file')
-//     }
-
-//     return response.status === 204
-// }

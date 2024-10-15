@@ -3,7 +3,7 @@ import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconB
 import DeleteIcon from '@mui/icons-material/Delete';
 
 // Project handling
-import { fetchCollab, fetchBucketDir, fetchBrainNums, fetchBrainStats } from '../actions/handleCollabs.js';
+import { fetchBucketDir, fetchBrainStats } from '../actions/handleCollabs.js';
 import CreationDialog from './CreationDialog.js';
 import BrainTable from './BrainTable.js';
 import AdditionalInfo from './QuickActions.js';
@@ -56,24 +56,6 @@ export default function QuintTable() {
                 fetchAndUpdateProjects(collabName);
             }
         }
-
-        setProcesses([{
-            title: 'Pyramid File Creator',
-            description: '',
-            progress: 100
-
-        },
-        {
-            title: 'Align Images',
-            description: 'Description of Process 2',
-            progress: 65
-        },
-        {
-            title: 'Some other process',
-            description: 'Description of Process 3',
-            progress: 10
-        }])
-
 
     }, []);
 
@@ -191,7 +173,6 @@ export default function QuintTable() {
                         />
                         <AdditionalInfo
                             rows={rows}
-                            processes={processes}
                         />
                     </>
                 )}
