@@ -6,6 +6,7 @@ const refreshToken = () => {
     return token
 }
 
+// Works fine
 export const fetchCollab = async (collabName) => {
     try {
         const token = refreshToken();
@@ -126,45 +127,80 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
     return res
 }
 
-export const getUploadUrls = async (bucketName, objectNames) => {
+export const uploadToPath = async (bucketName, projectName, brainName, file) => {
     const token = refreshToken();
-    const uploadUrls = []
+    const objectName = `${projectName}/${brainName}/${file.name}`.replace(/\/+/g, '/');
+    const getUrlEndpoint = `${BUCKET_URL}${bucketName}/${objectName}`;
 
-    for (const objectName of objectNames) {
-        const response = await fetch(`${BUCKET_URL}${bucketName}/${objectName}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Accept': 'application/json'
-            }
-        })
-
-        if (!response.ok) {
-            throw new Error(`Failed to get upload URL for ${objectName}`)
-        }
-
-        const data = await response.json()
-        uploadUrls.push(data.url)
-    }
-
-    return uploadUrls
-}
-
-export const uploadToPath = async (bucketName, objectName, file) => {
-    const uploadUrls = await getUploadUrls(bucketName, [objectName])
-    const uploadUrl = uploadUrls[0]
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await fetch(uploadUrl, {
+    // Step 1: Get the upload URL
+    const urlResponse = await fetch(getUrlEndpoint, {
         method: 'PUT',
-        body: formData
-    })
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Accept': 'application/json'
+        }
+    });
 
-    if (!response.ok) {
-        throw new Error('Failed to upload file')
+    if (!urlResponse.ok) {
+        throw new Error(`Failed to get upload URL for ${file.name}`);
     }
 
-    return response.status === 204
+    const { url: uploadUrl } = await urlResponse.json();
+
+    // Step 2: Upload the file to the received URL
+    const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file
+    });
+
+    if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file ${file.name}`);
+    }
+
+    return { url: uploadUrl, status: uploadResponse.status === 204 };
 }
+
+
+// Fix
+// export const getUploadUrls = async (bucketName, objectNames) => {
+//     const token = refreshToken();
+//     const uploadUrls = []
+
+//     for (const objectName of objectNames) {
+//         const response = await fetch(`${BUCKET_URL}${bucketName}/${objectName}`, {
+//             method: 'PUT',
+//             headers: {
+//                 'Authorization': 'Bearer ' + token,
+//                 'Accept': 'application/json'
+//             }
+//         })
+
+//         if (!response.ok) {
+//             throw new Error(`Failed to get upload URL for ${objectName}`)
+//         }
+
+//         const data = await response.json()
+//         uploadUrls.push(data.url)
+//     }
+
+//     return uploadUrls
+// }
+
+// export const uploadToPath = async (bucketName, objectName, file) => {
+//     const uploadUrls = await getUploadUrls(bucketName, [objectName])
+//     const uploadUrl = uploadUrls[0]
+
+//     const formData = new FormData()
+//     formData.append('file', file)
+
+//     const response = await fetch(uploadUrl, {
+//         method: 'PUT',
+//         body: formData
+//     })
+
+//     if (!response.ok) {
+//         throw new Error('Failed to upload file')
+//     }
+
+//     return response.status === 204
+// }

@@ -1,15 +1,12 @@
 import * as React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
-import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconButton, List, ListItem, ListItemText } from '@mui/material';
-import Add from '@mui/icons-material/Add';
+import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconButton } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 // Project handling
 import { fetchCollab, fetchBucketDir, fetchBrainNums, fetchBrainStats } from '../actions/handleCollabs.js';
-import ArrowBack from '@mui/icons-material/ArrowBack';
-import ProcessCard from './ProcessCard.js';
 import CreationDialog from './CreationDialog.js';
-
+import BrainTable from './BrainTable.js';
+import AdditionalInfo from './QuickActions.js';
 
 export default function QuintTable() {
     // onMount
@@ -20,6 +17,8 @@ export default function QuintTable() {
     const [selectedBrain, setSelectedBrain] = React.useState(null);
     // for the quick action menu and stat displays
     const [selectedBrainStats, setSelectedBrainStats] = React.useState([]);
+    const [updateTrigger, setUpdateTrigger] = React.useState(0);
+
 
     const [rows, setRows] = React.useState([]);
     const [columns, setColumns] = React.useState([]);
@@ -27,6 +26,19 @@ export default function QuintTable() {
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
     const [processes, setProcesses] = React.useState([]);
+
+    // There is a problem with the update trigger but otherwise go back and forth works fine for pyramiding and the rest
+    const fetchAndUpdateProjects = (collabName) => {
+        fetchBucketDir(collabName, null, '/')
+            .then(projects => {
+                console.log(projects);
+                setProjects(projects);
+                setUpdateTrigger(prev => prev + 1);
+            })
+            .catch(error => {
+                console.error('Error fetching projects:', error);
+            });
+    };
 
 
     // onMount
@@ -38,15 +50,11 @@ export default function QuintTable() {
 
         setBucketName(collabName);
 
+
         if (projects.length === 0) {
-            fetchBucketDir(collabName, null, '/')
-                .then(projects => {
-                    console.log(projects);
-                    setProjects(projects);
-                })
-                .catch(error => {
-                    console.error('Error fetching projects:', error);
-                });
+            if (projects.length === 0) {
+                fetchAndUpdateProjects(collabName);
+            }
         }
 
         setProcesses([{
@@ -103,7 +111,7 @@ export default function QuintTable() {
         console.log('Params passed down', params);
         setSelectedBrain(params.row);
         console.log(`Selected brain: ${params.row.name}`);
-        setSelectedBrainStats(fetchBrainStats(bucketName, params.row.path));
+        // setSelectedBrainStats(fetchBrainStats(bucketName, params.row.path));
         console.log(`Selected brain stats: ${selectedBrainStats}`);
         // Keeping this for logging throughout
 
@@ -117,7 +125,7 @@ export default function QuintTable() {
     return (
         <Box sx={{ backgroundColor: 'white', padding: '2%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', height: '90%', borderRadius: '4px' }}>
             <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
-                {selectedProject === null && (
+                {selectedProject === null ? (
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <Typography variant="h6" align="left" gutterBottom>
                             Projects
@@ -171,82 +179,29 @@ export default function QuintTable() {
 
                         </Box>
                     </Box>
+                ) : (
+                    <>
+                        <BrainTable
+                            selectedProject={selectedProject}
+                            rows={rows}
+                            columns={columns}
+                            onBackClick={() => setSelectedProject(null)}
+                            onAddBrainClick={handleOpenDialog}
+                            onBrainSelect={handleBrainSelect}
+                        />
+                        <AdditionalInfo
+                            rows={rows}
+                            processes={processes}
+                        />
+                    </>
                 )}
-                <Box sx={{ flex: 3, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
-                    {selectedProject && (
-                        <><Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                                <Button
-                                    size="small"
-                                    color='inherit'
-                                    onClick={() => setSelectedProject(null)}
-                                    sx={{ maxWidth: 180 }}
-                                    startIcon={<ArrowBack />}
-                                >
-                                    Back to Projects
-                                </Button>
-                                <Button
-                                    size="small"
-                                    color='inherit'
-                                    sx={{ maxWidth: 180 }}
-                                    startIcon={<Add />}
-                                    onClick={handleOpenDialog}
-                                >
-                                    Add Brain
-                                </Button>
-                            </Box>
-
-                            <Typography variant="h6" color="black" gutterBottom>
-                                {selectedProject.name}
-                            </Typography>
-                        </Box>
-                            <DataGrid
-                                sx={{ width: '100%', height: 'calc(100% - 40px)' }}
-                                rows={rows}
-                                columns={columns}
-                                initialState={{
-                                }}
-                                pageSizeOptions={10}
-                                disableColumnResize
-                                rowHeight={42}
-                                onRowClick={handleBrainSelect}
-                                isRowSelectable={(params) => true}
-                            />
-                        </>
-                    )}
-                </Box>
-                <CreationDialog
-                    open={isDialogOpen}
-                    onClose={handleCloseDialog}
-                    project={selectedProject}
-                />
-
-
-                {selectedProject && (
-                    <Box sx={{ flex: 1.8, overflow: 'auto', alignContent: 'flex-start', paddingLeft: 2, borderRadius: '4px' }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-                            <Typography variant="h6" color="black" gutterBottom>
-                                Additional Information
-                            </Typography>
-                            <List>
-                                <ListItem>
-                                    <ListItemText primary="Total Entries" secondary={rows.length} />
-                                </ListItem>
-                                <ListItem>
-                                    <ListItemText primary="Last Updated" secondary={new Date().toLocaleDateString()} />
-                                </ListItem>
-                                <ListItem>
-                                    <ListItemText primary="Data Source" secondary="Game of Thrones API" />
-                                </ListItem>
-                            </List>
-                        </Box>
-                        <Box sx={{ gap: 4, padding: 2, flexGrow: 2, justifyContent: 'space-between', }}>
-                            {processes.map((process, index) => (
-                                <ProcessCard key={index} process={process} />
-                            ))}
-                        </Box>
-                    </Box>
-                )}
-            </Box> </Box>
+            </Box>
+            <CreationDialog
+                open={isDialogOpen}
+                onClose={handleCloseDialog}
+                project={selectedProject}
+                updateProjects={fetchAndUpdateProjects}
+            />
+        </Box>
     );
 }

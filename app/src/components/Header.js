@@ -128,7 +128,6 @@ const Header = () => {
             callUser();
         } catch {
             console.log("User couldn't be retrieved")
-
             setAuth(false);
         }
 
@@ -163,6 +162,7 @@ const Header = () => {
                                 edge="start"
                                 color="inherit"
                                 aria-label="tools"
+                                size='small'
                                 onClick={handleMenu1Click}
                             >
                                 <ConstructionIcon />
