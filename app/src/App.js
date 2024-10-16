@@ -6,7 +6,19 @@ import { ThemeProvider } from '@mui/material/styles';
 
 const theme = createTheme({
   typography: {
-    fontFamily: '"Roboto Mono", monospace',
+    fontFamily: 'Open Sans, sans-serif',
+  },
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#9ce142',
+      light: '#00c959',
+      dark: '#00a595',
+    },
+    secondary: {
+      main: '#3fa9f5',
+      light: '#0644f4',
+    },
   },
 });
 

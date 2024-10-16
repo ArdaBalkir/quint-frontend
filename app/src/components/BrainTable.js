@@ -1,10 +1,36 @@
 import React from 'react';
-import { DataGrid } from '@mui/x-data-grid';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button, List, ListItem, ListItemButton, ListItemText, IconButton } from '@mui/material';
 import ArrowBack from '@mui/icons-material/ArrowBack';
 import Add from '@mui/icons-material/Add';
 
-const BrainTable = ({ selectedProject, rows, columns, onBackClick, onAddBrainClick, onBrainSelect }) => {
+const BrainList = ({ rows, onBrainSelect }) => {
+    const [selectedBrain, setSelectedBrain] = React.useState(null);
+
+    const handleBrainSelect = (brain) => {
+        setSelectedBrain(brain);
+        onBrainSelect({ row: brain });
+    };
+
+    return (
+        <List sx={{ width: '100%', bgcolor: 'background.paper', dense: true }}>
+            {rows.map((brain) => (
+                <ListItem
+                    key={brain.id}
+                    disablePadding
+                >
+                    <ListItemButton
+                        selected={selectedBrain && selectedBrain.id === brain.id}
+                        onClick={() => handleBrainSelect(brain)}
+                    >
+                        <ListItemText primary={brain.name} secondary='Mouse Brain' />
+                    </ListItemButton>
+                </ListItem>
+            ))}
+        </List>
+    );
+};
+
+const BrainTable = ({ selectedProject, rows, onBackClick, onAddBrainClick, onBrainSelect }) => {
     return (
         <Box sx={{ flex: 3, overflow: 'visible', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -32,17 +58,7 @@ const BrainTable = ({ selectedProject, rows, columns, onBackClick, onAddBrainCli
                     {selectedProject.name}
                 </Typography>
             </Box>
-            <DataGrid
-                sx={{ width: '100%', height: 'calc(100% - 40px)' }}
-                rows={rows}
-                columns={columns}
-                initialState={{}}
-                pageSizeOptions={10}
-                disableColumnResize
-                rowHeight={42}
-                onRowClick={onBrainSelect}
-                isRowSelectable={(params) => true}
-            />
+            <BrainList rows={rows} onBrainSelect={onBrainSelect} />
         </Box>
     );
 };

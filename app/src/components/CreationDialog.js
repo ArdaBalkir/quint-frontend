@@ -73,7 +73,7 @@ export default function CreationDialog({ open, onClose, onSubmit, project, updat
     };
     return (
         <>
-            <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ style: { minHeight: '80vh' } }}>
+            <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ style: { minHeight: '80vh' } }}>
                 <DialogTitle>Create a new Brain in Project {project?.name || ''}</DialogTitle>
                 <DialogContent sx={{ padding: '20px' }}>
                     <DialogContentText sx={{ marginBottom: '20px' }}>
@@ -91,11 +91,11 @@ export default function CreationDialog({ open, onClose, onSubmit, project, updat
                         onChange={handleNameChange}
                         sx={{ marginBottom: '20px' }}
                     />
-                    <Box sx={{ width: '50%' }}>
-                        <UploadZone
-                            onFilesSelected={handleFilesSelected}
-                        />
-                    </Box>
+
+                    <UploadZone
+                        onFilesSelected={handleFilesSelected}
+                    />
+
                 </DialogContent>
                 <DialogActions sx={{ padding: '20px' }}>
                     <Button onClick={onClose}>Cancel</Button>
@@ -107,6 +107,7 @@ export default function CreationDialog({ open, onClose, onSubmit, project, updat
                 autoHideDuration={6000}
                 onClose={handleSnackbarClose}
                 message={snackbarMessage}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             />
         </>
     );

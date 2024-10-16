@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconButton } from '@mui/material';
+import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconButton, CircularProgress } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 // Project handling
@@ -68,7 +68,6 @@ export default function QuintTable() {
         if (project === null) {
             setSelectedBrain(null);
             setRows([]);
-            setColumns([]);
             return;
         }
 
@@ -81,20 +80,15 @@ export default function QuintTable() {
         }));
         setRows(newRows);
 
-        const newColumns = [
-            { field: 'name', headerName: 'Name', flex: 1 },
-            { field: 'type', headerName: 'Type', width: 120 },
-            { field: 'path', headerName: 'Path', flex: 1 }
-        ];
-        setColumns(newColumns);
     };
 
-    const handleBrainSelect = (params) => {
+    const handleBrainSelect = async (params) => {
         console.log('Params passed down', params);
         setSelectedBrain(params.row);
         console.log(`Selected brain: ${params.row.name}`);
-        // setSelectedBrainStats(fetchBrainStats(bucketName, params.row.path));
-        console.log(`Selected brain stats: ${selectedBrainStats}`);
+        const stats = await fetchBrainStats(bucketName, params.row.path);
+        setSelectedBrainStats(stats);
+        console.log(`Selected brain stats:`, stats);
         // Keeping this for logging throughout
 
     }
@@ -114,7 +108,10 @@ export default function QuintTable() {
                         </Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                             {projects.length === 0 ? (
-                                <Typography>Getting projects...</Typography>
+                                <>
+                                    <CircularProgress size={15} />
+                                    <Typography>getting projects...</Typography>
+                                </>
                             ) : (
                                 projects.map((project, index) => (
                                     <Card key={index} elevation={1} sx={{ mb: 2, flexBasis: 'calc(33.333% - 16px)', minWidth: '250px', }}>
@@ -166,13 +163,13 @@ export default function QuintTable() {
                         <BrainTable
                             selectedProject={selectedProject}
                             rows={rows}
-                            columns={columns}
                             onBackClick={() => setSelectedProject(null)}
                             onAddBrainClick={handleOpenDialog}
                             onBrainSelect={handleBrainSelect}
                         />
                         <AdditionalInfo
-                            rows={rows}
+                            braininfo={selectedBrain}
+                            stats={selectedBrainStats}
                         />
                     </>
                 )}

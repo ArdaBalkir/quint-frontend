@@ -26,14 +26,15 @@ function UploadZone({ onFilesSelected }) {
     ));
 
     return (
-        <Box sx={{ width: '100%', maxWidth: 500, margin: 'auto' }}>
+        <Box sx={{ width: '100%' }}>
             <Box
                 {...getRootProps()}
                 sx={{
                     padding: 2,
                     textAlign: 'center',
                     cursor: 'pointer',
-                    border: '2px dashed gray',
+                    border: '1px dashed gray',
+                    borderRadius: '4px',
                     backgroundColor: 'transparent',
                     '&:hover': {
                         backgroundColor: 'action.hover',
@@ -41,11 +42,11 @@ function UploadZone({ onFilesSelected }) {
                 }}
             >
                 <input {...getInputProps()} />
-                <Typography color='gray'>Drag 'n' drop brain image files or click to browse</Typography>
+                <Typography color='gray' fontWeight={300}>Drag 'n' drop brain image files or click to browse</Typography>
             </Box>
             <Box sx={{ mt: 2 }}>
-                <Typography variant="h6">Selected Files</Typography>
-                <Paper sx={{ maxHeight: 200, elevation: 0, boxShadow: 0, overflow: 'auto' }}>
+                <Typography >Brain images for upload</Typography>
+                <Paper sx={{ maxHeight: '30vh', elevation: 0, boxShadow: 0, overflow: 'auto' }}>
                     <List>{files}</List>
                 </Paper>
             </Box>

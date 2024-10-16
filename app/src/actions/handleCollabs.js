@@ -92,13 +92,12 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
         const params = new URLSearchParams();
 
         const workDirs = [
-            'Metadata',
-            'originalImages'
+            'raw_images'
         ]
+
         for (const workDir of workDirs) {
             const params = new URLSearchParams()
             if (brainPrefix) params.append('prefix', `${brainPrefix}${workDir}/`)
-            params.append('delimiter', '/')
             params.append('limit', 1000)
             const workDirUrl = `${url}${params.toString()}`
 
@@ -130,7 +129,7 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
 // For initial upload of brains
 export const uploadToPath = async (bucketName, projectName, brainName, file) => {
     const token = refreshToken();
-    const objectName = `${projectName}/${brainName}/${file.name}`.replace(/\/+/g, '/');
+    const objectName = `${projectName}/${brainName}/raw_images/${file.name}`.replace(/\/+/g, '/');
     const getUrlEndpoint = `${BUCKET_URL}${bucketName}/${objectName}`;
 
     // Step 1:
