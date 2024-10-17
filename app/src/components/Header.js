@@ -224,11 +224,10 @@ const Header = () => {
 
                     <Box>
                         <Typography sx={{
-                            fontSize: 20,
-                            fontFamily: '"Roboto Mono", monospace',
-                            fontWeight: 300
+                            fontSize: 18,
+                            fontWeight: 5600
                         }}>
-                            Rodent Workbench
+                            rodent workbench
                         </Typography>
 
                     </Box>

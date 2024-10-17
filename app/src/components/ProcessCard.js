@@ -24,7 +24,7 @@ const ProcessCard = ({ process }) => {
     return (
         <Accordion sx={{ alignContent: 'left' }}>
             <AccordionSummary
-                expandIcon={process.progress === 100 ? <CheckCircleIcon /> : <ExpandMoreIcon />}
+                expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1a-content"
                 id="panel1a-header"
                 sx={{ justifyContent: 'space-between', flexGrow: 1, width: '100%' }}

@@ -13,19 +13,22 @@ export default function QuintTable() {
     const [bucketName, setBucketName] = React.useState(null);
     const [projects, setProjects] = React.useState([]);
     const [selectedProject, setSelectedProject] = React.useState(null);
+
     // For brain selection
     const [selectedBrain, setSelectedBrain] = React.useState(null);
+
     // for the quick action menu and stat displays
     const [selectedBrainStats, setSelectedBrainStats] = React.useState([]);
     const [updateTrigger, setUpdateTrigger] = React.useState(0);
 
-
+    // for the brain table
     const [rows, setRows] = React.useState([]);
-    const [columns, setColumns] = React.useState([]);
+    const [processes, setProcesses] = React.useState([]);
+
 
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
-    const [processes, setProcesses] = React.useState([]);
+
 
     // There is a problem with the update trigger but otherwise go back and forth works fine for pyramiding and the rest
     const fetchAndUpdateProjects = (collabName) => {
@@ -99,7 +102,7 @@ export default function QuintTable() {
 
 
     return (
-        <Box sx={{ backgroundColor: 'white', padding: '2%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', height: '90%', borderRadius: '4px' }}>
+        <Box sx={{ backgroundColor: '#f9f9f9', padding: '2%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', height: '90%', borderRadius: '4px' }}>
             <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
                 {selectedProject === null ? (
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -114,7 +117,7 @@ export default function QuintTable() {
                                 </>
                             ) : (
                                 projects.map((project, index) => (
-                                    <Card key={index} elevation={1} sx={{ mb: 2, flexBasis: 'calc(33.333% - 16px)', minWidth: '250px', }}>
+                                    <Card key={index} elevation={1} sx={{ mb: 2, flexBasis: 'calc(33.333% - 16px)', minWidth: '250px', maxWidth: '250px', justifyContent: 'space-between' }}>
                                         <CardContent>
                                             <Typography sx={{ textAlign: 'left' }}>{project.name}</Typography>
                                             {project.type === 'directory' && (
