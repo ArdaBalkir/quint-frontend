@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Typography, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemText, Card, CardContent, Button, LinearProgress } from '@mui/material';
 import ProcessCard from './ProcessCard';
+import { useState, useEffect } from 'react';
+import { callDeepZoom } from '../actions/handleCollabs';
 
 const processes = [{
     title: 'Pyramid File Creator',
@@ -27,17 +29,31 @@ const formatFileSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const ProcessList = ({ processes }) => {
-    return (
-        <Box sx={{ gap: 4, padding: 2, flexGrow: 2, justifyContent: 'space-between' }}>
-            {processes.map((process, index) => (
-                <ProcessCard key={index} process={process} />
-            ))}
-        </Box>
-    );
-};
-
 const AdditionalInfo = ({ braininfo, stats }) => {
+
+    let pyramidCount = stats[1]?.zip.length || 0;
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            setUser(userInfo.username);
+        } catch (error) {
+            console.error('Error parsing userInfo:', error);
+        }
+    }, []);
+
+    const processFiles = async (files, target) => {
+        const bucketName = `${user}-rwb/`;
+        let pyramidCount = 0;
+        for (const file of files) {
+            const result = await callDeepZoom(bucketName + file, bucketName + target);
+            if (result.status === 200) {
+                pyramidCount++;
+            }
+        }
+    };
+
     if (!braininfo) {
         return (
             <Box sx={{ flex: 1.8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -67,7 +83,32 @@ const AdditionalInfo = ({ braininfo, stats }) => {
                     </ListItem>
                 </List>
             </Box>
-            <ProcessList processes={processes} />
+            <Card sx={{ maxHeight: 300, overflow: 'auto' }}>
+                <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <Typography color="text" gutterBottom>
+                            Tiff Files to be Converted: {brainStats.files - stats[1]?.zip.length}
+                            <br />
+                            Currently in Zipped Files: {stats[1]?.zip.length}
+                        </Typography>
+                        <Button
+                            variant='outlined'
+                            color='black'
+                            onClick={() => processFiles(brainStats.tiffs, stats[1]?.name)}
+                        >
+                            Process Files
+                        </Button>
+                    </Box>
+                    <Box sx={{ mt: 2 }}>
+                        <Typography>
+                            Progress: {pyramidCount} / {brainStats.files} files processed
+                        </Typography>
+                        <LinearProgress variant="determinate" value={(pyramidCount / brainStats.files) * 100} />
+                    </Box>
+
+
+                </CardContent>
+            </Card>
         </Box>
     );
 };

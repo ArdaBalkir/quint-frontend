@@ -1,5 +1,6 @@
 
 const BUCKET_URL = 'https://data-proxy.ebrains.eu/api/v1/buckets/'
+const DEEPZOOM_URL = process.env.REACT_APP_DEEPZOOM_URL
 
 const refreshToken = () => {
     let token = localStorage.getItem('accessToken')
@@ -92,7 +93,8 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
         const params = new URLSearchParams();
 
         const workDirs = [
-            'raw_images'
+            'raw_images',
+            'zipped_images',
         ]
 
         for (const workDir of workDirs) {
@@ -113,9 +115,11 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
             }
             const data = await response.json()
             const stats = {
-                "name": brainPrefix,
+                "name": brainPrefix + workDir,
                 "files": data.objects.length,
                 "size": data.objects.reduce((acc, obj) => acc + obj.bytes, 0),
+                "tiffs": data.objects.filter(obj => obj.name.endsWith('.tif')).map(obj => obj.name),
+                "zip": data.objects.filter(obj => obj.name.endsWith('.zip')).map(obj => obj.name),
             }
             res.push(stats)
         }
@@ -159,3 +163,32 @@ export const uploadToPath = async (bucketName, projectName, brainName, file) => 
 
     return { url: uploadUrl, status: uploadResponse.status === 204 };
 }
+
+export const callDeepZoom = async (sourceName, targetName) => {
+    const token = refreshToken();
+    try {
+        const response = await fetch(DEEPZOOM_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
+            body: JSON.stringify({
+                "path": sourceName,
+                "bucketname": targetName,
+                "token": token
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`DeepZoom request failed: ${response.body}, ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error calling DeepZoom:', error);
+        throw error;
+    }
+}
+
+
