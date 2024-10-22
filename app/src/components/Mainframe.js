@@ -32,7 +32,7 @@ const Mainframe = ({ url, native, menuItems }) => {
                     width: '98%',
                     height: '98%',
                     border: 'none',
-                    bgcolor: '#dee3e1',
+
                     borderRadius: '4px',
                 }}>
                     <QuintTable />

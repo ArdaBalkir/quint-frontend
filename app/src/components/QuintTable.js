@@ -2,12 +2,14 @@ import * as React from 'react';
 import { Box, Typography, Button, Tooltip, IconButton, CircularProgress, List, ListItem, ListItemText, ListItemButton, } from '@mui/material';
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import AddIcon from '@mui/icons-material/Add';
 
 // Project handling
 import { fetchBucketDir, fetchBrainStats } from '../actions/handleCollabs.js';
 import CreationDialog from './CreationDialog.js';
 import BrainTable from './BrainTable.js';
 import AdditionalInfo from './QuickActions.js';
+
 
 export default function QuintTable() {
     // onMount
@@ -107,9 +109,16 @@ export default function QuintTable() {
             <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
                 {selectedProject === null ? (
                     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 2 }}>
-                        <Box sx={{ flexDirection: 'column', flexGrow: 1 }}> <Typography variant="h6" align="left" gutterBottom>
-                            Projects
-                        </Typography>
+                        <Box sx={{ flexDirection: 'column', flexGrow: 1, }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: 'space-between' }}>
+                                <Typography variant="h6" align="left" gutterBottom>
+                                    Projects
+                                </Typography>
+                                <IconButton sx={{ alignSelf: 'flex-start' }}>
+                                    <AddIcon />
+                                </IconButton>
+                            </Box>
+
                             <Box sx={{ display: 'flex', gap: 2 }}>
                                 {projects.length === 0 ? (
                                     <>
@@ -117,7 +126,7 @@ export default function QuintTable() {
                                         <Typography>getting projects...</Typography>
                                     </>
                                 ) : (
-                                    <List sx={{ width: '90%', }}>
+                                    <List sx={{ width: '100%', }}>
                                         {projects.map((project, index) => (
                                             <ListItem
                                                 key={index}

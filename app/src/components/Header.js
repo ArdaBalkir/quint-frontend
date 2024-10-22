@@ -8,7 +8,8 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    Menu,
+    Tabs,
+    Tab,
     Toolbar,
     Tooltip,
     Typography
@@ -19,6 +20,7 @@ import ConstructionIcon from '@mui/icons-material/Construction';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
+
 
 import Mainframe from './Mainframe';
 import callUser from '../actions/createUser';
@@ -34,76 +36,69 @@ const FAPI_URL = process.env.REACT_APP_FAPI_URL;
 const OIDC = process.env.REACT_APP_OIDC;
 const USER_INFO_URL = process.env.REACT_APP_USER_INFO_URL;
 
+const tabs = [
+    {
+        label: 'Projects',
+        url: null,
+        disabled: false,
+    },
+    {
+        label: 'WebWarp',
+        url: WEBWARP_URL,
+        disabled: false,
+    },
+    {
+        label: 'WebNutil',
+        url: WEBNUTIL_URL,
+        disabled: false,
+    },
+    {
+        label: 'WebAlign',
+        url: WEBALIGN_URL,
+        disabled: false,
+    }
+]
+
+
 console.log(`You are running this application in ${process.env.NODE_ENV} mode`)
 
 console.log(`Logging in`)
-
 
 const Header = () => {
     const [auth, setAuth] = useState(false);
     const [token, setToken] = useState(null);
     const [user, setUser] = useState(null);
-    const [anchorEl1, setAnchorEl1] = useState(null);
-    const [anchorEl2, setAnchorEl2] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
     // Mainly for Native use of the applications and the webalign etc i frame ones
     const [currentUrl, setCurrentUrl] = useState(null);
     const [nativeSelection, setNativeSelection] = useState(true);
+    const [tab, setTab] = useState(0);
 
     const handleLogin = () => {
         window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintweb&redirect_uri=https://127.00.0.1:3000`
     }
 
-    /*
-    const handleMenu1Click = (event) => {
-        setAnchorEl1(event.currentTarget);
-    };
-
-    const handleMenu2Click = (event) => {
-        setAnchorEl2(event.currentTarget);
-    };
-    */
-
-    const handleMenuClose = () => {
-        setAnchorEl1(null);
-        setAnchorEl2(null);
-    };
-
     const toggleDrawer = () => {
         setDrawerOpen(!drawerOpen);
     };
 
-    /*
     const handleFrameChange = (url) => {
         console.log(`Changing frame to ${url}`);
         setCurrentUrl(url);
         setNativeSelection(false);
-        handleMenuClose();
     };
 
-    const handleNativeApp = () => {
-        setNativeSelection(true);
-        handleMenuClose();
-    };
-    */
-
-    const sharedMenuSx = {
-        '& .MuiPaper-root': {
-            boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
-            borderRadius: '4px',
-        },
-        '& .MuiMenuItem-root': {
-            '&:hover': {
-                backgroundColor: 'rgba(0, 0, 0, 0.04)',
-            },
-        },
+    const handleNativeChange = () => {
+        setNativeSelection(!nativeSelection);
     };
 
     const sharedListItemSx = {
-        '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.04)', cursor: 'pointer' },
+        '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            cursor: 'pointer',
+        },
     };
-
 
     // OnMount for all logins etc.
     useEffect(() => {
@@ -157,84 +152,60 @@ const Header = () => {
                 backgroundColor: '#F2F2F2',
                 color: 'black',
                 boxShadow: '0px 3px 2px rgba(0, 0, 0, 0.12)',
-                fontFamily: 'Roboto, sans-serif'
+                fontFamily: 'Roboto, sans-serif',
             }}>
-                <Toolbar variant="dense" sx={{ justifyContent: 'space-between' }}>
-                    {/*
-                    <Box>
-                        <Tooltip title="Tools">
-                            <IconButton
-                                edge="start"
-                                color="inherit"
-                                aria-label="tools"
-                                size='small'
-                                onClick={handleMenu1Click}
-                            >
-                                <ConstructionIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <Menu
-                            anchorEl={anchorEl1}
-                            open={Boolean(anchorEl1)}
-                            onClose={handleMenuClose}
-                            sx={sharedMenuSx}
-                        >
-                            <List dense={true}>
-                                <ListItem onClick={() => handleFrameChange(FILECREATOR)} sx={sharedListItemSx}>
-                                    <ListItemText primary="File Creator"
-                                        secondary="Create Pyramid files" />
-                                </ListItem>
-                                <ListItem onClick={() => handleFrameChange(LOCALIZOOM)} sx={sharedListItemSx}>
-                                    <ListItemText primary="LocaliZoom"
-                                        secondary="View Pyramid files" />
-                                </ListItem>
-                                <ListItem onClick={handleNativeApp} sx={sharedListItemSx}>
-                                    <ListItemText primary="Project Manager" secondary="Manage Projects, Quick Actions" />
-                                </ListItem>
-                                <ListItem onClick={handleMenuClose} sx={sharedListItemSx}>
-                                    <ListItemText primary="Manage Buckets" />
-                                </ListItem>
-                            </List>
-                        </Menu>
-                        <Tooltip title="Apps & Analysis">
-                            <IconButton
-                                color="inherit"
-                                aria-label="apps and analysis"
-                                onClick={handleMenu2Click}>
-                                <DisplaySettingsIcon />
-                            </IconButton>
-                        </Tooltip>
-                        <Menu
-                            anchorEl={anchorEl2}
-                            open={Boolean(anchorEl2)}
-                            onClose={handleMenuClose}
-                            sx={sharedMenuSx}
-                        >
-                            <List dense={true}>
-                                <ListItem onClick={() => handleFrameChange(WEBALIGN_URL)} sx={sharedListItemSx}>
-                                    <ListItemText primary="WebAlign"
-                                        secondary="VisuAlign for linear forming" />
-                                </ListItem>
-                                <ListItem onClick={() => handleFrameChange(WEBWARP_URL)} sx={sharedListItemSx}>
-                                    <ListItemText primary="WebWarp"
-                                        secondary="Non-linear warping for brain images" />
-                                </ListItem>
-                                <ListItem onClick={() => handleFrameChange(WEBNUTIL_URL)} sx={sharedListItemSx}>
-                                    <ListItemText primary="WebNUtil"
-                                        secondary="NeuroUtilities module" />
-                                </ListItem>
-                            </List>
-                        </Menu>
-                    </Box> */}
+                <Toolbar variant="dense" sx={{ justifyContent: 'space-between', height: '20px', position: 'relative' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Tabs
+                            value={tab}
+                            onChange={(event, newValue) => setTab(newValue)}
+                            sx={{
+                                '& .MuiTab-root': {
+                                    textTransform: 'none',
 
-                    <Box>
+                                    color: 'black',
+                                    fontFamily: 'Roboto, sans-serif',
+                                    fontSize: '9',
+                                    marginRight: '1px',
+                                    '&.Mui-selected': {
+                                        color: 'primary.main',
+                                        backgroundColor: 'white',
+                                    },
+                                    '&:hover': {
+                                        color: 'primary.main',
+                                        opacity: 1,
+                                    },
+                                },
+                                '& .MuiTabs-indicator': {
+                                    height: 5,
+                                    transition: 'none',
+                                },
+                            }}
+                        >
+                            {tabs.map((tab, index) => (
+                                <Tab
+                                    key={index}
+                                    label={tab.label}
+                                    disabled={tab.disabled}
+                                    onClick={() => tab.label === 'Projects' ? handleNativeChange() : handleFrameChange(tab.url)}
+                                />
+                            ))}
+                        </Tabs>
+                    </Box>
+
+                    <Box sx={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 1,
+                    }}>
+
                         <Typography sx={{
                             fontSize: 18,
-                            fontWeight: 5600
                         }}>
                             rodent workbench
                         </Typography>
-
                     </Box>
                     <Box>
                         <Tooltip title="Account, settings and FAQ">
@@ -266,12 +237,14 @@ const Header = () => {
                                 {<ListItemText primary={user?.fullname} secondary={user?.email} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />}
 
                             </ListItem>
+                            {/*}
                             <ListItem sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
                                 <ListItemIcon>
                                     <MenuBookIcon />
                                 </ListItemIcon>
                                 <ListItemText primary="Documentation" secondary='QUINT Online Documentation' primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
+                            */}
                             <ListItem sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <CloudDownloadIcon />
