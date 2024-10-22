@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Box, Typography, Card, CardContent, CardActions, Button, Tooltip, IconButton, CircularProgress } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Box, Typography, Button, Tooltip, IconButton, CircularProgress, List, ListItem, ListItemText, ListItemButton, } from '@mui/material';
+import FolderRoundedIcon from '@mui/icons-material/FolderRounded';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 // Project handling
 import { fetchBucketDir, fetchBrainStats } from '../actions/handleCollabs.js';
@@ -102,63 +103,54 @@ export default function QuintTable() {
 
 
     return (
-        <Box sx={{ backgroundColor: '#f9f9f9', padding: '2%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', height: '90%', borderRadius: '4px' }}>
+        <Box sx={{ backgroundColor: '#f9f9f9', padding: '2%', display: 'flex', flexDirection: 'row', alignItems: 'stretch', height: '90%', borderRadius: '4px' }}>
             <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
                 {selectedProject === null ? (
-                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography variant="h6" align="left" gutterBottom>
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 2 }}>
+                        <Box sx={{ flexDirection: 'column', flexGrow: 1 }}> <Typography variant="h6" align="left" gutterBottom>
                             Projects
                         </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                            {projects.length === 0 ? (
-                                <>
-                                    <CircularProgress size={15} />
-                                    <Typography>getting projects...</Typography>
-                                </>
-                            ) : (
-                                projects.map((project, index) => (
-                                    <Card key={index} elevation={1} sx={{ mb: 2, flexBasis: 'calc(33.333% - 16px)', minWidth: '250px', maxWidth: '250px', justifyContent: 'space-between' }}>
-                                        <CardContent>
-                                            <Typography sx={{ textAlign: 'left' }}>{project.name}</Typography>
-                                            {project.type === 'directory' && (
-                                                <>
-                                                    <Typography variant="body2" sx={{ mt: 1, textAlign: 'left' }}>
-                                                        Files: {project.subEntries.filter(entry => entry.type === 'file').length}
-                                                    </Typography>
-                                                    <Typography variant="body2" sx={{ textAlign: 'left' }}>
-                                                        Folders: {project.subEntries.filter(entry => entry.type === 'directory').length}
-                                                    </Typography>
-                                                </>
-                                            )}
-                                        </CardContent>
-                                        <CardActions sx={{ justifyContent: 'space-between' }}>
-                                            <Tooltip title="Delete Project">
-                                                <IconButton
-                                                    size="small"
-                                                    sx={{
-                                                        color: 'red',
-                                                    }}
-                                                >
-                                                    <DeleteIcon />
-                                                </IconButton>
-                                            </Tooltip>
-                                            <Tooltip title="Open project">
-                                                <Button
-                                                    size="small"
-                                                    variant="text"
-                                                    sx={{
-                                                        color: 'black',
-                                                    }}
-                                                    onClick={() => handleProjectSelect(project)}
-                                                >
-                                                    Choose
-                                                </Button>
-                                            </Tooltip>
-                                        </CardActions>
-                                    </Card>
-                                ))
-                            )}
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                                {projects.length === 0 ? (
+                                    <>
+                                        <CircularProgress size={15} />
+                                        <Typography>getting projects...</Typography>
+                                    </>
+                                ) : (
+                                    <List sx={{ width: '90%', }}>
+                                        {projects.map((project, index) => (
+                                            <ListItem
+                                                key={index}
+                                                sx={{
+                                                    borderRadius: '4px',
+                                                    mb: 1,
+                                                    '&:hover': {
+                                                        backgroundColor: '#f9f9f9',
+                                                    },
+                                                }}
+                                            >
+                                                <ListItemText primary={project.name} />
 
+                                                <IconButton onClick={() => handleProjectSelect(project)}>
+                                                    <ArrowForwardIcon />
+                                                </IconButton>
+
+                                                <IconButton onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    window.open(`https://data-proxy.ebrains.eu/${bucketName}`, '_blank');
+                                                }}>
+                                                    <FolderRoundedIcon />
+                                                </IconButton>
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                )}
+                            </Box>
+                        </Box>
+                        <Box
+                            component="iframe"
+                            src="https://quint-webtools.readthedocs.io/en/latest/"
+                            sx={{ display: 'flex', flexGrow: 1.5, borderRadius: 1 }}>
                         </Box>
                     </Box>
                 ) : (
@@ -177,6 +169,7 @@ export default function QuintTable() {
                     </>
                 )}
             </Box>
+
             <CreationDialog
                 open={isDialogOpen}
                 onClose={handleCloseDialog}

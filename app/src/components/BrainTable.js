@@ -7,6 +7,7 @@ import mBrain from '../mBrain.ico'
 const BrainList = ({ rows, onBrainSelect }) => {
     const [selectedBrain, setSelectedBrain] = React.useState(null);
 
+    // Choose brains to fetch stats for upon click
     const handleBrainSelect = (brain) => {
         setSelectedBrain(brain);
         onBrainSelect({ row: brain });

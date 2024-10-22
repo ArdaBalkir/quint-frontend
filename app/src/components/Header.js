@@ -49,12 +49,13 @@ const Header = () => {
     // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
     // Mainly for Native use of the applications and the webalign etc i frame ones
     const [currentUrl, setCurrentUrl] = useState(null);
-    const [nativeSelection, setNativeSelection] = useState(false);
+    const [nativeSelection, setNativeSelection] = useState(true);
 
     const handleLogin = () => {
         window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintweb&redirect_uri=https://127.00.0.1:3000`
     }
 
+    /*
     const handleMenu1Click = (event) => {
         setAnchorEl1(event.currentTarget);
     };
@@ -62,6 +63,7 @@ const Header = () => {
     const handleMenu2Click = (event) => {
         setAnchorEl2(event.currentTarget);
     };
+    */
 
     const handleMenuClose = () => {
         setAnchorEl1(null);
@@ -72,6 +74,7 @@ const Header = () => {
         setDrawerOpen(!drawerOpen);
     };
 
+    /*
     const handleFrameChange = (url) => {
         console.log(`Changing frame to ${url}`);
         setCurrentUrl(url);
@@ -83,6 +86,7 @@ const Header = () => {
         setNativeSelection(true);
         handleMenuClose();
     };
+    */
 
     const sharedMenuSx = {
         '& .MuiPaper-root': {
@@ -156,6 +160,7 @@ const Header = () => {
                 fontFamily: 'Roboto, sans-serif'
             }}>
                 <Toolbar variant="dense" sx={{ justifyContent: 'space-between' }}>
+                    {/*
                     <Box>
                         <Tooltip title="Tools">
                             <IconButton
@@ -220,7 +225,7 @@ const Header = () => {
                                 </ListItem>
                             </List>
                         </Menu>
-                    </Box>
+                    </Box> */}
 
                     <Box>
                         <Typography sx={{

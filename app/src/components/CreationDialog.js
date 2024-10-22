@@ -23,6 +23,7 @@ export default function CreationDialog({ open, onClose, onSubmit, project, updat
         setName(event.target.value);
     };
 
+    // Allow user to unselect files
     const handleFilesSelected = (files) => {
         setFilesToUpload(files);
     };

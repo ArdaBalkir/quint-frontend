@@ -94,6 +94,7 @@ const AdditionalInfo = ({ braininfo, stats }) => {
                         <Button
                             variant='outlined'
                             color='black'
+                            // Allow a let usage here for the uplaods
                             onClick={() => processFiles(brainStats.tiffs, stats[1]?.name)}
                         >
                             Process Files
