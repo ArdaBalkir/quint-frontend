@@ -56,14 +56,12 @@ export default function QuintTable() {
 
         setBucketName(collabName);
 
-
-        if (projects.length === 0) {
-            if (projects.length === 0) {
-                fetchAndUpdateProjects(collabName);
-            }
+        if (projects.length === 0 && bucketName) {
+            fetchAndUpdateProjects(bucketName);
         }
 
-    }, []);
+    }, [bucketName, projects]); // Add dependencies here for any re renders
+
 
     // To manage the project selection (after mount)
     const handleProjectSelect = (project) => {
@@ -114,9 +112,17 @@ export default function QuintTable() {
                                 <Typography variant="h6" align="left" gutterBottom>
                                     Projects
                                 </Typography>
-                                <IconButton sx={{ alignSelf: 'flex-start' }}>
-                                    <AddIcon />
-                                </IconButton>
+                                <Box>
+                                    <IconButton sx={{ alignSelf: 'flex-start' }}>
+                                        <AddIcon />
+                                    </IconButton>
+                                    <IconButton onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(`https://data-proxy.ebrains.eu/${bucketName}`, '_blank');
+                                    }}>
+                                        <FolderRoundedIcon />
+                                    </IconButton>
+                                </Box>
                             </Box>
 
                             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -144,12 +150,7 @@ export default function QuintTable() {
                                                     <ArrowForwardIcon />
                                                 </IconButton>
 
-                                                <IconButton onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    window.open(`https://data-proxy.ebrains.eu/${bucketName}`, '_blank');
-                                                }}>
-                                                    <FolderRoundedIcon />
-                                                </IconButton>
+
                                             </ListItem>
                                         ))}
                                     </List>

@@ -54,7 +54,7 @@ const tabs = [
     },
     {
         label: 'WebAlign',
-        url: WEBALIGN_URL,
+        url: "https://webalign.apps.ebrains.eu/index.php",
         disabled: false,
     }
 ]
@@ -93,6 +93,14 @@ const Header = () => {
         setNativeSelection(!nativeSelection);
     };
 
+    const getBucketName = () => {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        console.log(userInfo)
+        const userName = userInfo.username;
+        const collabName = `${userName}-rwb`
+        return collabName;
+    }
+
     const sharedListItemSx = {
         '&:hover': {
             backgroundColor: 'rgba(0, 0, 0, 0.04)',
@@ -124,25 +132,15 @@ const Header = () => {
         }
 
         try {
-            callUser();
+            let user = callUser()
+            setUser(JSON.parse(localStorage.getItem('userInfo')))
+            setAuth(true);
         } catch {
             console.log("User couldn't be retrieved")
             setAuth(false);
         }
 
-        const tokenExpiry = localStorage.getItem('tokenExpiry');
-        if (tokenExpiry && new Date(tokenExpiry) < new Date()) {
-            setUser(null)
-        } else {
-            try {
-                setUser(JSON.parse(localStorage.getItem('userInfo')));
-                console.log(user)
-                setAuth(true);
-            } catch {
-                setAuth(false);
-                console.log("User not logged in")
-            }
-        }
+
 
     }, []);
 
@@ -187,7 +185,18 @@ const Header = () => {
                                     key={index}
                                     label={tab.label}
                                     disabled={tab.disabled}
-                                    onClick={() => tab.label === 'Projects' ? handleNativeChange() : handleFrameChange(tab.url)}
+                                    onClick={() => {
+                                        switch (tab.label) {
+                                            case 'Projects':
+                                                handleNativeChange();
+                                                break;
+                                            case 'WebAlign':
+                                                let url = tab.url + `?clb-collab-id=${getBucketName()}`
+                                                handleFrameChange(url);
+                                            default:
+                                                handleFrameChange(tab.url);
+                                        }
+                                    }}
                                 />
                             ))}
                         </Tabs>

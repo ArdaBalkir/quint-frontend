@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, Typography, List, ListItem, ListItemText, Card, CardContent, Button, LinearProgress } from '@mui/material';
-import ProcessCard from './ProcessCard';
 import { useState, useEffect } from 'react';
 import { callDeepZoom } from '../actions/handleCollabs';
 
