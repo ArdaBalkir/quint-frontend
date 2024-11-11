@@ -35,11 +35,16 @@ export default function QuintTable({ token }) {
     };
 
     React.useEffect(() => {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-        const userName = userInfo.username;
-        const collabName = `${userName}-rwb`
-
-        setBucketName(collabName);
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            const userName = userInfo.username;
+            const collabName = `${userName}-rwb`
+            setBucketName(collabName);
+        }
+        catch (error) {
+            console.error('Error parsing userInfo:', error);
+            return;
+        }
 
         if (projects.length === 0 && bucketName) {
             fetchAndUpdateProjects(bucketName);
