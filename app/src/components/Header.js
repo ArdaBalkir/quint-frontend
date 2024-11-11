@@ -3,7 +3,6 @@ import {
     AppBar,
     Box,
     Drawer,
-    IconButton,
     List,
     ListItem,
     ListItemIcon,
@@ -16,15 +15,11 @@ import {
 } from '@mui/material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
-import ConstructionIcon from '@mui/icons-material/Construction';
-import MenuBookIcon from '@mui/icons-material/MenuBook';
-import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings';
 import HelpRoundedIcon from '@mui/icons-material/HelpRounded';
 
 
 import Mainframe from './Mainframe';
 import callUser from '../actions/createUser';
-
 
 // Variable loading for URLs
 const WEBALIGN_URL = process.env.REACT_APP_WEBALIGN_URL;
@@ -126,19 +121,25 @@ const Header = () => {
                     window.history.replaceState(null, null, window.location.pathname))
                 .catch(error => console.error("Token couldn't be retrieved", error))
         }
-
-        try {
-            let user = callUser(token)
-            setUser(user);
-            setAuth(true);
-        } catch {
-            console.log("User couldn't be retrieved")
-            setAuth(false);
-        }
-
-
-
     }, []);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            if (!token) return;
+
+            try {
+                const userInfo = await callUser(token);
+                setUser(userInfo);
+                setAuth(true);
+            } catch (error) {
+                console.error("User couldn't be retrieved", error);
+                setAuth(false);
+                setUser(null);
+            }
+        };
+
+        fetchUser();
+    }, [token]);
 
     return (
         <Box sx={{ flexGrow: 1 }}>
@@ -243,14 +244,6 @@ const Header = () => {
                                 {<ListItemText primary={user?.fullname} secondary={user?.email} primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />}
 
                             </ListItem>
-                            {/*}
-                            <ListItem sx={sharedListItemSx} onClick={() => window.open('https://quint-webtools.readthedocs.io/en/latest/', '_blank')}>
-                                <ListItemIcon>
-                                    <MenuBookIcon />
-                                </ListItemIcon>
-                                <ListItemText primary="Documentation" secondary='QUINT Online Documentation' primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
-                            </ListItem>
-                            */}
                             <ListItem sx={sharedListItemSx}>
                                 <ListItemIcon>
                                     <CloudDownloadIcon />

@@ -85,7 +85,7 @@ const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
                         </ListItem>
                     ))}
                 </List>
-                <Card sx={{ mt: 2 }}>
+                <Card sx={{ boxShadow: 'none', mb: 2, border: '1px solid #e0e0e0' }}>
                     <CardContent>
                         <Skeleton variant="rectangular" height={100} />
                     </CardContent>
@@ -106,7 +106,7 @@ const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
                 >
                     {braininfo.name}
                 </Typography>
-                <Card sx={{ mb: 2 }}>
+                <Card sx={{ boxShadow: 'none', mb: 2, border: '1px solid #e0e0e0' }}>
                     <List>
                         <ListItem>
                             <ListItemText
@@ -128,7 +128,7 @@ const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
                         </ListItem>
                     </List>
                 </Card>
-                <Card>
+                <Card sx={{ boxShadow: 'none', mb: 2, border: '1px solid #e0e0e0' }}>
                     <CardContent>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                             <Typography color="text.primary">

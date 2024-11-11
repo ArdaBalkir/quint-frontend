@@ -198,7 +198,7 @@ export default function QuintTable({ token }) {
                             onAddBrainClick={handleOpenDialog}
                             onBrainSelect={handleBrainSelect}
                         />
-                        <Box sx={{ width: '400px', flexShrink: 0, ml: 2 }}>
+                        <Box sx={{ width: '60%', ml: 2 }}>
                             <AdditionalInfo
                                 braininfo={selectedBrain}
                                 stats={selectedBrainStats}

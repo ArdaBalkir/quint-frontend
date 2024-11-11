@@ -14,11 +14,15 @@ const BrainList = ({ rows, onBrainSelect }) => {
     };
 
     return (
-        <List sx={{ width: '100%', bgcolor: 'background.paper', borderRadius: 2 }} dense>
+        <List sx={{ width: '100%', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #e0e0e0' }} dense>
             {rows.map((brain) => (
                 <ListItem
                     key={brain.id}
                     disablePadding
+                    sx={{
+                        borderBottom: '1px solid #e0e0e0',
+                        '&:last-child': { borderBottom: 'none' }
+                    }}
                 >
                     <ListItemButton
                         selected={selectedBrain && selectedBrain.id === brain.id}

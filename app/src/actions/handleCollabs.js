@@ -180,5 +180,3 @@ export const callDeepZoom = async (token, sourceName, targetName) => {
         throw error;
     }
 }
-
-
