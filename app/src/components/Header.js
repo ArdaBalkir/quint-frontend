@@ -43,6 +43,11 @@ const tabs = [
         disabled: false,
     },
     {
+        label: 'WebAlign',
+        url: "https://webalign.apps.ebrains.eu/index.php",
+        disabled: false,
+    },
+    {
         label: 'WebWarp',
         url: WEBWARP_URL,
         disabled: false,
@@ -51,12 +56,8 @@ const tabs = [
         label: 'WebNutil',
         url: WEBNUTIL_URL,
         disabled: false,
-    },
-    {
-        label: 'WebAlign',
-        url: "https://webalign.apps.ebrains.eu/index.php",
-        disabled: false,
     }
+
 ]
 
 
@@ -114,15 +115,10 @@ const Header = () => {
         const code = urlParams.get('code');
 
         if (code) {
-            fetch(`${FAPI_URL}token?code=${code}`)
+            fetch(`${FAPI_URL}token/dev?code=${code}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-                    localStorage.setItem('accessToken', data.token.access_token);
-                    localStorage.setItem('tokenExpiry', new Date(Date.now() + data.token.expires_in * 1000).toISOString())
-                    localStorage.setItem('refreshToken', data.token.refresh_token)
-                    localStorage.setItem('tokenType', data.token.token_type)
-                    localStorage.setItem('scope', data.token.scope)
                     setToken(data.token.access_token);
                 })
                 // clean the url
@@ -132,8 +128,8 @@ const Header = () => {
         }
 
         try {
-            let user = callUser()
-            setUser(JSON.parse(localStorage.getItem('userInfo')))
+            let user = callUser(token)
+            setUser(user);
             setAuth(true);
         } catch {
             console.log("User couldn't be retrieved")
@@ -193,6 +189,7 @@ const Header = () => {
                                             case 'WebAlign':
                                                 let url = tab.url + `?clb-collab-id=${getBucketName()}`
                                                 handleFrameChange(url);
+                                                break;
                                             default:
                                                 handleFrameChange(tab.url);
                                         }
@@ -266,17 +263,21 @@ const Header = () => {
                                 </ListItemIcon>
                                 <ListItemText primary="Contact Us" primaryTypographyProps={{ variant: 'body2', color: 'text.primary' }} />
                             </ListItem>
+                            <ListItem sx={sharedListItemSx} onClick={() => handleLogin()}>
+                                <ListItemText primary='Login again' />
+
+                            </ListItem>
                         </List>
                         <Box sx={{ padding: '16px', marginTop: 'auto' }}>
                             <Typography variant="body2" color="textSecondary">
-                                Rodent Workbench v1.0.0, NeSys, UiO 2024
+                                Rodent Workbench v1.0.0, UiO 2024
                             </Typography>
                         </Box>
                     </Box>
                 </Drawer>
             </AppBar>
-            <Mainframe url={currentUrl} native={nativeSelection} />
-        </Box>
+            <Mainframe url={currentUrl} native={nativeSelection} token={token} />
+        </Box >
     );
 };
 

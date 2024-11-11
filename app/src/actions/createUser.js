@@ -1,7 +1,6 @@
 const USER_INFO_URL = process.env.REACT_APP_USER_INFO_URL;
 
-export default function callUser() {
-    const token = localStorage.getItem('accessToken');
+export default function callUser(token) {
     // unfotunately the userinfo endpoint does not allow cors, maybe after first deployment to be changed
     const userMap = {
         username: 'http://schema.org/alternateName',

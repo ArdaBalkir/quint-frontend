@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, List, ListItem, ListItemText, Card, CardContent, Button, LinearProgress } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemText, Card, CardContent, Button, LinearProgress, Skeleton } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { callDeepZoom } from '../actions/handleCollabs';
 
@@ -7,7 +7,6 @@ const processes = [{
     title: 'Pyramid File Creator',
     description: '',
     progress: 100
-
 },
 {
     title: 'Align Images',
@@ -18,7 +17,7 @@ const processes = [{
     title: 'Some other process',
     description: 'Description of Process 3',
     progress: 10
-}]
+}];
 
 const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -28,10 +27,10 @@ const formatFileSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-const AdditionalInfo = ({ braininfo, stats }) => {
-
+const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
     let pyramidCount = stats[1]?.zip.length || 0;
     const [user, setUser] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
         try {
@@ -43,19 +42,26 @@ const AdditionalInfo = ({ braininfo, stats }) => {
     }, []);
 
     const processFiles = async (files, target) => {
+        setIsProcessing(true);
         const bucketName = `${user}-rwb/`;
         let pyramidCount = 0;
-        for (const file of files) {
-            const result = await callDeepZoom(bucketName + file, bucketName + target);
-            if (result.status === 200) {
-                pyramidCount++;
+        try {
+            for (const file of files) {
+                const result = await callDeepZoom(bucketName + file, bucketName + target);
+                if (result.status === 200) {
+                    pyramidCount++;
+                }
             }
+        } catch (error) {
+            console.error('Error processing files:', error);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
     if (!braininfo) {
         return (
-            <Box sx={{ flex: 1.8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}>
                 <Typography variant="h5" color="textSecondary">
                     Choose a brain
                 </Typography>
@@ -64,52 +70,106 @@ const AdditionalInfo = ({ braininfo, stats }) => {
     }
 
     const brainStats = stats[0] || {};
+
+    if (isLoading) {
+        return (
+            <Box sx={{ p: 2 }}>
+                <Skeleton variant="text" width="60%" height={40} sx={{ mb: 2 }} />
+                <List>
+                    {[1, 2, 3].map((item) => (
+                        <ListItem key={item}>
+                            <ListItemText
+                                primary={<Skeleton width="40%" />}
+                                secondary={<Skeleton width="60%" />}
+                            />
+                        </ListItem>
+                    ))}
+                </List>
+                <Card sx={{ mt: 2 }}>
+                    <CardContent>
+                        <Skeleton variant="rectangular" height={100} />
+                    </CardContent>
+                </Card>
+            </Box>
+        );
+    }
+
     return (
-        <Box sx={{ flex: 1.8, overflow: 'auto', alignContent: 'flex-start', paddingLeft: 2, borderRadius: '4px' }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-                <Typography variant="h5" color="primary" gutterBottom sx={{ fontWeight: 'bold' }} textAlign='left' marginLeft={2}>
+        <Box sx={{ overflow: 'auto', p: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography
+                    variant="h5"
+                    color="primary"
+                    gutterBottom
+                    sx={{ fontWeight: 'bold' }}
+                    textAlign='left'
+                >
                     {braininfo.name}
                 </Typography>
-                <List>
-                    <ListItem>
-                        <ListItemText primary="Total Entries" secondary={brainStats.files} />
-                    </ListItem>
-                    <ListItem>
-                        <ListItemText primary="Size of Brain" secondary={formatFileSize(brainStats.size)} />
-                    </ListItem>
-                    <ListItem>
-                        <ListItemText primary="Path" secondary={brainStats.name} />
-                    </ListItem>
-                </List>
+                <Card sx={{ mb: 2 }}>
+                    <List>
+                        <ListItem>
+                            <ListItemText
+                                primary="Total Entries"
+                                secondary={brainStats.files || 'N/A'}
+                            />
+                        </ListItem>
+                        <ListItem>
+                            <ListItemText
+                                primary="Size of Brain"
+                                secondary={brainStats.size ? formatFileSize(brainStats.size) : 'N/A'}
+                            />
+                        </ListItem>
+                        <ListItem>
+                            <ListItemText
+                                primary="Path"
+                                secondary={brainStats.name || 'N/A'}
+                            />
+                        </ListItem>
+                    </List>
+                </Card>
+                <Card>
+                    <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography color="text.primary">
+                                Tiff Files to be Converted: {brainStats.files - stats[1]?.zip.length || 0}
+                                <br />
+                                Currently in Zipped Files: {stats[1]?.zip.length || 0}
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                disabled={isProcessing}
+                                onClick={() => processFiles(brainStats.tiffs, stats[1]?.name)}
+                                sx={{
+                                    borderColor: 'black',
+                                    color: 'black',
+                                    '&:hover': {
+                                        borderColor: 'black',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                    }
+                                }}
+                            >
+                                {isProcessing ? 'Processing...' : 'Process Files'}
+                            </Button>
+                        </Box>
+                        <Box sx={{ mt: 2 }}>
+                            <Typography sx={{ mb: 1 }}>
+                                Progress: {pyramidCount} / {brainStats.files || 0} files processed
+                            </Typography>
+                            <LinearProgress
+                                variant="determinate"
+                                value={(pyramidCount / (brainStats.files || 1)) * 100}
+                                sx={{
+                                    height: 8,
+                                    borderRadius: 4
+                                }}
+                            />
+                        </Box>
+                    </CardContent>
+                </Card>
             </Box>
-            <Card sx={{ maxHeight: 300, overflow: 'auto' }}>
-                <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                        <Typography color="text" gutterBottom>
-                            Tiff Files to be Converted: {brainStats.files - stats[1]?.zip.length}
-                            <br />
-                            Currently in Zipped Files: {stats[1]?.zip.length}
-                        </Typography>
-                        <Button
-                            variant='outlined'
-                            color='black'
-                            // Allow a let usage here for the uplaods
-                            onClick={() => processFiles(brainStats.tiffs, stats[1]?.name)}
-                        >
-                            Process Files
-                        </Button>
-                    </Box>
-                    <Box sx={{ mt: 2 }}>
-                        <Typography>
-                            Progress: {pyramidCount} / {brainStats.files} files processed
-                        </Typography>
-                        <LinearProgress variant="determinate" value={(pyramidCount / brainStats.files) * 100} />
-                    </Box>
-
-
-                </CardContent>
-            </Card>
         </Box>
     );
 };
+
 export default AdditionalInfo;

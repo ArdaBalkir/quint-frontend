@@ -2,15 +2,9 @@
 const BUCKET_URL = 'https://data-proxy.ebrains.eu/api/v1/buckets/'
 const DEEPZOOM_URL = process.env.REACT_APP_DEEPZOOM_URL
 
-const refreshToken = () => {
-    let token = localStorage.getItem('accessToken')
-    return token
-}
-
 // Works fine
-export const fetchCollab = async (collabName) => {
+export const fetchCollab = async (token, collabName) => {
     try {
-        const token = refreshToken();
         const response = await fetch(`https://wiki.ebrains.eu/rest/v1/collabs/${collabName}`, {
             method: 'GET',
             headers: {
@@ -30,9 +24,8 @@ export const fetchCollab = async (collabName) => {
     }
 }
 
-export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000, depth = 0) => {
+export const fetchBucketDir = async (token, bucketName, prefix, delimiter, limit = 1000, depth = 0) => {
     try {
-        const token = refreshToken();
         let url = `${BUCKET_URL}${bucketName}?`
         const params = new URLSearchParams()
 
@@ -65,7 +58,7 @@ export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000
                 // Fetching the subEntries for the Brains
                 let subEntries = []
                 if (depth < 1) {
-                    subEntries = await fetchBucketDir(bucketName, obj.subdir, '/', limit, depth + 1)
+                    subEntries = await fetchBucketDir(token, bucketName, obj.subdir, '/', limit, depth + 1)
                 }
                 // muted directories
                 return {
@@ -85,9 +78,8 @@ export const fetchBucketDir = async (bucketName, prefix, delimiter, limit = 1000
     }
 }
 
-export const fetchBrainStats = async (bucketName, brainPrefix) => {
+export const fetchBrainStats = async (token, bucketName, brainPrefix) => {
     let res = []
-    const token = refreshToken();
     try {
         let url = `${BUCKET_URL}${bucketName}?`
         const params = new URLSearchParams();
@@ -131,8 +123,7 @@ export const fetchBrainStats = async (bucketName, brainPrefix) => {
     return res
 }
 // For initial upload of brains
-export const uploadToPath = async (bucketName, projectName, brainName, file) => {
-    const token = refreshToken();
+export const uploadToPath = async (token, bucketName, projectName, brainName, file) => {
     const objectName = `${projectName}/${brainName}/raw_images/${file.name}`.replace(/\/+/g, '/');
     const getUrlEndpoint = `${BUCKET_URL}${bucketName}/${objectName}`;
 
@@ -164,8 +155,7 @@ export const uploadToPath = async (bucketName, projectName, brainName, file) => 
     return { url: uploadUrl, status: uploadResponse.status === 204 };
 }
 
-export const callDeepZoom = async (sourceName, targetName) => {
-    const token = refreshToken();
+export const callDeepZoom = async (token, sourceName, targetName) => {
     try {
         const response = await fetch(DEEPZOOM_URL, {
             method: 'POST',

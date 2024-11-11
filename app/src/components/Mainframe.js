@@ -4,7 +4,7 @@ import { Box } from '@mui/material';
 import QuintTable from './QuintTable';
 
 
-const Mainframe = ({ url, native, menuItems }) => {
+const Mainframe = ({ url, native, token }) => {
     const [anchorEl, setAnchorEl] = React.useState(null);
 
     const handleClick = (event) => {
@@ -35,7 +35,7 @@ const Mainframe = ({ url, native, menuItems }) => {
 
                     borderRadius: '4px',
                 }}>
-                    <QuintTable />
+                    <QuintTable token={token} />
                 </Box>
             ) : (
                 <Box

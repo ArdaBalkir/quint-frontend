@@ -7,13 +7,12 @@ import {
     DialogContentText,
     DialogTitle,
     TextField,
-    Box,
     Snackbar
 } from '@mui/material';
 import { uploadToPath } from '../actions/handleCollabs';
 import UploadZone from './UploadZone';
 
-export default function CreationDialog({ open, onClose, onSubmit, project, updateProjects }) {
+export default function CreationDialog({ open, onClose, onSubmit, project, updateProjects, token }) {
     const [name, setName] = useState('');
     const [filesToUpload, setFilesToUpload] = useState([]);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -37,7 +36,7 @@ export default function CreationDialog({ open, onClose, onSubmit, project, updat
             try {
                 const uploadedFiles = await Promise.all(
                     filesToUpload.map(async (file) => {
-                        const result = await uploadToPath(collabName, project.name, name, file);
+                        const result = await uploadToPath(token, collabName, project.name, name, file);
                         return { ...result, originalFile: file };
                     })
                 );
