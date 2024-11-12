@@ -51,7 +51,7 @@ export default function QuintTable({ token }) {
         }
     }, [bucketName, projects, token]);
 
-    const handleProjectSelect = (project) => {
+    const handleProjectSelect = async (project) => {
         setSelectedProject(project);
 
         if (project === null) {
@@ -60,13 +60,20 @@ export default function QuintTable({ token }) {
             return;
         }
 
-        const newRows = project.subEntries.map((entry, index) => ({
-            id: index,
-            name: entry.name.split('/').pop(),
-            type: entry.type,
-            path: entry.path
-        }));
-        setRows(newRows);
+        try {
+            const projectPath = `${project.name}/`;
+            const brainEntries = await fetchBucketDir(token, bucketName, projectPath, '/');
+            const newRows = brainEntries.map((entry, index) => ({
+                id: index,
+                name: entry.name.split('/').pop(),
+                type: entry.type,
+                path: entry.path
+            }));
+            setRows(newRows);
+        } catch (error) {
+            console.error('Error fetching brain entries:', error);
+            setRows([]);
+        }
     };
 
     const handleBrainSelect = async (params) => {

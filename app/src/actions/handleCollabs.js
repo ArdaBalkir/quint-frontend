@@ -24,7 +24,7 @@ export const fetchCollab = async (token, collabName) => {
     }
 }
 
-export const fetchBucketDir = async (token, bucketName, prefix, delimiter, limit = 1000, depth = 0) => {
+export const fetchBucketDir = async (token, bucketName, prefix, delimiter, limit = 1000) => {
     try {
         let url = `${BUCKET_URL}${bucketName}?`
         const params = new URLSearchParams()
@@ -56,15 +56,10 @@ export const fetchBucketDir = async (token, bucketName, prefix, delimiter, limit
                 console.log('Directory:', dirName)
 
                 // Fetching the subEntries for the Brains
-                let subEntries = []
-                if (depth < 1) {
-                    subEntries = await fetchBucketDir(token, bucketName, obj.subdir, '/', limit, depth + 1)
-                }
-                // muted directories
+
                 return {
                     name: dirName,
                     type: 'directory',
-                    subEntries: subEntries,
                     path: prefix ? `${prefix}${dirName}/` : `${dirName}/`
                 }
             }
