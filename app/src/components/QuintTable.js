@@ -11,16 +11,20 @@ import BrainTable from './BrainTable.js';
 import AdditionalInfo from './QuickActions.js';
 
 export default function QuintTable({ token }) {
+    // Query helpers
     const [bucketName, setBucketName] = React.useState(null);
     const [projects, setProjects] = React.useState([]);
     const [selectedProject, setSelectedProject] = React.useState(null);
     const [selectedBrain, setSelectedBrain] = React.useState(null);
     const [selectedBrainStats, setSelectedBrainStats] = React.useState([]);
+
+    // Other stuff
     const [updateTrigger, setUpdateTrigger] = React.useState(0);
     const [rows, setRows] = React.useState([]);
     const [processes, setProcesses] = React.useState([]);
     const [isDialogOpen, setIsDialogOpen] = React.useState(false);
     const [isFetchingStats, setIsFetchingStats] = React.useState(false);
+    const [updatingBrains, setUpdatingBrains] = React.useState(false);
 
     const fetchAndUpdateProjects = (collabName) => {
         fetchBucketDir(token, collabName, null, '/')
@@ -53,6 +57,7 @@ export default function QuintTable({ token }) {
 
     const handleProjectSelect = async (project) => {
         setSelectedProject(project);
+        setUpdatingBrains(true);
 
         if (project === null) {
             setSelectedBrain(null);
@@ -70,9 +75,11 @@ export default function QuintTable({ token }) {
                 path: entry.path
             }));
             setRows(newRows);
+            setUpdatingBrains(false);
         } catch (error) {
             console.error('Error fetching brain entries:', error);
             setRows([]);
+            setUpdatingBrains(false);
         }
     };
 
@@ -203,20 +210,29 @@ export default function QuintTable({ token }) {
                     </Box>
                 ) : (
                     <>
-                        <BrainTable
-                            selectedProject={selectedProject}
-                            rows={rows}
-                            onBackClick={() => setSelectedProject(null)}
-                            onAddBrainClick={handleOpenDialog}
-                            onBrainSelect={handleBrainSelect}
-                        />
-                        <Box sx={{ width: '60%', ml: 2 }}>
-                            <AdditionalInfo
-                                braininfo={selectedBrain}
-                                stats={selectedBrainStats}
-                                isLoading={isFetchingStats}
-                            />
-                        </Box>
+                        {updatingBrains ? (
+                            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', width: '100%', alignItems: 'center' }}>
+                                <CircularProgress size={24} />
+                                <Typography>Loading brains...</Typography>
+                            </Box>
+                        ) : (
+                            <>
+                                <BrainTable
+                                    selectedProject={selectedProject}
+                                    rows={rows}
+                                    onBackClick={() => setSelectedProject(null)}
+                                    onAddBrainClick={handleOpenDialog}
+                                    onBrainSelect={handleBrainSelect}
+                                />
+                                <Box sx={{ width: '60%', ml: 2 }}>
+                                    <AdditionalInfo
+                                        braininfo={selectedBrain}
+                                        stats={selectedBrainStats}
+                                        isLoading={isFetchingStats}
+                                    />
+                                </Box>
+                            </>
+                        )}
                     </>
                 )}
             </Box>
