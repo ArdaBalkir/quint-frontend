@@ -35,6 +35,8 @@ export const fetchBucketDir = async (token, bucketName, prefix, delimiter, limit
 
         url += params.toString()
 
+        console.log('Fetching bucket directory:', url)
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -107,6 +109,10 @@ export const fetchBrainStats = async (token, bucketName, brainPrefix) => {
                 "size": data.objects.reduce((acc, obj) => acc + obj.bytes, 0),
                 "tiffs": data.objects.filter(obj => obj.name.endsWith('.tif')).map(obj => obj.name),
                 "zip": data.objects.filter(obj => obj.name.endsWith('.zip')).map(obj => obj.name),
+                "last_modified": data.objects.reduce((latest, obj) => {
+                    const objDate = new Date(obj.last_modified);
+                    return objDate > latest ? objDate : latest;
+                }, null)
             }
             res.push(stats)
         }

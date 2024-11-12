@@ -136,7 +136,7 @@ export default function QuintTable({ token }) {
                                         e.stopPropagation();
                                         window.open(`https://data-proxy.ebrains.eu/${bucketName}`, '_blank');
                                     }}>
-                                        <FolderRoundedIcon />
+                                        <FolderRoundedIcon sx={{ cursor: 'pointer' }} />
                                     </IconButton>
                                 </Box>
                             </Box>
@@ -156,6 +156,7 @@ export default function QuintTable({ token }) {
                                             mb: 1,
                                             backgroundColor: 'white',
                                             transition: 'all 0.2s ease',
+                                            cursor: 'pointer',
                                             '&:hover': {
                                                 backgroundColor: '#f5f5f5',
                                                 transform: 'translateX(4px)'
@@ -172,6 +173,7 @@ export default function QuintTable({ token }) {
                                                     px: 2,
                                                     py: 1
                                                 }}
+                                                onClick={() => handleProjectSelect(project)}
                                             >
                                                 <ListItemText
                                                     primary={project.name}
@@ -181,16 +183,6 @@ export default function QuintTable({ token }) {
                                                         }
                                                     }}
                                                 />
-                                                <IconButton
-                                                    onClick={() => handleProjectSelect(project)}
-                                                    sx={{
-                                                        '&:hover': {
-                                                            backgroundColor: '#e3f2fd'
-                                                        }
-                                                    }}
-                                                >
-                                                    <ArrowForwardIcon />
-                                                </IconButton>
                                             </ListItem>
                                         ))}
                                     </List>
@@ -220,7 +212,10 @@ export default function QuintTable({ token }) {
                                 <BrainTable
                                     selectedProject={selectedProject}
                                     rows={rows}
-                                    onBackClick={() => setSelectedProject(null)}
+                                    onBackClick={() => {
+                                        setSelectedProject(null);
+                                        setSelectedBrain(null);
+                                    }}
                                     onAddBrainClick={handleOpenDialog}
                                     onBrainSelect={handleBrainSelect}
                                 />

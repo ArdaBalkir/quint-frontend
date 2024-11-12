@@ -3,22 +3,6 @@ import { Box, Typography, List, ListItem, ListItemText, Card, CardContent, Butto
 import { useState, useEffect } from 'react';
 import { callDeepZoom } from '../actions/handleCollabs';
 
-const processes = [{
-    title: 'Pyramid File Creator',
-    description: '',
-    progress: 100
-},
-{
-    title: 'Align Images',
-    description: 'Description of Process 2',
-    progress: 65
-},
-{
-    title: 'Some other process',
-    description: 'Description of Process 3',
-    progress: 10
-}];
-
 const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -97,16 +81,18 @@ const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
     return (
         <Box sx={{ overflow: 'auto', p: 2 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography
-                    variant="h5"
-                    color="primary"
-                    gutterBottom
-                    sx={{ fontWeight: 'bold' }}
-                    textAlign='left'
-                >
-                    {braininfo.name}
-                </Typography>
+
                 <Card sx={{ boxShadow: 'none', mb: 2, border: '1px solid #e0e0e0' }}>
+                    <Typography
+                        variant="h5"
+                        color="primary"
+                        gutterBottom
+                        sx={{ fontWeight: 'bold' }}
+                        textAlign='left'
+                        padding={2}
+                    >
+                        {braininfo.name}
+                    </Typography>
                     <List>
                         <ListItem>
                             <ListItemText
@@ -122,8 +108,8 @@ const AdditionalInfo = ({ braininfo, stats, isLoading }) => {
                         </ListItem>
                         <ListItem>
                             <ListItemText
-                                primary="Path"
-                                secondary={brainStats.name || 'N/A'}
+                                primary="Last uploaded"
+                                secondary={brainStats.last_modified ? brainStats.last_modified.toLocaleString() : 'N/A'}
                             />
                         </ListItem>
                     </List>
