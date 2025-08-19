@@ -582,7 +582,7 @@ const QuickActions = ({
                         }
                       }}
                     >
-                      Inspect converted DZI images with SeriesZoom
+                      Inspect images
                     </Button>
                   </Box>
                   {/* Unified Image Table */}
