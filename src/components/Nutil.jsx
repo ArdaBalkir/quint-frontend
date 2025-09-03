@@ -146,7 +146,7 @@ const Nutil = ({ token }) => {
     last_modified: null,
     alignment_json_path: null,
   });
-  const [objectColor, setObjectColor] = useState("#000000");
+  const [objectColor, setObjectColor] = useState("#ff0000");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [tasks, setTasks] = useState([]);
@@ -869,7 +869,7 @@ const Nutil = ({ token }) => {
                   type="color"
                   size="small"
                   fullWidth
-                  defaultValue="#ff0000"
+                  value={objectColor}
                   onChange={(e) => setObjectColor(e.target.value)}
                   sx={{
                     '& input[type="color"]': {
