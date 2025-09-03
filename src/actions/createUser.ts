@@ -33,26 +33,42 @@ function createUser(token: string): UserInfo {
 }
 
 async function checkAgreement(
-  fullName: string,
+  username: string,
   email: string
 ): Promise<boolean> {
   try {
+    // Normalize using NFC for consistent character representation
+    const normalizedUsername = username.normalize("NFC").trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
     const url = new URL(`${API}/check-signature`);
-    url.searchParams.append("email", email);
-    url.searchParams.append("fullname", fullName);
+    url.searchParams.set("email", normalizedEmail);
+    url.searchParams.set("username", normalizedUsername);
+
+    logger.debug("Checking agreement for", {
+      originalUsername: username,
+      normalizedUsername,
+      email: normalizedEmail,
+      finalUrl: url.toString(),
+    });
 
     const response = await fetch(url.toString(), {
       method: "GET",
     });
 
     if (!response.ok) {
-      throw new Error("Network response was not ok");
+      throw new Error(
+        `Network response was not ok: ${response.status} ${response.statusText}`
+      );
     }
-    logger.debug("Agreement response status", { status: response });
+    logger.debug("Agreement response status", {
+      status: response.status,
+      url: url.toString(),
+    });
     const data = await response.json();
     return data.signed;
   } catch (error) {
-    logger.error("Error checking agreement", error);
+    logger.error("Error checking agreement", { error, username, email });
     return false;
   }
 }

@@ -203,7 +203,7 @@ const Header = () => {
         logger.info("User info received", { user: userInfo?.username });
         localStorage.setItem("userInfo", JSON.stringify(userInfo));
         const agreement = await checkAgreement(
-          userInfo["fullname"],
+          userInfo["username"],
           userInfo["email"]
         );
         logger.debug("User agreement status", { agreement });
