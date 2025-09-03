@@ -95,6 +95,22 @@ const fetchSingleBrainSubdir = async (
   subdir: string,
   signal?: AbortSignal
 ): Promise<BucketStats> => {
+  // Special case for pynutil_results - use the dedicated function
+  if (subdir === "pynutil_results") {
+    const nutilResults = await fetchPyNutilResults(
+      token,
+      bucketName,
+      brainPrefix,
+      signal
+    );
+    return {
+      name: brainPrefix + subdir,
+      files: nutilResults[0]?.files || 0,
+      size: nutilResults[0]?.size || 0,
+      nutil_results: nutilResults[0]?.images || [],
+    };
+  }
+
   const params = new URLSearchParams();
   if (brainPrefix) params.append("prefix", `${brainPrefix}${subdir}/`);
   params.append("limit", "1000");
@@ -113,14 +129,6 @@ const fetchSingleBrainSubdir = async (
     base.zips = data.objects.filter((o: any) => o.name.endsWith(".dzip"));
   } else if (subdir === "jsons") {
     base.jsons = data.objects.filter((o: any) => o.name.endsWith(".waln"));
-  } else if (subdir === "pynutil_results") {
-    const nutilResults = await fetchPyNutilResults(
-      token,
-      bucketName,
-      brainPrefix,
-      signal
-    );
-    base.nutil_results = nutilResults[0]?.images || [];
   }
   return base;
 };
@@ -206,23 +214,48 @@ export const fetchPyNutilResults = async (
   token: string,
   bucketName: string,
   brainPrefix: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  useDelimiter: boolean = true
 ): Promise<BrainSegmentation[]> => {
   const params = new URLSearchParams();
   if (brainPrefix) params.append("prefix", `${brainPrefix}pynutil_results/`);
+  if (useDelimiter) params.append("delimiter", "/");
   params.append("limit", "1000");
-  params.append("delimiter", "/");
-  const url = `${BUCKET_URL}${bucketName}?${params}`;
+
+  const url = `${BUCKET_URL}${bucketName}?${params.toString()}`;
   const data = await fetchWithAuth<any>(url, token, { signal });
-  if (!data.objects?.length) return [];
-  return [
-    {
-      name: brainPrefix + "pynutil_results",
-      files: data.objects.length,
-      size: data.objects.reduce((acc: number, obj: any) => acc + obj.bytes, 0),
-      images: data.objects,
-    },
-  ];
+
+  if (useDelimiter) {
+    // When using delimiter, filter for subdirectories like fetchBucketDir does
+    const subdirs = (data.objects || []).filter((obj: any) => obj.subdir);
+
+    if (!subdirs.length) return [];
+    return [
+      {
+        name: brainPrefix + "pynutil_results",
+        files: subdirs.length,
+        size: subdirs.reduce(
+          (acc: number, obj: any) => acc + (obj.bytes || 0),
+          0
+        ),
+        images: subdirs,
+      },
+    ];
+  } else {
+    // Without delimiter, return all objects
+    if (!data.objects?.length) return [];
+    return [
+      {
+        name: brainPrefix + "pynutil_results",
+        files: data.objects.length,
+        size: data.objects.reduce(
+          (acc: number, obj: any) => acc + obj.bytes,
+          0
+        ),
+        images: data.objects,
+      },
+    ];
+  }
 };
 
 const getUploadUrl = async (
