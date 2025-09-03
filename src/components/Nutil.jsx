@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { useNotification } from "../contexts/NotificationContext";
 import {
   Box,
   List,
@@ -11,6 +12,8 @@ import {
   Typography,
   Stack,
   Tooltip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Delete,
@@ -131,6 +134,8 @@ const MeshviewButton = ({ atlas, clouds }) => {
 };
 
 const Nutil = ({ token }) => {
+  const { showWarning, showInfo, showSuccess, showError } = useNotification();
+
   const [brainEntries, setBrainEntries] = useState([]);
   const [error, setError] = useState(null);
 
@@ -527,7 +532,7 @@ const Nutil = ({ token }) => {
 
   const getSegmentations = async (brainEntry) => {
     if (!token) {
-      alert("Please login to access this feature");
+      showWarning("Please login to access this feature");
       return;
     }
 
@@ -683,7 +688,7 @@ const Nutil = ({ token }) => {
                 size="small"
                 onClick={() => {
                   if (!selectedBrain) {
-                    alert("Please select a brain first");
+                    showWarning("Please select a brain first");
                   } else {
                     setUploadSegmentsOpen(true);
                   }

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNotification } from "../contexts/NotificationContext";
 import {
   Box,
   Typography,
@@ -16,8 +17,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar,
-  Alert,
 } from "@mui/material";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import Add from "@mui/icons-material/Add";
@@ -33,18 +32,14 @@ const BrainList = ({
   bucketName,
   onDeleteComplete,
 }) => {
+  const { showSuccess, showError } = useNotification();
+
   // Current brain selection, changes on click for the list item
   const [selectedBrain, setSelectedBrain] = useState(null);
   // Delete states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [brainToDelete, setBrainToDelete] = useState(null);
   const [confirmInput, setConfirmInput] = useState("");
-  // Snackbar states
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
 
   const handleBrainSelect = (brain) => {
     setSelectedBrain(brain);
@@ -60,11 +55,7 @@ const BrainList = ({
     const deletingPath = `${bucketName}/${brainToDelete.path}`;
     deleteItem(deletingPath, token)
       .then(() => {
-        setSnackbar({
-          open: true,
-          message: "Series deleted.",
-          severity: "success",
-        });
+        showSuccess("Series deleted.");
         setDeleteDialogOpen(false);
         setBrainToDelete(null);
         setTimeout(() => {
@@ -72,11 +63,7 @@ const BrainList = ({
         }, 1000);
       })
       .catch((error) => {
-        setSnackbar({
-          open: true,
-          message: "Failed to delete series.",
-          severity: "error",
-        });
+        showError("Failed to delete series.");
         setDeleteDialogOpen(false);
         setBrainToDelete(null);
       });
@@ -220,20 +207,6 @@ const BrainList = ({
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </>
   );
 };

@@ -1,5 +1,6 @@
 import logger from "../utils/logger.js";
 import React, { useEffect, useState } from "react";
+import { useNotification } from "../contexts/NotificationContext";
 import {
   Button,
   Dialog,
@@ -8,9 +9,7 @@ import {
   DialogContentText,
   DialogTitle,
   TextField,
-  Snackbar,
   Box,
-  Alert,
   Autocomplete,
   LinearProgress,
 } from "@mui/material";
@@ -25,15 +24,11 @@ export default function CreationDialog({
   brainEntries,
   onUploadComplete,
 }) {
+  const { showError, showWarning, showSuccess, showInfo } = useNotification();
+
   const [name, setName] = useState("");
   const [filesToUpload, setFilesToUpload] = useState([]);
   const [editBrainsList, setEditBrainsList] = useState([]);
-  // Message to inform user
-  const [infoMessage, setInfoMessage] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
 
   // For upload feedback of images to series
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -105,20 +100,12 @@ export default function CreationDialog({
         }
 
         setIsUploading(false);
-        setInfoMessage({
-          open: true,
-          message: "Files uploaded successfully",
-          severity: "success",
-        });
+        showSuccess("Files uploaded successfully");
         return allResults;
       } catch (error) {
         setIsUploading(false);
         logger.error("Error uploading files", error);
-        setInfoMessage({
-          open: true,
-          message: "Error uploading files",
-          severity: "error",
-        });
+        showError("Error uploading files");
         throw error;
       }
     }
@@ -128,22 +115,12 @@ export default function CreationDialog({
 
   const handleSubmit = async () => {
     if (!name || name.trim() === "") {
-      setInfoMessage({
-        open: true,
-        message: "An image series name is required",
-        severity: "error",
-      });
-      alert("An image series name is required");
+      showError("An image series name is required");
       return;
     }
 
     if (filesToUpload.length === 0) {
-      setInfoMessage({
-        open: true,
-        message: "Please select files to upload",
-        severity: "warning",
-      });
-      alert("Please select files to upload");
+      showWarning("Please select files to upload");
       return;
     }
 
@@ -158,19 +135,6 @@ export default function CreationDialog({
 
   return (
     <>
-      <Snackbar
-        open={infoMessage.open}
-        autoHideDuration={6000}
-        onClose={() => setInfoMessage({ ...infoMessage, open: false })}
-      >
-        <Alert
-          onClose={() => setInfoMessage({ ...infoMessage, open: false })}
-          severity={infoMessage.severity}
-          sx={{ width: "100%" }}
-        >
-          {infoMessage.message}
-        </Alert>
-      </Snackbar>
       <Dialog
         open={open}
         onClose={onClose}

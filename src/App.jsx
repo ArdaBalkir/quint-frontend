@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import { createTheme } from "@mui/material/styles";
 import { ThemeProvider } from "@mui/material/styles";
 import { TabProvider } from "./contexts/TabContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 // TODO Add Token and Auth provider
 
 const theme = createTheme({
@@ -68,11 +69,13 @@ const theme = createTheme({
 function App() {
   return (
     <ThemeProvider theme={theme}>
-      <TabProvider>
-        <div className="App" style={{ width: "100%", height: "100vh" }}>
-          <Header />
-        </div>
-      </TabProvider>
+      <NotificationProvider>
+        <TabProvider>
+          <div className="App" style={{ width: "100%", height: "100vh" }}>
+            <Header />
+          </div>
+        </TabProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }
