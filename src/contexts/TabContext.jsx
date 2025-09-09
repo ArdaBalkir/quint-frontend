@@ -93,7 +93,7 @@ export const TabProvider = ({ children }) => {
 
     // Use the provided paths or default to the main path
     const imagesPath = `${mainPath.path}/zipped_images/`;
-    const segmentsPath = `${mainPath.path}/segmentations/`;
+    const segmentsPath = `${mainPath.path}segmentations/{name}.{extension}`;
 
     const params = new URLSearchParams({
       ebrains_bucket_name: bucketName,
