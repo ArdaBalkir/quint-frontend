@@ -270,7 +270,7 @@ const Header = () => {
 
             // Verify the agreement was properly signed
             const agreementSigned = await checkAgreement(
-              user?.fullname,
+              user?.username,
               user?.email
             );
 
