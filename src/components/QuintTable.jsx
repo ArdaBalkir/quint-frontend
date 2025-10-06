@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import logger from "../utils/logger.js";
+import { useNotification } from "../contexts/NotificationContext";
 import {
   Box,
   Typography,
@@ -16,8 +17,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar,
-  Alert,
 } from "@mui/material";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AddIcon from "@mui/icons-material/Add";
@@ -37,6 +36,8 @@ import BrainTable from "./BrainTable.jsx";
 import QuickActions from "./QuickActions.jsx";
 
 export default function QuintTable({ token, user }) {
+  const { showSuccess, showError } = useNotification();
+
   // Query helpers
   // null until resolved so 'no-workspace' state can be meaningful
   const [bucketName, setBucketName] = useState(null);
@@ -90,11 +91,6 @@ export default function QuintTable({ token, user }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [confirmInput, setConfirmInput] = useState("");
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
 
   // Project state helper for conditional rendering
   const getProjectState = () => {
@@ -684,22 +680,14 @@ export default function QuintTable({ token, user }) {
               let deletingPath = `${bucketName}/${projectToDelete.name}/`;
               try {
                 await deleteItem(deletingPath, token);
-                setSnackbar({
-                  open: true,
-                  message: "Project deleted.",
-                  severity: "success",
-                });
+                showSuccess("Project deleted.");
                 setDeleteDialogOpen(false);
                 setConfirmInput("");
                 setTimeout(() => {
                   fetchAndUpdateProjects(bucketName);
                 }, 1000);
               } catch (error) {
-                setSnackbar({
-                  open: true,
-                  message: "Failed to delete project.",
-                  severity: "error",
-                });
+                showError("Failed to delete project.");
                 setDeleteDialogOpen(false);
                 setConfirmInput("");
               }
@@ -710,20 +698,6 @@ export default function QuintTable({ token, user }) {
           </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }

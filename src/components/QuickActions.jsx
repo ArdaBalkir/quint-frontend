@@ -1,5 +1,6 @@
 import logger from "../utils/logger.js";
 import { useState, useEffect, useMemo } from "react";
+import { useNotification } from "../contexts/NotificationContext";
 // MUI Components
 import {
   Box,
@@ -14,8 +15,6 @@ import {
   IconButton,
   CircularProgress,
   Tooltip,
-  Alert,
-  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -36,6 +35,7 @@ import {
   PendingOutlined,
   Delete,
   Info,
+  FiberManualRecord,
 } from "@mui/icons-material";
 
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
@@ -66,6 +66,8 @@ const QuickActions = ({
   refreshBrain,
   walnContent,
 }) => {
+  const { showWarning, showInfo, showSuccess, showError } = useNotification();
+
   // Stats expected to be in normalized object shape only
   const rawStats = stats?.rawImages;
   const pyramidStats = stats?.pyramids;
@@ -122,15 +124,15 @@ const QuickActions = ({
   const [alignment, setAlignment] = useState(
     localStorage.getItem("alignment") || null
   );
-  // Info messages
-  const [infoMessage, setInfoMessage] = useState({
-    open: false,
-    message: "",
-    severity: "info",
-  });
 
   const [taskStatus, setTaskStatus] = useState({});
   const [pollingInterval, setPollingInterval] = useState(null);
+
+  // Health check state
+  const [deepzoomHealth, setDeepzoomHealth] = useState({
+    status: "checking", // "checking" | "healthy" | "unhealthy"
+    lastChecked: null,
+  });
 
   useEffect(() => {
     try {
@@ -149,6 +151,83 @@ const QuickActions = ({
       }
     };
   }, [pollingInterval]);
+
+  // Health check function
+  const checkDeepzoomHealth = async () => {
+    try {
+      const healthUrl = DEEPZOOM_URL.replace(/\/$/, "") + "/health";
+      const response = await fetch(healthUrl, {
+        method: "GET",
+        timeout: 5000, // 5 second timeout
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === "I'm alive!") {
+          setDeepzoomHealth({
+            status: "healthy",
+            lastChecked: new Date(),
+          });
+        } else {
+          setDeepzoomHealth({
+            status: "unhealthy",
+            lastChecked: new Date(),
+          });
+        }
+      } else {
+        setDeepzoomHealth({
+          status: "unhealthy",
+          lastChecked: new Date(),
+        });
+      }
+    } catch (error) {
+      logger.warn("Deepzoom health check failed", error);
+      setDeepzoomHealth({
+        status: "unhealthy",
+        lastChecked: new Date(),
+      });
+    }
+  };
+
+  // Check health on component mount and every 30 seconds
+  useEffect(() => {
+    checkDeepzoomHealth();
+    const healthInterval = setInterval(checkDeepzoomHealth, 30000);
+
+    return () => {
+      clearInterval(healthInterval);
+    };
+  }, []);
+
+  const getHealthIndicator = () => {
+    switch (deepzoomHealth.status) {
+      case "healthy":
+        return {
+          icon: (
+            <FiberManualRecord sx={{ fontSize: 12, color: "success.main" }} />
+          ),
+          text: "Service Online",
+          color: "success.main",
+        };
+      case "unhealthy":
+        return {
+          icon: (
+            <FiberManualRecord sx={{ fontSize: 12, color: "error.main" }} />
+          ),
+          text: "Service Offline",
+          color: "error.main",
+        };
+      case "checking":
+      default:
+        return {
+          icon: (
+            <FiberManualRecord sx={{ fontSize: 12, color: "warning.main" }} />
+          ),
+          text: "Checking...",
+          color: "warning.main",
+        };
+    }
+  };
 
   const processImage = async (imageFile, bucket, targetPath, token) => {
     try {
@@ -185,7 +264,7 @@ const QuickActions = ({
 
   const processTiffFiles = async () => {
     if (!braininfo || !unifiedFiles.length) {
-      alert("No TIFF files found to process");
+      showWarning("No TIFF files found to process");
       return;
     }
 
@@ -198,7 +277,7 @@ const QuickActions = ({
       }));
 
     if (filesToProcess.length === 0) {
-      alert("All files have already been processed");
+      showInfo("All files have already been processed");
       return;
     }
 
@@ -292,12 +371,12 @@ const QuickActions = ({
 
       setPollingInterval(interval);
 
-      alert(
+      showSuccess(
         `Scheduled ${filesToProcess.length} files for conversion - you can leave this page.`
       );
     } catch (error) {
       logger.error("Error processing TIFF files", error);
-      alert("Error processing TIFF files. Check the console for details.");
+      showError("Error processing TIFF files. Check the console for details.");
       setIsProcessing(false);
     }
   };
@@ -409,20 +488,6 @@ const QuickActions = ({
 
   return (
     <Box sx={{ height: "auto" }}>
-      <Snackbar
-        open={infoMessage.open}
-        anchorOrigin={{ vertical: "center", horizontal: "center" }}
-        autoHideDuration={3000}
-      >
-        <Alert
-          variant="outlined"
-          onClose={() => setInfoMessage({ ...infoMessage, open: false })}
-          severity={infoMessage.severity}
-          elevation={0}
-        >
-          {infoMessage.message}
-        </Alert>
-      </Snackbar>
       <Grid
         container
         spacing={1}
@@ -549,15 +614,49 @@ const QuickActions = ({
                       mb: 2,
                     }}
                   >
-                    <Typography
+                    <Box
                       sx={{
-                        textWrap: "wrap",
-                        textAlign: "left",
-                        fontSize: 16,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
                       }}
                     >
-                      Convert images to DZI format
-                    </Typography>
+                      <Typography
+                        sx={{
+                          textWrap: "wrap",
+                          textAlign: "left",
+                          fontSize: 16,
+                        }}
+                      >
+                        Convert images to DZI format
+                      </Typography>
+                      <Tooltip
+                        title={`Deepzoom service: ${getHealthIndicator().text}${
+                          deepzoomHealth.lastChecked
+                            ? ` (Last checked: ${deepzoomHealth.lastChecked.toLocaleTimeString()})`
+                            : ""
+                        }`}
+                      >
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          {getHealthIndicator().icon}
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: getHealthIndicator().color,
+                              fontSize: "0.7rem",
+                            }}
+                          >
+                            {getHealthIndicator().text}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
+                    </Box>
                     <Button
                       size="small"
                       disabled={!pyramidComplete}
@@ -901,7 +1000,14 @@ const QuickActions = ({
             token={token}
             bucketName={bucketName}
             dzips={brainPyramids.zips}
-            updateInfo={setInfoMessage}
+            updateInfo={({ open, message, severity }) => {
+              if (open) {
+                if (severity === "error") showError(message);
+                else if (severity === "warning") showWarning(message);
+                else if (severity === "success") showSuccess(message);
+                else showInfo(message);
+              }
+            }}
             refreshBrain={refreshBrain}
           />
         )}
@@ -961,12 +1067,7 @@ const QuickActions = ({
                         }}
                         onClick={() => {
                           if (!(bucketName && walnJson.jsons?.[0]?.name)) {
-                            setInfoMessage({
-                              open: true,
-                              message: "No registration file to delete",
-                              severity: "warning",
-                            });
-
+                            showWarning("No registration file to delete");
                             return;
                           }
                           deleteItem(
@@ -977,11 +1078,7 @@ const QuickActions = ({
                             "Deleting",
                             bucketName + "/" + walnJson.jsons?.[0]?.name
                           );
-                          setInfoMessage({
-                            open: true,
-                            message: "Registration file is being deleted",
-                            severity: "info",
-                          });
+                          showInfo("Registration file is being deleted");
                           setTimeout(() => {
                             refreshBrain();
                           }, 2000);
@@ -1006,12 +1103,7 @@ const QuickActions = ({
                               : "primary.main",
                         }}
                         onClick={() => {
-                          setInfoMessage({
-                            open: true,
-                            message: "Alignment set",
-                            severity: "info",
-                          });
-
+                          showInfo("Alignment set");
                           setAlignment(walnJson.jsons?.[0]?.name);
                           localStorage.setItem(
                             "alignment",
