@@ -14,6 +14,8 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import {
   Delete,
@@ -61,8 +63,17 @@ const styles = {
       backgroundColor: "#f5f5f5",
       cursor: "pointer",
     },
-    borderBottom: "1px solid #e0e0e0",
     transition: "all 0.2s ease",
+    borderBottom: "1px solid transparent",
+    position: "relative",
+    "&:not(:last-child)": {
+      borderImage:
+        "linear-gradient(to right, transparent 12px, #e0e0e0 12px, #e0e0e0 calc(100% - 12px), transparent calc(100% - 12px)) 1",
+      borderBottom: "1px solid",
+    },
+    "& .MuiListItemText-root": {
+      borderBottom: "none",
+    },
   },
   toolbarButton: {
     textTransform: "none",
@@ -152,6 +163,9 @@ const Nutil = ({ token }) => {
     alignment_json_path: null,
   });
   const [objectColor, setObjectColor] = useState("#ff0000");
+  // TODO implement in the backend nutil bit
+  const [extractCoordinates, setExtractCoordinates] = useState(true);
+  const [createVisualizations, setCreateVisualizations] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [tasks, setTasks] = useState([]);
@@ -803,27 +817,17 @@ const Nutil = ({ token }) => {
         }}
       >
         <Box sx={{ height: "98%", display: "flex", flexDirection: "column" }}>
-          <Box sx={{ p: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 1.5,
-              }}
-            >
-              <Typography variant="body2">Quantification Settings</Typography>
-              <Button
-                variant="contained"
-                disableElevation
-                size="small"
-                startIcon={<Analytics />}
-                disabled={!registration.atlas || isProcessing}
-                onClick={requestNutil}
-              >
-                {isProcessing ? "Processing..." : "Run analysis"}
-              </Button>
-            </Box>
+          <Box
+            sx={{
+              // Quantification Settings Area
+              p: 1.5,
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              Quantification Settings
+            </Typography>
+
             <Box
               sx={{
                 border: "1px solid #e0e0e0",
@@ -860,29 +864,89 @@ const Nutil = ({ token }) => {
 
             <Box
               sx={{
-                // Settings panel
-                display: "flex",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
                 gap: 2,
-                alignItems: "flex-start",
+                mb: 1.5,
+                pl: 2.5,
               }}
             >
-              <Box sx={{ flex: 1, flexDirection: "row" }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  Object Color
-                </Typography>
-                <TextField
-                  type="color"
-                  size="small"
-                  fullWidth
-                  value={objectColor}
-                  onChange={(e) => setObjectColor(e.target.value)}
-                  sx={{
-                    '& input[type="color"]': {
-                      padding: "2px",
-                      height: "32px",
-                    },
-                  }}
+              {/* Left column */}
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  justifyContent: "center",
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={extractCoordinates}
+                      onChange={(e) => setExtractCoordinates(e.target.checked)}
+                      size="small"
+                      sx={{
+                        mb: 1,
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="caption">
+                      Extract Coordinates
+                    </Typography>
+                  }
                 />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={createVisualizations}
+                      onChange={(e) =>
+                        setCreateVisualizations(e.target.checked)
+                      }
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="caption">
+                      Create Visualizations
+                    </Typography>
+                  }
+                />
+              </Box>
+
+              {/* Right column */}
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box>
+                  <Typography variant="caption" display="block" gutterBottom>
+                    Object Color
+                  </Typography>
+                  <TextField
+                    type="color"
+                    size="small"
+                    fullWidth
+                    value={objectColor}
+                    onChange={(e) => setObjectColor(e.target.value)}
+                    sx={{
+                      '& input[type="color"]': {
+                        padding: "2px",
+                        height: "32px",
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  variant="contained"
+                  disableElevation
+                  size="small"
+                  startIcon={<Analytics />}
+                  disabled={!registration.atlas || isProcessing}
+                  onClick={requestNutil}
+                  fullWidth
+                >
+                  {isProcessing ? "Processing..." : "Run analysis"}
+                </Button>
               </Box>
             </Box>
           </Box>
