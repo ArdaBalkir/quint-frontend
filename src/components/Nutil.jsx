@@ -1,5 +1,6 @@
 import logger from "../utils/logger.js";
 import { useNotification } from "../contexts/NotificationContext";
+import { useTabContext } from "../contexts/TabContext";
 import {
   Box,
   List,
@@ -146,6 +147,7 @@ const MeshviewButton = ({ atlas, clouds }) => {
 
 const Nutil = ({ token }) => {
   const { showWarning, showInfo, showSuccess, showError } = useNotification();
+  const { navigateToSandBox } = useTabContext();
 
   const [brainEntries, setBrainEntries] = useState([]);
   const [error, setError] = useState(null);
@@ -436,6 +438,23 @@ const Nutil = ({ token }) => {
       // Fallback to opening in new tab if fetch fails
       window.open(zipperUrl, "_blank");
     }
+  };
+
+  const handleSaveForPlotting = () => {
+    const settings = {
+      nutilResults: completedResults,
+      selectedBrain: selectedBrain,
+      brainEntries: brainEntries,
+    };
+    localStorage.setItem("sandboxSettings", JSON.stringify(settings));
+    logger.info("Saved nutil results for plotting", {
+      resultsCount: completedResults.length,
+      brain: selectedBrain?.name,
+    });
+    showSuccess("Results saved for plotting in Sandbox");
+
+    // Navigate to Sandbox tab
+    navigateToSandBox();
   };
 
   // Call this when a brain is selected to fetch existing results
@@ -1203,6 +1222,7 @@ const Nutil = ({ token }) => {
                           size="small"
                           startIcon={<Calculate />}
                           sx={{ fontSize: "0.75rem", py: 0.5 }}
+                          onClick={handleSaveForPlotting}
                         >
                           Plot
                         </Button>{" "}

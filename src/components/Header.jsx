@@ -82,7 +82,7 @@ const tabs = [
   {
     label: "Sandbox",
     url: null,
-    disabled: true,
+    disabled: false,
   },
 ];
 

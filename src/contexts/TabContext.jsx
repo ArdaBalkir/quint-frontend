@@ -119,7 +119,7 @@ export const TabProvider = ({ children }) => {
     return true;
   };
 
-  const natvigateToSandBox = () => {
+  const navigateToSandBox = () => {
     // Tab index 5 is for SandBox
     setCurrentTab(5);
     // Construct URL and set iframe
@@ -143,6 +143,7 @@ export const TabProvider = ({ children }) => {
         handleFrameChange,
         navigateToWebIlastik,
         navigateToWebNutil,
+        navigateToSandBox,
       }}
     >
       {children}
