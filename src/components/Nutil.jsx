@@ -721,6 +721,32 @@ const Nutil = ({ token }) => {
             variant="contained"
             disableElevation
             size="small"
+            onClick={() => {
+              if (!selectedBrain) {
+                showWarning("Please select a brain first");
+                return;
+              }
+              if (segmentations.length === 0) {
+                showWarning("No segmentations available for comparison");
+                return;
+              }
+
+              const bucketName = localStorage.getItem("bucketName");
+              const brainPath = selectedBrain.path;
+              const firstSegmentationName = segmentations[0].name
+                .split("/")
+                .pop();
+
+              // construct the urls for serieszoom
+              const dzipUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}zipped_images/${firstSegmentationName}`;
+              const overlayUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}segmentations`;
+
+              const comparisonUrl = `https://serieszoom.apps.ebrains.eu/?dzip=${encodeURIComponent(
+                dzipUrl
+              )}&overlay=${encodeURIComponent(overlayUrl)}`;
+
+              window.open(comparisonUrl, "_blank");
+            }}
           >
             Compare
           </Button>

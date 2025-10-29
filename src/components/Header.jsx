@@ -139,6 +139,8 @@ const Header = () => {
 
   // OnMount: Handle code exchange or redirect
   useEffect(() => {
+    // TODO: try resolve saved authData has an already valid token by expiry
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
 
