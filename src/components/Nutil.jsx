@@ -1238,6 +1238,7 @@ const Nutil = ({ token }) => {
                           atlas={registration.atlas}
                           clouds={[result.path]}
                         />
+                        {/* TODO Add a delete button */}
                       </Box>
                     </Box>
                   ))

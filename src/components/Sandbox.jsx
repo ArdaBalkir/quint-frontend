@@ -30,7 +30,7 @@ const Sandbox = ({ token, user }) => {
   const [selectedBrain, setSelectedBrain] = useState(null);
   const [brainEntries, setBrainEntries] = useState([]);
   const [projectName, setProjectName] = useState("");
-  const [sortByCount, setSortByCount] = useState(true);
+  const [sortByCount, setSortByCount] = useState(false);
 
   // csv data state
   const [csvData, setCsvData] = useState(null);

@@ -9,6 +9,7 @@ import {
   Tooltip,
   Button,
   CircularProgress,
+  IconButton,
 } from "@mui/material";
 
 import { useTabContext } from "../contexts/TabContext";
@@ -17,6 +18,7 @@ import { useTabContext } from "../contexts/TabContext";
 import ImageIcon from "@mui/icons-material/Image";
 import MapIcon from "@mui/icons-material/Map";
 import ArrowOutward from "@mui/icons-material/ArrowOutward";
+import Delete from "@mui/icons-material/Delete";
 
 // This is the main atlas name dispalyed on top of the panel as waln containts the abbrev.
 const atlasNames = {
@@ -33,6 +35,7 @@ export default function ProgressPanel({
   currentRegistration,
   segmented,
   nutilResults,
+  onDeleteRegistration,
 }) {
   const {
     navigateToWebAlign,
@@ -40,6 +43,18 @@ export default function ProgressPanel({
     navigateToWebIlastik,
     navigateToWebNutil,
   } = useTabContext();
+
+  // Set the registration in localStorage on mount if available
+  // Replaces button DONE!!
+  React.useEffect(() => {
+    if (currentRegistration) {
+      const storedAlignment = localStorage.getItem("alignment");
+      if (storedAlignment !== currentRegistration) {
+        localStorage.setItem("alignment", currentRegistration);
+        logger.debug("Registration set on mount", { currentRegistration });
+      }
+    }
+  }, [currentRegistration]);
 
   if (!walnContent) {
     return (
@@ -101,15 +116,33 @@ export default function ProgressPanel({
               {atlasNames[walnContent.atlas]}
             </Typography>
           </Stack>
-          <Tooltip title="Total brain sections">
-            <Chip
-              size="small"
-              icon={<ImageIcon sx={{ fontSize: 14 }} />}
-              label={totalImages}
-              variant="filled"
-              sx={{ height: 24, p: 1 }}
-            />
-          </Tooltip>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Tooltip title="Total brain sections">
+              <Chip
+                size="small"
+                icon={<ImageIcon sx={{ fontSize: 14 }} />}
+                label={totalImages}
+                variant="filled"
+                sx={{ height: 24, p: 1 }}
+              />
+            </Tooltip>
+            <Tooltip title="Delete registration">
+              <IconButton
+                size="small"
+                onClick={onDeleteRegistration}
+                sx={{
+                  height: 24,
+                  width: 24,
+                  "&:hover": {
+                    color: "error.main",
+                    backgroundColor: "transparent",
+                  },
+                }}
+              >
+                <Delete sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </Stack>
 
         <Stack spacing={1} sx={{ pt: 0.5 }}>
@@ -138,7 +171,7 @@ export default function ProgressPanel({
                       sx={{ ml: 0.8 }}
                       color="primary.main"
                     >
-                      Register
+                      Register to Atlas
                     </Typography>
                   </Box>
                   <Tooltip
@@ -240,7 +273,7 @@ export default function ProgressPanel({
                       sx={{ ml: 0.8 }}
                       color="success.main"
                     >
-                      Refine
+                      Refine Registration
                     </Typography>
                   </Box>
                   <Tooltip
@@ -338,7 +371,7 @@ export default function ProgressPanel({
                       sx={{ ml: 0.8 }}
                       color="warning.main"
                     >
-                      Extract
+                      Extract Labelling
                     </Typography>
                   </Box>
                   <Tooltip title={`WebIlastik tooltip`}>

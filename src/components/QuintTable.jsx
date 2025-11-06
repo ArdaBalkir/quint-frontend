@@ -92,6 +92,9 @@ export default function QuintTable({ token, user }) {
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [confirmInput, setConfirmInput] = useState("");
 
+  // TODO fetch project state and on click to tab fetch brain if havent
+  // by 09.11
+
   // Project state helper for conditional rendering
   const getProjectState = () => {
     if (!token) {
@@ -444,8 +447,10 @@ export default function QuintTable({ token, user }) {
                   mb: 2,
                 }}
               >
-                {/* Main header with the bucket title as rwb-username */}
-                <Typography variant="h5" align="left">
+                {/* Main header with the bucket title as rwb-username
+                  DONE enlarge the input menu
+                */}
+                <Typography variant="h5" align="left" textOverflow={"ellipsis"}>
                   Projects in {bucketName}
                 </Typography>
                 <Box
@@ -461,7 +466,7 @@ export default function QuintTable({ token, user }) {
                     placeholder="New project..."
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
-                    sx={{ width: "150px", height: "40px" }}
+                    sx={{ width: "250px", height: "40px" }}
                   />
                   <Tooltip title="Create new project">
                     <IconButton

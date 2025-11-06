@@ -982,20 +982,20 @@ const QuickActions = ({
         </Grid>
       </Grid>
 
-      <Box
-        sx={{
-          mt: 1,
-          boxShadow: "none",
-          border: "1px solid #e0e0e0",
-          backgroundColor: "white",
-          display: "flex",
-          alignItems: "center",
-          flexDirection: "column",
-          p: 1,
-          borderRadius: 1,
-        }}
-      >
-        {!registered && (
+      {!registered && (
+        <Box
+          sx={{
+            mt: 1,
+            boxShadow: "none",
+            border: "1px solid #e0e0e0",
+            backgroundColor: "white",
+            display: "flex",
+            alignItems: "center",
+            flexDirection: "column",
+            p: 1,
+            borderRadius: 1,
+          }}
+        >
           <Atlas
             token={token}
             bucketName={bucketName}
@@ -1010,125 +1010,29 @@ const QuickActions = ({
             }}
             refreshBrain={refreshBrain}
           />
-        )}
-
-        {registered && (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              p: 0,
-            }}
-          >
-            <Card sx={{ boxShadow: "none", width: "100%" }}>
-              <CardContent
-                sx={{
-                  p: 1,
-                  "&:last-child": {
-                    pb: 1, // Override the default padding-bottom
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <Typography>
-                      Registration file:{" "}
-                      {walnJson.jsons?.[0]?.name.split("/").slice(-1)[0] ||
-                        "None"}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: "flex", gap: 2 }}>
-                    <Tooltip title="Delete registration">
-                      <IconButton
-                        size="small"
-                        sx={{
-                          mr: 1,
-                          "&:hover": {
-                            color: "error.main",
-                            backgroundColor: "transparent",
-                          },
-                        }}
-                        onClick={() => {
-                          if (!(bucketName && walnJson.jsons?.[0]?.name)) {
-                            showWarning("No registration file to delete");
-                            return;
-                          }
-                          deleteItem(
-                            bucketName + "/" + walnJson.jsons?.[0]?.name,
-                            token
-                          );
-                          logger.debug(
-                            "Deleting",
-                            bucketName + "/" + walnJson.jsons?.[0]?.name
-                          );
-                          showInfo("Registration file is being deleted");
-                          setTimeout(() => {
-                            refreshBrain();
-                          }, 2000);
-                        }}
-                        disabled={!walnJson.jsons?.[0]}
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-
-                    <Tooltip title="Set this registration to use as working alignment">
-                      <Button
-                        size="small"
-                        sx={{
-                          backgroundColor:
-                            alignment === walnJson.jsons?.[0]?.name
-                              ? "primary.main"
-                              : "transparent",
-                          color:
-                            alignment === walnJson.jsons?.[0]?.name
-                              ? "white"
-                              : "primary.main",
-                        }}
-                        onClick={() => {
-                          showInfo("Alignment set");
-                          setAlignment(walnJson.jsons?.[0]?.name);
-                          localStorage.setItem(
-                            "alignment",
-                            walnJson.jsons?.[0].name
-                          );
-                        }}
-                      >
-                        {alignment === walnJson.jsons?.[0]?.name
-                          ? "current registration"
-                          : "set as registration"}
-                      </Button>
-                    </Tooltip>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
-      </Box>
+        </Box>
+      )}
       {walnContent && (
         <ProgressPanel
           walnContent={walnContent}
           currentRegistration={walnJson.jsons?.[0]?.name}
           segmented={segmented}
           nutilResults={nutilResults}
+          onDeleteRegistration={() => {
+            if (!(bucketName && walnJson.jsons?.[0]?.name)) {
+              showWarning("No registration file to delete");
+              return;
+            }
+            deleteItem(bucketName + "/" + walnJson.jsons?.[0]?.name, token);
+            logger.debug(
+              "Deleting",
+              bucketName + "/" + walnJson.jsons?.[0]?.name
+            );
+            showInfo("Registration file is being deleted");
+            setTimeout(() => {
+              refreshBrain();
+            }, 2000);
+          }}
         />
       )}
     </Box>
