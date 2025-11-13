@@ -6,7 +6,6 @@ import {
   Typography,
   Tooltip,
   IconButton,
-  CircularProgress,
   List,
   ListItem,
   ListItemText,
@@ -44,6 +43,7 @@ export default function QuintTable({ token, user }) {
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [selectedBrain, setSelectedBrain] = useState(null);
+
   // Normalized brain stats only
   const [selectedBrainStats, setSelectedBrainStats] = useState(null);
   const [projectBrainEntries, setProjectBrainEntries] = useState(() => {
@@ -55,6 +55,7 @@ export default function QuintTable({ token, user }) {
       return [];
     }
   });
+
   // Other stuff
   const [rows, setRows] = useState(() => {
     try {
@@ -91,6 +92,10 @@ export default function QuintTable({ token, user }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [confirmInput, setConfirmInput] = useState("");
+
+  // Resize state for the two-panel view
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // percentage
+  const [isResizing, setIsResizing] = useState(false);
 
   // TODO fetch project state and on click to tab fetch brain if havent
   // by 09.11
@@ -410,6 +415,44 @@ export default function QuintTable({ token, user }) {
   const handleOpenDialog = () => setIsDialogOpen(true);
   const handleCloseDialog = () => setIsDialogOpen(false);
 
+  // Resizing logic, on click and release, and update on mouse move
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+
+      const container = document.getElementById("resize-container");
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const newLeftWidth =
+        ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+      // Constrain between 20% and 80%
+      if (newLeftWidth >= 20 && newLeftWidth <= 80) {
+        setLeftPanelWidth(newLeftWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
     <Box
       sx={{
@@ -424,15 +467,26 @@ export default function QuintTable({ token, user }) {
     >
       <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
         {selectedProject === null ? (
-          <Box sx={{ flex: 1, display: "flex", flexDirection: "row", gap: 1 }}>
+          <Box
+            id="resize-container"
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "row",
+              gap: 0,
+              position: "relative",
+              userSelect: isResizing ? "none" : "auto",
+            }}
+          >
             <Box
               sx={{
                 flexDirection: "column",
-                width: "50%",
+                width: `${leftPanelWidth}%`,
                 border: "1px solid #e0e0e0",
                 borderRadius: 1,
                 padding: 2,
                 backgroundColor: "white",
+                transition: isResizing ? "none" : "width 0.1s ease",
               }}
             >
               <Box
@@ -564,13 +618,41 @@ export default function QuintTable({ token, user }) {
                 )}
               </Box>
             </Box>
+
+            {/* Draggable Divider */}
+            <Box
+              onMouseDown={handleMouseDown}
+              sx={{
+                width: "8px",
+                cursor: "col-resize",
+                backgroundColor: "transparent",
+                transition: "background-color 0.2s",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                "&:hover": {
+                  backgroundColor: "#e3fde5ff",
+                },
+                "&:hover::after": {
+                  content: '""',
+                  position: "absolute",
+                  width: "2px",
+                  height: "40px",
+                  backgroundColor: "#07a644ff",
+                  borderRadius: "2px",
+                },
+              }}
+            />
+
             <Box
               component="iframe"
               src="https://quint-webtools.readthedocs.io/en/latest/"
               sx={{
-                width: "50%",
+                width: `${100 - leftPanelWidth}%`,
                 borderRadius: 1,
                 border: "1px solid #e0e0e0",
+                transition: isResizing ? "none" : "width 0.1s ease",
               }}
             ></Box>
           </Box>

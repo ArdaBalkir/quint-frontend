@@ -48,7 +48,7 @@ import { getBrainStats } from "../actions/brainRepository.ts";
 import UploadSegments from "./UploadSegments";
 
 // Nutil endpoint, one for submitting and one for polling the status
-const NUTIL_URL = "https://pynutil.apps.ebrains.eu";
+const NUTIL_URL = "https://webnutil.apps.ebrains.eu";
 const MESH_URL = "https://meshview.apps.ebrains.eu/collab.php";
 
 // Shared styles object
@@ -318,7 +318,7 @@ const Nutil = ({ token }) => {
     try {
       const baseUrl = import.meta.env.DEV
         ? "/api/pynutil"
-        : "https://pynutil.apps.ebrains.eu";
+        : "https://webnutil.apps.ebrains.eu";
       const response = await fetch(`${baseUrl}/task-status/${taskId}`, {
         method: "GET",
         headers: {
