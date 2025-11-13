@@ -432,8 +432,8 @@ export default function QuintTable({ token, user }) {
       const newLeftWidth =
         ((e.clientX - containerRect.left) / containerRect.width) * 100;
 
-      // Constrain between 20% and 80%
-      if (newLeftWidth >= 20 && newLeftWidth <= 80) {
+      // Constrain between 30% and 70%
+      if (newLeftWidth >= 30 && newLeftWidth <= 70) {
         setLeftPanelWidth(newLeftWidth);
       }
     };
