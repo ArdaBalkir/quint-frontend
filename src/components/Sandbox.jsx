@@ -175,7 +175,11 @@ const Sandbox = ({ token, user }) => {
       }
 
       const headers = parsed.meta.fields;
-      const rows = parsed.data;
+      const rows = Array.isArray(parsed.data) ? parsed.data : [];
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        logger.warn("CSV parsing returned no valid rows", { parsed });
+      }
 
       setCsvData({ headers, rows });
     } catch (err) {
@@ -397,6 +401,8 @@ const Sandbox = ({ token, user }) => {
                 csvData.headers.includes("r") &&
                 csvData.headers.includes("g") &&
                 csvData.headers.includes("b") &&
+                Array.isArray(csvData.rows) &&
+                csvData.rows.length > 0 &&
                 (() => {
                   const sortedRows = sortByCount
                     ? [...csvData.rows].sort(
@@ -445,10 +451,13 @@ const Sandbox = ({ token, user }) => {
                 !csvData.headers.includes("object_count") ||
                 !csvData.headers.includes("r") ||
                 !csvData.headers.includes("g") ||
-                !csvData.headers.includes("b")) && (
+                !csvData.headers.includes("b") ||
+                !Array.isArray(csvData.rows) ||
+                csvData.rows.length === 0) && (
                 <Typography variant="body2" color="text.secondary">
-                  Required columns "name", "object_count", "r", "g", "b" not
-                  found in CSV data
+                  {!Array.isArray(csvData.rows) || csvData.rows.length === 0
+                    ? "No data rows found in CSV file"
+                    : 'Required columns "name", "object_count", "r", "g", "b" not found in CSV data'}
                 </Typography>
               )}
             </Paper>
