@@ -327,6 +327,14 @@ export default function QuintTable({ token, user }) {
     setSelectedBrain(params.row);
     setIsFetchingStats(true);
     logger.info("Brain selected", { name: params.row.name });
+
+    /* Setting brain & project as 'workspaceState' to fetch on mount
+    localStorage.setItem(
+      "workspaceState",
+      JSON.stringify({ selectedProject, selectedBrain })
+    );
+    */
+
     // Abort any previous selection's fetches
     if (brainFetchControllerRef.current) {
       brainFetchControllerRef.current.abort();
@@ -668,7 +676,6 @@ export default function QuintTable({ token, user }) {
                   alignItems: "center",
                 }}
               >
-                2
                 <Typography className="loading-shine">
                   Loading series...
                 </Typography>

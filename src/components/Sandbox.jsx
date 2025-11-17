@@ -13,11 +13,10 @@ import {
   ListItemText,
   ListItemIcon,
   Paper,
-  Button,
   FormControlLabel,
   Switch,
 } from "@mui/material";
-import { BarChart, Save } from "@mui/icons-material";
+import { BarChart } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import Papa from "papaparse";
 import { fetchPyNutilResults } from "../actions/handleCollabs";
