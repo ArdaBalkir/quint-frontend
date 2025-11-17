@@ -41,8 +41,22 @@ export default function QuintTable({ token, user }) {
   // null until resolved so 'no-workspace' state can be meaningful
   const [bucketName, setBucketName] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [selectedBrain, setSelectedBrain] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(() => {
+    try {
+      const stored = localStorage.getItem("selectedProject");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [selectedBrain, setSelectedBrain] = useState(() => {
+    try {
+      const stored = localStorage.getItem("selectedBrain");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Normalized brain stats only
   const [selectedBrainStats, setSelectedBrainStats] = useState(null);
@@ -263,6 +277,17 @@ export default function QuintTable({ token, user }) {
       fetchAndUpdateProjects(bucketName);
     }
   }, [token, bucketName]); // Only depends on token and bucketName
+
+  // Third effect: Restore project/brain selection on mount
+  useEffect(() => {
+    if (token && bucketName && selectedProject && selectedBrain) {
+      // Restore the brain list for the selected project
+      handleProjectSelect(selectedProject).then(() => {
+        // Then refresh the selected brain's data
+        handleBrainSelect({ row: selectedBrain });
+      });
+    }
+  }, [token, bucketName]); // Only run once when token and bucket are ready
 
   const brainsControllerRef = useRef(null);
   const handleProjectSelect = async (project) => {
@@ -689,6 +714,8 @@ export default function QuintTable({ token, user }) {
                     setWalnContent(null);
                     setSelectedProject(null);
                     setSelectedBrain(null);
+                    localStorage.removeItem("selectedProject");
+                    localStorage.removeItem("selectedBrain");
                   }}
                   bucketName={bucketName}
                   token={token}
