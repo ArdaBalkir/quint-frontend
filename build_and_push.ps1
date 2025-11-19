@@ -21,7 +21,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Docker build failed with exit code $LASTEXITCODE"
     }
-    Write-Host "✓ Docker build completed successfully" -ForegroundColor Green
+    Write-Host "Docker build completed successfully" -ForegroundColor Green
 } catch {
     Write-Host "ERROR: Docker build failed - $($_.Exception.Message)" -ForegroundColor Red
     exit 1
@@ -33,11 +33,11 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Docker push failed with exit code $LASTEXITCODE"
     }
-    Write-Host "✓ Docker image pushed successfully to $env:REGISTRY/workbench-quint:latest" -ForegroundColor Green
+    Write-Host "Docker image pushed successfully to $env:REGISTRY/workbench-quint:latest" -ForegroundColor Green
 } catch {
     Write-Host "ERROR: Docker push failed - $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "✓ Build and push completed successfully!" -ForegroundColor Green
+Write-Host "Build and push completed successfully!" -ForegroundColor Green
 exit 0

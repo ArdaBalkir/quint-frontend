@@ -69,11 +69,12 @@ const tabs = [
     url: "https://webwarp.apps.ebrains.eu/webwarp.php",
     disabled: false,
   },
+  /*
   {
     label: "WebIlastik",
     url: "https://app.ilastik.org/public/nehuba/index.html#!%7B%22layout%22:%22xy%22%7D",
     disabled: false,
-  },
+  },'*/
   {
     label: "WebNutil",
     url: null,

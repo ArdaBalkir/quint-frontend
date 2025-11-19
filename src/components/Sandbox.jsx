@@ -260,11 +260,12 @@ const Sandbox = ({ token, user }) => {
                 setCsvData(null);
               }}
             >
-              {brainEntries.map((brain) => (
-                <MenuItem key={brain.name} value={brain.name}>
-                  {brain.name}
-                </MenuItem>
-              ))}
+              {Array.isArray(brainEntries) &&
+                brainEntries.map((brain) => (
+                  <MenuItem key={brain.name} value={brain.name}>
+                    {brain.name}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
         </Box>
