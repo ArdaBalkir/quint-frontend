@@ -1,9 +1,6 @@
 import logger from "../utils/logger.js";
 import { useState, useEffect } from "react";
-import Plot from "react-plotly.js";
-import Papa from "papaparse";
 import {
-  TextField,
   Box,
   CircularProgress,
   Typography,
@@ -11,626 +8,461 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Stack,
-  Card,
-  CardContent,
-  Grid2 as Grid,
-  Paper,
-  IconButton,
-  Tooltip,
   List,
   ListItem,
-  Chip,
-  OutlinedInput,
-  Checkbox,
+  ListItemText,
+  ListItemIcon,
+  Paper,
   FormControlLabel,
+  Switch,
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import DownloadIcon from "@mui/icons-material/Download";
+import { BarChart } from "@mui/icons-material";
+import Plot from "react-plotly.js";
+import Papa from "papaparse";
+import { fetchPyNutilResults } from "../actions/handleCollabs";
+import { getBrainStats } from "../actions/brainRepository.ts";
 
-const CsvList = ({ data }) => {
-  return (
-    <Box sx={{ maxHeight: "200px", overflowY: "auto" }}>
-      <List>
-        {data.map((item) => (
-          <ListItem
-            sx={{
-              backgroundColor: "#f5f5f5",
-              borderRadius: 1,
-              mb: 0.5,
-              "&:hover": {
-                backgroundColor: "primary.highlight",
-              },
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{ fontSize: "0.8rem", textAlign: "left" }}
-              key={item}
-            >
-              {item}
-            </Typography>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
-};
+const Sandbox = ({ token, user }) => {
+  // state for nutil results list
+  const [nutilResults, setNutilResults] = useState([]);
+  const [selectedResult, setSelectedResult] = useState(null);
+  const [selectedBrain, setSelectedBrain] = useState(null);
+  const [brainEntries, setBrainEntries] = useState([]);
+  const [projectName, setProjectName] = useState("");
+  const [sortByCount, setSortByCount] = useState(false);
 
-const Sandbox = ({ token }) => {
-  const [plotData, setPlotData] = useState([]);
-  const [plotLayouts, setPlotLayouts] = useState([{}]);
+  // csv data state
+  const [csvData, setCsvData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [rawData, setRawData] = useState([]);
-  const [visualizationType, setVisualizationType] = useState("bar");
-  const [graphMetrics, setGraphMetrics] = useState(["area_fraction"]);
-  const [summary, setSummary] = useState({});
-  const [availableCsvs, setAvailableCsvs] = useState([]);
-  const [topN, setTopN] = useState(20);
-  const [sorted, setSorted] = useState(false);
 
-  const availableMetrics = [
-    { value: "area_fraction", label: "Area Fraction" },
-    { value: "object_count", label: "Object Count" },
-    { value: "pixel_count", label: "Pixel Count" },
-    { value: "region_area", label: "Region Area" },
-  ];
-
-  const csvSourceUrl =
-    "https://data-proxy.ebrains.eu/api/v1/buckets/quint/counts.csv?redirect=false";
-
+  // load saved data from localStorage on mount
   useEffect(() => {
-    setAvailableCsvs([csvSourceUrl]);
+    const savedSettings = localStorage.getItem("sandboxSettings");
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        logger.debug("Loading sandbox settings", settings);
+        if (settings.nutilResults) setNutilResults(settings.nutilResults);
+        if (settings.selectedBrain) setSelectedBrain(settings.selectedBrain);
+        if (settings.brainEntries) setBrainEntries(settings.brainEntries);
+      } catch (err) {
+        logger.error("Failed to load sandbox settings", err);
+      }
+    }
+
+    // Load project name on mount
+    try {
+      const selectedProjectStr = localStorage.getItem("selectedProject");
+      if (selectedProjectStr) {
+        const selectedProject = JSON.parse(selectedProjectStr);
+        setProjectName(selectedProject.name || "");
+        logger.debug("Loaded project name", selectedProject.name);
+      }
+    } catch (err) {
+      logger.warn("Failed to parse selectedProject from localStorage", err);
+    }
   }, []);
 
-  const fetchCSVData = async () => {
-    if (!token) {
-      setError("Authentication token is missing.");
-      logger.error("Authentication token is missing");
-      return;
-    }
+  // fetch brain entries on mount
+  useEffect(() => {
+    const fetchBrainEntriesAsync = async () => {
+      try {
+        const bucketName = localStorage.getItem("bucketName");
+        if (!bucketName || !token) return;
+
+        const brains = await getBrainStats(token, bucketName);
+        setBrainEntries(brains || []);
+
+        // auto-select first brain if none selected
+        if (brains && brains.length > 0 && !selectedBrain) {
+          setSelectedBrain(brains[0]);
+        }
+      } catch (err) {
+        logger.error("Failed to fetch brain entries", err);
+      }
+    };
+
+    fetchBrainEntriesAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // fetch nutil results when brain is selected
+  useEffect(() => {
+    const fetchNutilResultsList = async () => {
+      if (!selectedBrain || !token) return;
+
+      try {
+        const bucketName = localStorage.getItem("bucketName");
+        const resultsPath = `${selectedBrain.path}`;
+
+        const response = await fetchPyNutilResults(
+          token,
+          bucketName,
+          resultsPath
+        );
+
+        if (response && response.length > 0) {
+          const folderData = response[0];
+          if (folderData.images && folderData.images.length > 0) {
+            const results = folderData.images.map((item) => ({
+              name:
+                item.subdir || item.name || `Result ${item.hash || "Unknown"}`,
+              created: item.last_modified || new Date().toISOString(),
+              path: item.name || item.subdir,
+              status: "completed",
+            }));
+            setNutilResults(results);
+          } else {
+            setNutilResults([]);
+          }
+        } else {
+          setNutilResults([]);
+        }
+      } catch (err) {
+        logger.error("Failed to fetch nutil results", err);
+        setNutilResults([]);
+      }
+    };
+
+    fetchNutilResultsList();
+  }, [selectedBrain, token]);
+
+  // fetch CSV data when a result is clicked
+  const handleResultClick = async (result) => {
+    setSelectedResult(result);
     setIsLoading(true);
     setError(null);
-    setPlotData([]);
-    setSummary({});
+    setCsvData(null);
 
     try {
-      // Fetch the signed URL for the CSV
-      const signedUrlResponse = await fetch(csvSourceUrl, {
+      const bucketName = localStorage.getItem("bucketName");
+
+      // construct the CSV file URL - assuming counts.csv is in the result folder
+      const csvPath = `${result.path}whole_series_report/counts.csv`;
+      const csvUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${csvPath}?redirect=false`;
+
+      const signedUrlResponse = await fetch(csvUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       if (!signedUrlResponse.ok) {
-        throw new Error(
-          `Failed to get signed URL: ${signedUrlResponse.statusText}`
-        );
+        throw new Error(`Failed to fetch CSV: ${signedUrlResponse.statusText}`);
       }
 
-      const signedUrlData = await signedUrlResponse.json();
-      const downloadUrl = signedUrlData.url;
+      const signedData = await signedUrlResponse.json();
+      const signedUrl = signedData.url;
 
-      if (!downloadUrl) {
-        throw new Error("Signed URL not found in response.");
-      }
-
-      //  the actual CSV content using the signed URL
-      const csvResponse = await fetch(downloadUrl);
+      const csvResponse = await fetch(signedUrl);
       if (!csvResponse.ok) {
         throw new Error(`Failed to download CSV: ${csvResponse.statusText}`);
       }
+
       const csvText = await csvResponse.text();
 
-      // Parse the CSV data
-      Papa.parse(csvText, {
+      // parse CSV with papaparse for proper handling of quotes, commas, etc.
+      const parsed = Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
-        dynamicTyping: true,
-        complete: (results) => {
-          if (results.errors.length > 0) {
-            throw new Error(`CSV Parsing Error: ${results.errors[0].message}`);
-          }
-          if (!results.data || results.data.length === 0) {
-            throw new Error("CSV data is empty or invalid.");
-          }
-          logger.debug("Parsed CSV data", { rows: results.data?.length });
-          setRawData(results.data);
-          generateAllGraphs(
-            results.data,
-            graphMetrics,
-            visualizationType,
-            topN
-          );
-        },
-        error: (err) => {
-          throw new Error(`CSV Parsing Failed: ${err.message}`);
-        },
+        dynamicTyping: true, // automatically convert numbers
       });
+
+      if (parsed.errors.length > 0) {
+        throw new Error(`CSV parsing error: ${parsed.errors[0].message}`);
+      }
+
+      const headers = parsed.meta.fields;
+      const rows = Array.isArray(parsed.data) ? parsed.data : [];
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        logger.warn("CSV parsing returned no valid rows", { parsed });
+      }
+
+      setCsvData({ headers, rows });
     } catch (err) {
-      logger.error("Error fetching or plotting CSV", err);
+      logger.error("Failed to fetch CSV data", err);
       setError(err.message);
-      setPlotData([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const generateAllGraphs = (data, metrics, plotType, currentTopN) => {
-    const allPlotData = [];
-    const allLayouts = [];
-    const summaryData = {};
+  const formatResultName = (name) => {
+    if (!name) return "Unnamed Result";
+    const cleanPath = name.endsWith("/") ? name.slice(0, -1) : name;
+    const fileName = cleanPath.split("/").pop() || "Unnamed Result";
 
-    metrics.forEach((metric, index) => {
-      const { plotDataItem, layout, metricSummary } = generatePlot(
-        data,
-        metric,
-        plotType,
-        index,
-        currentTopN
-      );
-      allPlotData.push(plotDataItem);
-      allLayouts.push(layout);
-      summaryData[metric] = metricSummary;
-    });
+    const timestampPattern =
+      /^(\d{4})_(\d{2})_(\d{2})_(\d{2})_(\d{2})_(\d{2})$/;
+    const match = fileName.match(timestampPattern);
 
-    setPlotData(allPlotData);
-    setPlotLayouts(allLayouts);
-    setSummary(summaryData);
-  };
-
-  const generatePlot = (data, sortField, plotType, index, currentTopN) => {
-    // Filter out rows with no data
-    const filteredData = data.filter(
-      (row) =>
-        // Certain meta rows are excluded from the analysis
-        row.name !== "Clear Label" &&
-        row.name !== "root" &&
-        row[sortField] !== undefined &&
-        row[sortField] !== null &&
-        row[sortField] !== 0
-    );
-
-    if (filteredData.length === 0) {
-      setError(`No non-zero data found for ${sortField}`);
-      return { plotDataItem: [], layout: {}, metricSummary: {} };
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      const date = new Date(year, month - 1, day, hour, minute, second);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
     }
 
-    // Sort data by the selected field
-    const sortedData = [...filteredData].sort(
-      (a, b) => b[sortField] - a[sortField]
-    );
-
-    const topData = sorted
-      ? sortedData.slice(0, currentTopN)
-      : filteredData.slice(0, currentTopN);
-    const names = topData.map((row) => row.name);
-    const values = topData.map((row) => row[sortField]);
-
-    // Generate colors from RGB values in the data
-    const colors = topData.map(
-      (row) => `rgba(${row.r}, ${row.g}, ${row.b}, 0.8)`
-    ); // Alpha can be adjusted later on
-
-    let plotDataItem;
-    if (plotType === "bar") {
-      plotDataItem = names.map((name, i) => ({
-        y: [name],
-        x: [values[i]],
-        type: "bar",
-        orientation: "h",
-        marker: { color: colors[i] },
-        name: name, // This will show in the legend
-        hovertemplate:
-          "<b>%{x}</b><br>" +
-          `${sortField}: %{y}<br>` +
-          "RGB: %{marker.color}<extra></extra>",
-        showlegend: true,
-        legendgroup: name,
-      }));
-    } else if (plotType === "pie") {
-      plotDataItem = {
-        labels: names,
-        values: values,
-        type: "pie",
-        marker: { colors: colors },
-        textinfo: "label+percent",
-        hoverinfo: "label+value+percent",
-      };
-    } else if (plotType === "treemap") {
-      plotDataItem = {
-        type: "treemap",
-        labels: names,
-        parents: new Array(names.length).fill(""),
-        values: values,
-        marker: { colors: colors },
-        hovertemplate:
-          "<b>%{label}</b><br>" + `${sortField}: %{value}<extra></extra>`,
-      };
-    }
-
-    // the labels for the regions aren't visible when they are in bar chart format
-    const leftMargin = plotType === "bar" ? 250 : 50;
-
-    const metricLabel =
-      availableMetrics.find((m) => m.value === sortField)?.label || sortField;
-    const layout = {
-      title: { text: `${metricLabel} Distribution` },
-      automargin: true,
-      xaxis: {
-        title: "",
-        tickangle: 0,
-        showgrid: false,
-      },
-      yaxis: {
-        title: metricLabel,
-        showgrid: true,
-      },
-      showlegend: true,
-      /*legend: {
-        orientation: "v",
-        x: 1.02,
-        y: 1,
-        xanchor: "left",
-        yanchor: "top",
-        font: { size: 12 },
-        bgcolor: "rgba(255,255,255,0.7)",
-        bordercolor: "#ccc",
-        borderwidth: 1,
-        borderRadius: 5,
-      },*/
-      autosize: true,
-      margin: {
-        l: leftMargin,
-        r: 50,
-        b: 130,
-        t: 50,
-        pad: 4,
-      },
-      height: 500,
-    };
-
-    // Generate summary data for this metric
-    const metricSummary = {
-      total: filteredData
-        .reduce((sum, row) => sum + row[sortField], 0)
-        .toFixed(2),
-      max: {
-        value: topData[0]?.[sortField]?.toFixed(2) || 0,
-        region: topData[0]?.name || "None",
-      },
-      topRegions: topData.slice(0, 3).map((row) => ({
-        name: row.name,
-        value: row[sortField]?.toFixed(2) || 0,
-      })),
-    };
-
-    return { plotDataItem, layout, metricSummary };
+    return fileName;
   };
-
-  // Bunch of handlers for the UI elements
-  const handleVisualizationTypeChange = (e) => {
-    setVisualizationType(e.target.value);
-    if (rawData.length > 0) {
-      generateAllGraphs(rawData, graphMetrics, e.target.value, topN);
-    }
-  };
-
-  const handleMetricsChange = (event) => {
-    const selectedMetrics = event.target.value;
-    setGraphMetrics(selectedMetrics);
-
-    if (rawData.length > 0) {
-      generateAllGraphs(rawData, selectedMetrics, visualizationType, topN);
-    }
-  };
-
-  const handleTopNChange = (event) => {
-    const newTopN = event.target.value;
-    setTopN(newTopN);
-    if (rawData.length > 0) {
-      generateAllGraphs(rawData, graphMetrics, visualizationType, newTopN);
-    }
-  };
-
-  const handleSortChange = (event) => {
-    const newSort = event.target.checked;
-    setSorted(newSort);
-    if (rawData.length > 0) {
-      generateAllGraphs(rawData, graphMetrics, visualizationType, topN);
-    }
-  };
-
-  useEffect(() => {
-    // Initialize with default metrics of area_fraction
-    setGraphMetrics(["area_fraction"]);
-  }, []);
 
   return (
-    <Box sx={{ padding: 1, backgroundColor: "#fff" }}>
-      <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: 1 }}>
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid size={4}>
-            <Typography variant="body2" gutterBottom textAlign={"left"}>
-              Available quantification results in project
-            </Typography>
-            <CsvList data={availableCsvs} />
-          </Grid>
-          <Grid size={4}>
-            <Stack
-              direction="column"
-              spacing={2}
-              alignItems="left"
-              sx={{ mb: 1 }}
-            >
-              <Typography variant="body2" textAlign={"left"}>
-                Plotting and Analysis Summary for brain.name
-              </Typography>
-
-              <Box
-                sx={{
-                  borderTop: "1px dashed #ccc",
-                  pt: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 1,
-                  maxWidth: "100%",
-                }}
-              >
-                <FormControl size="small" sx={{ minWidth: 120, flexGrow: 1 }}>
-                  <InputLabel>Chart Type</InputLabel>
-                  <Select
-                    value={visualizationType}
-                    label="Chart Type"
-                    onChange={handleVisualizationTypeChange}
-                    disabled={isLoading || rawData.length === 0}
-                  >
-                    <MenuItem value="bar">Bar Chart</MenuItem>
-                    <MenuItem value="pie">Pie Chart</MenuItem>
-                    <MenuItem value="treemap">Treemap</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      onChange={handleSortChange}
-                      defaultChecked={sorted}
-                    />
-                  }
-                  label="Sorted"
-                ></FormControlLabel>
-
-                <FormControl size="small" sx={{ minWidth: 80, flexGrow: 1 }}>
-                  <TextField
-                    label="Top N"
-                    type="number"
-                    value={topN}
-                    onChange={handleTopNChange}
-                    size="small"
-                    InputProps={{ inputProps: { min: 1 } }}
-                    disabled={isLoading || rawData.length === 0}
-                    sx={{ maxWidth: "80px" }}
-                  />
-                </FormControl>
-                <Tooltip title="Load Data">
-                  <IconButton
-                    color="primary"
-                    onClick={fetchCSVData}
-                    disabled={isLoading || !token}
-                    sx={{ ml: 1 }}
-                  >
-                    {isLoading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      <RefreshIcon />
-                    )}
-                  </IconButton>
-                </Tooltip>
-
-                <Tooltip title="Download All Results">
-                  <IconButton
-                    color="primary"
-                    disabled={!rawData.length || isLoading || true}
-                  >
-                    <DownloadIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-              <FormControl size="medium" sx={{ minWidth: 200 }}>
-                <InputLabel id="metrics-multiple-chip-label">
-                  Metrics
-                </InputLabel>
-                <Select
-                  labelId="metrics-multiple-chip-label"
-                  id="metrics-multiple-chip"
-                  multiple
-                  value={graphMetrics}
-                  onChange={handleMetricsChange}
-                  input={
-                    <OutlinedInput id="select-multiple-chip" label="Metrics" />
-                  }
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((value) => (
-                        <Chip
-                          key={value}
-                          label={
-                            availableMetrics.find((m) => m.value === value)
-                              ?.label || value
-                          }
-                          size="small"
-                        />
-                      ))}
-                    </Box>
-                  )}
-                  disabled={isLoading}
-                >
-                  {availableMetrics.map((metric) => (
-                    <MenuItem key={metric.value} value={metric.value}>
-                      {metric.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Grid>
-
-          <Grid size={4}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
-                <Box
-                  sx={{
-                    fontFamily: "monospace",
-                    fontSize: "0.8rem",
-                    overflow: "auto",
-                    maxHeight: "150px",
-                    textAlign: "left",
-                  }}
-                >
-                  {Object.keys(summary).length > 0 ? (
-                    <Box
-                      sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 2,
-                        width: "100%",
-                      }}
-                    >
-                      {Object.entries(summary).map(([metric, data], idx) => {
-                        const metricLabel =
-                          availableMetrics.find((m) => m.value === metric)
-                            ?.label || metric;
-                        return (
-                          <Box
-                            key={idx}
-                            sx={{
-                              mb: 1,
-                              minWidth: "170px",
-                              flexGrow: 0,
-                              maxWidth: "45%",
-                              width: "auto",
-                              overflow: "hidden",
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              color="primary"
-                              sx={{ fontWeight: "bold", display: "block" }}
-                            >
-                              {metricLabel}:
-                            </Typography>
-                            <Box sx={{ pl: 1 }}>
-                              <Typography variant="caption" display="block">
-                                total: {data.total}
-                              </Typography>
-                              <Typography variant="caption" display="block">
-                                max: {data.max.value} ({data.max.region})
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                display="block"
-                                sx={{
-                                  wordBreak: "break-word",
-                                  whiteSpace: "normal",
-                                  overflowWrap: "break-word",
-                                }}
-                              >
-                                top: [
-                                {data.topRegions
-                                  .map((r) => `${r.name}: ${r.value}`)
-                                  .join(", ")}
-                                ]
-                              </Typography>
-                            </Box>
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Load data to see analysis summary
-                    </Typography>
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {error && (
-          <Typography color="error" sx={{ mt: 1, fontSize: "0.875rem" }}>
-            Error: {error}
+    <Box
+      sx={{
+        display: "flex",
+        height: "calc(100vh - 42px)",
+        backgroundColor: "#f5f5f5",
+      }}
+    >
+      {/* Left sidebar - Results list */}
+      <Box
+        sx={{
+          width: 320,
+          borderRight: "1px solid #e0e0e0",
+          backgroundColor: "white",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+          <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>
+            Quantification Results
           </Typography>
-        )}
-      </Paper>
-
-      {isLoading && (
-        <Box sx={{ display: "flex", justifyContent: "center", mt: 4, mb: 4 }}>
-          <CircularProgress />
+          <Typography variant="caption" color="text.secondary" display="block">
+            {projectName || "No project selected"}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {selectedBrain ? selectedBrain.name : "No brain selected"}
+          </Typography>
         </Box>
-      )}
 
-      {plotData.length > 0 && !isLoading && (
-        <Box
-          sx={{ display: "flex", flexWrap: "wrap", overflow: "auto", gap: 2 }}
-        >
-          {plotData.map((dataItem, index) => (
-            <Box
-              key={index}
-              sx={{
-                flexBasis: plotData.length > 1 ? "calc(50% - 16px)" : "100%",
-                minWidth: plotData.length > 1 ? "300px" : "100%",
-                flexGrow: 1,
+        {/* Brain selector */}
+        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+          <FormControl size="small" fullWidth>
+            <InputLabel>Select Brain</InputLabel>
+            <Select
+              value={selectedBrain?.name || ""}
+              label="Select Brain"
+              onChange={(e) => {
+                const brain = brainEntries.find(
+                  (b) => b.name === e.target.value
+                );
+                setSelectedBrain(brain);
+                setSelectedResult(null);
+                setCsvData(null);
               }}
             >
-              <Paper elevation={0} sx={{ p: 2 }}>
-                <Plot
-                  data={Array.isArray(dataItem) ? dataItem : [dataItem]}
-                  layout={plotLayouts[index]}
-                  useResizeHandler={true}
-                  style={{
-                    width: "100%",
-                    height: plotData.length > 2 ? "400px" : "500px",
-                  }}
-                  config={{
-                    responsive: true,
-                    displayModeBar: true,
-                    toImageButtonOptions: {
-                      format: "png",
-                      filename: `brain_region_${graphMetrics[index]}`,
-                      height: 800,
-                      width: 1200,
-                      scale: 1,
+              {brainEntries.map((brain) => (
+                <MenuItem key={brain.name} value={brain.name}>
+                  {brain.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        {/* Results list */}
+        <List sx={{ flexGrow: 1, overflow: "auto", p: 1 }}>
+          {nutilResults.length > 0 ? (
+            nutilResults.map((result, index) => (
+              <ListItem
+                key={index}
+                button
+                selected={selectedResult?.name === result.name}
+                onClick={() => handleResultClick(result)}
+                sx={{
+                  borderRadius: 1,
+                  mb: 0.5,
+                  "&:hover": {
+                    backgroundColor: "#f5f5f5",
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: "primary.light",
+                    "&:hover": {
+                      backgroundColor: "primary.light",
                     },
+                  },
+                }}
+              >
+                <ListItemIcon>
+                  <BarChart />
+                </ListItemIcon>
+                <ListItemText
+                  primary={formatResultName(result.name)}
+                  primaryTypographyProps={{
+                    variant: "body2",
+                    sx: { fontSize: "0.875rem" },
                   }}
                 />
-              </Paper>
+              </ListItem>
+            ))
+          ) : (
+            <Box sx={{ p: 2, textAlign: "center" }}>
+              <Typography variant="body2" color="text.secondary">
+                No results available
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Run quantification in WebNutil to see results here
+              </Typography>
             </Box>
-          ))}
-        </Box>
-      )}
+          )}
+        </List>
+      </Box>
 
-      {!plotData.length && !isLoading && !error && (
-        <Box
-          sx={{
-            mt: 4,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "70vh",
-            border: "1px dashed #ccc",
-            borderRadius: 1,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            Click the refresh button to load and visualize brain region data
-          </Typography>
-        </Box>
-      )}
+      {/* Main content area */}
+      <Box sx={{ flexGrow: 1, p: 3, overflow: "auto" }}>
+        {isLoading && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
+
+        {error && (
+          <Box sx={{ p: 2 }}>
+            <Typography color="error" variant="body2">
+              Error: {error}
+            </Typography>
+          </Box>
+        )}
+
+        {!isLoading && !error && !csvData && !selectedResult && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+              border: "2px dashed #ccc",
+              borderRadius: 2,
+            }}
+          >
+            <BarChart sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">
+              Select a quantification result
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Click on a result from the left to view and analyze the data
+            </Typography>
+          </Box>
+        )}
+
+        {!isLoading && !error && csvData && (
+          <Box>
+            <Paper elevation={0} sx={{ p: 3, border: "1px solid #e0e0e0" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
+                    {selectedResult
+                      ? formatResultName(selectedResult.name)
+                      : "Quantification Data"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {csvData.rows.length} regions analyzed
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={sortByCount}
+                      onChange={(e) => setSortByCount(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label="Sort by count"
+                />
+              </Box>
+
+              {csvData.headers.includes("name") &&
+                csvData.headers.includes("object_count") &&
+                csvData.headers.includes("r") &&
+                csvData.headers.includes("g") &&
+                csvData.headers.includes("b") &&
+                Array.isArray(csvData.rows) &&
+                csvData.rows.length > 0 &&
+                (() => {
+                  const sortedRows = sortByCount
+                    ? [...csvData.rows].sort(
+                        (a, b) =>
+                          (parseFloat(b["object_count"]) || 0) -
+                          (parseFloat(a["object_count"]) || 0)
+                      )
+                    : csvData.rows;
+
+                  return (
+                    <Plot
+                      data={[
+                        {
+                          x: sortedRows.map((row) => row["name"]),
+                          y: sortedRows.map(
+                            (row) => parseFloat(row["object_count"]) || 0
+                          ),
+                          type: "bar",
+                          name: "Object Count",
+                          marker: {
+                            color: sortedRows.map(
+                              (row) =>
+                                `rgb(${Math.round(row["r"] || 0)},${Math.round(
+                                  row["g"] || 0
+                                )},${Math.round(row["b"] || 0)})`
+                            ),
+                          },
+                        },
+                      ]}
+                      layout={{
+                        xaxis: {
+                          title: "Brain Region",
+                          tickangle: -45,
+                        },
+                        yaxis: { title: "Object Count" },
+                        margin: { t: 30, r: 50, b: 150, l: 60 },
+                        showlegend: false,
+                      }}
+                      style={{ width: "100%", height: "600px" }}
+                      config={{ responsive: true }}
+                    />
+                  );
+                })()}
+
+              {(!csvData.headers.includes("name") ||
+                !csvData.headers.includes("object_count") ||
+                !csvData.headers.includes("r") ||
+                !csvData.headers.includes("g") ||
+                !csvData.headers.includes("b") ||
+                !Array.isArray(csvData.rows) ||
+                csvData.rows.length === 0) && (
+                <Typography variant="body2" color="text.secondary">
+                  {!Array.isArray(csvData.rows) || csvData.rows.length === 0
+                    ? "No data rows found in CSV file"
+                    : 'Required columns "name", "object_count", "r", "g", "b" not found in CSV data'}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 };

@@ -11,7 +11,7 @@ export default defineConfig({
     https: true,
     proxy: {
       '/api/pynutil': {
-        target: 'https://pynutil.apps.ebrains.eu',
+        target: 'https://webnutil.apps.ebrains.eu',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/pynutil/, ''),
         secure: true

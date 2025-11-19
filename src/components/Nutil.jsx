@@ -1,5 +1,6 @@
 import logger from "../utils/logger.js";
 import { useNotification } from "../contexts/NotificationContext";
+import { useTabContext } from "../contexts/TabContext";
 import {
   Box,
   List,
@@ -14,6 +15,8 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import {
   Delete,
@@ -45,7 +48,7 @@ import { getBrainStats } from "../actions/brainRepository.ts";
 import UploadSegments from "./UploadSegments";
 
 // Nutil endpoint, one for submitting and one for polling the status
-const NUTIL_URL = "https://pynutil.apps.ebrains.eu";
+const NUTIL_URL = "https://webnutil.apps.ebrains.eu";
 const MESH_URL = "https://meshview.apps.ebrains.eu/collab.php";
 
 // Shared styles object
@@ -61,8 +64,17 @@ const styles = {
       backgroundColor: "#f5f5f5",
       cursor: "pointer",
     },
-    borderBottom: "1px solid #e0e0e0",
     transition: "all 0.2s ease",
+    borderBottom: "1px solid transparent",
+    position: "relative",
+    "&:not(:last-child)": {
+      borderImage:
+        "linear-gradient(to right, transparent 12px, #e0e0e0 12px, #e0e0e0 calc(100% - 12px), transparent calc(100% - 12px)) 1",
+      borderBottom: "1px solid",
+    },
+    "& .MuiListItemText-root": {
+      borderBottom: "none",
+    },
   },
   toolbarButton: {
     textTransform: "none",
@@ -135,6 +147,7 @@ const MeshviewButton = ({ atlas, clouds }) => {
 
 const Nutil = ({ token }) => {
   const { showWarning, showInfo, showSuccess, showError } = useNotification();
+  const { navigateToSandBox } = useTabContext();
 
   const [brainEntries, setBrainEntries] = useState([]);
   const [error, setError] = useState(null);
@@ -152,6 +165,9 @@ const Nutil = ({ token }) => {
     alignment_json_path: null,
   });
   const [objectColor, setObjectColor] = useState("#ff0000");
+  // TODO implement in the backend nutil bit
+  const [extractCoordinates, setExtractCoordinates] = useState(true);
+  const [createVisualizations, setCreateVisualizations] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [tasks, setTasks] = useState([]);
@@ -302,7 +318,7 @@ const Nutil = ({ token }) => {
     try {
       const baseUrl = import.meta.env.DEV
         ? "/api/pynutil"
-        : "https://pynutil.apps.ebrains.eu";
+        : "https://webnutil.apps.ebrains.eu";
       const response = await fetch(`${baseUrl}/task-status/${taskId}`, {
         method: "GET",
         headers: {
@@ -424,6 +440,23 @@ const Nutil = ({ token }) => {
     }
   };
 
+  const handleSaveForPlotting = () => {
+    const settings = {
+      nutilResults: completedResults,
+      selectedBrain: selectedBrain,
+      brainEntries: brainEntries,
+    };
+    localStorage.setItem("sandboxSettings", JSON.stringify(settings));
+    logger.info("Saved nutil results for plotting", {
+      resultsCount: completedResults.length,
+      brain: selectedBrain?.name,
+    });
+    showSuccess("Results saved for plotting in Sandbox");
+
+    // Navigate to Sandbox tab
+    navigateToSandBox();
+  };
+
   // Call this when a brain is selected to fetch existing results
   useEffect(() => {
     if (selectedBrain) {
@@ -523,6 +556,14 @@ const Nutil = ({ token }) => {
         const parsedEntries = JSON.parse(storedBrainEntries);
         setBrainEntries(parsedEntries);
         logger.debug("Brain entries loaded", { count: parsedEntries.length });
+
+        // Auto-select if there's only one brain entry
+        if (parsedEntries.length === 1) {
+          handleBrainSelect(parsedEntries[0]);
+          logger.info("Auto-selected", {
+            brain: parsedEntries[0].name,
+          });
+        }
       }
     } catch (error) {
       logger.error("Error loading brain entries", error);
@@ -707,6 +748,32 @@ const Nutil = ({ token }) => {
             variant="contained"
             disableElevation
             size="small"
+            onClick={() => {
+              if (!selectedBrain) {
+                showWarning("Please select a brain first");
+                return;
+              }
+              if (segmentations.length === 0) {
+                showWarning("No segmentations available for comparison");
+                return;
+              }
+
+              const bucketName = localStorage.getItem("bucketName");
+              const brainPath = selectedBrain.path;
+              const firstSegmentationName = segmentations[0].name
+                .split("/")
+                .pop();
+
+              // construct the urls for serieszoom
+              const dzipUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}zipped_images/${firstSegmentationName}`;
+              const overlayUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}segmentations`;
+
+              const comparisonUrl = `https://serieszoom.apps.ebrains.eu/?dzip=${encodeURIComponent(
+                dzipUrl
+              )}&overlay=${encodeURIComponent(overlayUrl)}`;
+
+              window.open(comparisonUrl, "_blank");
+            }}
           >
             Compare
           </Button>
@@ -803,27 +870,17 @@ const Nutil = ({ token }) => {
         }}
       >
         <Box sx={{ height: "98%", display: "flex", flexDirection: "column" }}>
-          <Box sx={{ p: 1.5, borderBottom: "1px solid #e0e0e0" }}>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 1.5,
-              }}
-            >
-              <Typography variant="body2">Quantification Settings</Typography>
-              <Button
-                variant="contained"
-                disableElevation
-                size="small"
-                startIcon={<Analytics />}
-                disabled={!registration.atlas || isProcessing}
-                onClick={requestNutil}
-              >
-                {isProcessing ? "Processing..." : "Run analysis"}
-              </Button>
-            </Box>
+          <Box
+            sx={{
+              // Quantification Settings Area
+              p: 1.5,
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <Typography variant="body2" sx={{ mb: 1.5 }}>
+              Quantification Settings
+            </Typography>
+
             <Box
               sx={{
                 border: "1px solid #e0e0e0",
@@ -860,29 +917,90 @@ const Nutil = ({ token }) => {
 
             <Box
               sx={{
-                // Settings panel
-                display: "flex",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
                 gap: 2,
-                alignItems: "flex-start",
+                mb: 1.5,
+                pl: 2.5,
               }}
             >
-              <Box sx={{ flex: 1, flexDirection: "row" }}>
-                <Typography variant="caption" display="block" gutterBottom>
-                  Object Color
-                </Typography>
-                <TextField
-                  type="color"
-                  size="small"
-                  fullWidth
-                  value={objectColor}
-                  onChange={(e) => setObjectColor(e.target.value)}
-                  sx={{
-                    '& input[type="color"]': {
-                      padding: "2px",
-                      height: "32px",
-                    },
-                  }}
+              {/* Left column 
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.5,
+                  justifyContent: "center",
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={extractCoordinates}
+                      onChange={(e) => setExtractCoordinates(e.target.checked)}
+                      size="small"
+                      sx={{
+                        mb: 1,
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="caption">
+                      Extract Coordinates
+                    </Typography>
+                  }
                 />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={createVisualizations}
+                      onChange={(e) =>
+                        setCreateVisualizations(e.target.checked)
+                      }
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="caption">
+                      Create Visualizations
+                    </Typography>
+                  }
+                />
+              </Box>
+              */}
+
+              {/* Right column */}
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <Box>
+                  <Typography variant="caption" display="block" gutterBottom>
+                    Object Color
+                  </Typography>
+                  <TextField
+                    type="color"
+                    size="small"
+                    fullWidth
+                    value={objectColor}
+                    onChange={(e) => setObjectColor(e.target.value)}
+                    sx={{
+                      '& input[type="color"]': {
+                        padding: "2px",
+                        height: "32px",
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  variant="contained"
+                  disableElevation
+                  size="small"
+                  startIcon={<Analytics />}
+                  disabled={!registration.atlas || isProcessing}
+                  onClick={requestNutil}
+                  fullWidth
+                >
+                  {isProcessing ? "Processing..." : "Run analysis"}
+                </Button>
               </Box>
             </Box>
           </Box>
@@ -983,18 +1101,14 @@ const Nutil = ({ token }) => {
                         )}
 
                       {task.status === "completed" && (
-                        <Button
-                          size="small"
-                          startIcon={<Visibility />}
-                          variant="outlined"
-                          sx={{ mt: 1.5 }}
-                          onClick={() => {
-                            // Add logic to view results
-                            // TODO Use a to sandbox link to open the results
-                          }}
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          sx={{ mt: 1, color: "text.secondary" }}
                         >
-                          View Results
-                        </Button>
+                          You can now view the results in the "Available
+                          Results" section!
+                        </Typography>
                       )}
 
                       {task.completedAt && (
@@ -1113,6 +1227,7 @@ const Nutil = ({ token }) => {
                           size="small"
                           startIcon={<Calculate />}
                           sx={{ fontSize: "0.75rem", py: 0.5 }}
+                          onClick={handleSaveForPlotting}
                         >
                           Plot
                         </Button>{" "}
@@ -1128,6 +1243,7 @@ const Nutil = ({ token }) => {
                           atlas={registration.atlas}
                           clouds={[result.path]}
                         />
+                        {/* TODO Add a delete button */}
                       </Box>
                     </Box>
                   ))

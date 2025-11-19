@@ -6,7 +6,6 @@ import {
   Typography,
   Tooltip,
   IconButton,
-  CircularProgress,
   List,
   ListItem,
   ListItemText,
@@ -42,8 +41,23 @@ export default function QuintTable({ token, user }) {
   // null until resolved so 'no-workspace' state can be meaningful
   const [bucketName, setBucketName] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [selectedBrain, setSelectedBrain] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(() => {
+    try {
+      const stored = localStorage.getItem("selectedProject");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [selectedBrain, setSelectedBrain] = useState(() => {
+    try {
+      const stored = localStorage.getItem("selectedBrain");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
   // Normalized brain stats only
   const [selectedBrainStats, setSelectedBrainStats] = useState(null);
   const [projectBrainEntries, setProjectBrainEntries] = useState(() => {
@@ -55,6 +69,7 @@ export default function QuintTable({ token, user }) {
       return [];
     }
   });
+
   // Other stuff
   const [rows, setRows] = useState(() => {
     try {
@@ -91,6 +106,13 @@ export default function QuintTable({ token, user }) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [confirmInput, setConfirmInput] = useState("");
+
+  // Resize state for the two-panel view
+  const [leftPanelWidth, setLeftPanelWidth] = useState(50); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+
+  // TODO fetch project state and on click to tab fetch brain if havent
+  // by 09.11
 
   // Project state helper for conditional rendering
   const getProjectState = () => {
@@ -256,6 +278,17 @@ export default function QuintTable({ token, user }) {
     }
   }, [token, bucketName]); // Only depends on token and bucketName
 
+  // Third effect: Restore project/brain selection on mount
+  useEffect(() => {
+    if (token && bucketName && selectedProject && selectedBrain) {
+      // Restore the brain list for the selected project
+      handleProjectSelect(selectedProject).then(() => {
+        // Then refresh the selected brain's data
+        handleBrainSelect({ row: selectedBrain });
+      });
+    }
+  }, [token, bucketName]); // Only run once when token and bucket are ready
+
   const brainsControllerRef = useRef(null);
   const handleProjectSelect = async (project) => {
     setSelectedProject(project);
@@ -319,6 +352,14 @@ export default function QuintTable({ token, user }) {
     setSelectedBrain(params.row);
     setIsFetchingStats(true);
     logger.info("Brain selected", { name: params.row.name });
+
+    /* Setting brain & project as 'workspaceState' to fetch on mount
+    localStorage.setItem(
+      "workspaceState",
+      JSON.stringify({ selectedProject, selectedBrain })
+    );
+    */
+
     // Abort any previous selection's fetches
     if (brainFetchControllerRef.current) {
       brainFetchControllerRef.current.abort();
@@ -407,6 +448,44 @@ export default function QuintTable({ token, user }) {
   const handleOpenDialog = () => setIsDialogOpen(true);
   const handleCloseDialog = () => setIsDialogOpen(false);
 
+  // Resizing logic, on click and release, and update on mouse move
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+
+      const container = document.getElementById("resize-container");
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const newLeftWidth =
+        ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+      // Constrain between 30% and 70%
+      if (newLeftWidth >= 30 && newLeftWidth <= 70) {
+        setLeftPanelWidth(newLeftWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
     <Box
       sx={{
@@ -421,15 +500,26 @@ export default function QuintTable({ token, user }) {
     >
       <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
         {selectedProject === null ? (
-          <Box sx={{ flex: 1, display: "flex", flexDirection: "row", gap: 1 }}>
+          <Box
+            id="resize-container"
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "row",
+              gap: 0,
+              position: "relative",
+              userSelect: isResizing ? "none" : "auto",
+            }}
+          >
             <Box
               sx={{
                 flexDirection: "column",
-                width: "50%",
+                width: `${leftPanelWidth}%`,
                 border: "1px solid #e0e0e0",
                 borderRadius: 1,
                 padding: 2,
                 backgroundColor: "white",
+                transition: isResizing ? "none" : "width 0.1s ease",
               }}
             >
               <Box
@@ -444,8 +534,10 @@ export default function QuintTable({ token, user }) {
                   mb: 2,
                 }}
               >
-                {/* Main header with the bucket title as rwb-username */}
-                <Typography variant="h5" align="left">
+                {/* Main header with the bucket title as rwb-username
+                  DONE enlarge the input menu
+                */}
+                <Typography variant="h5" align="left" textOverflow={"ellipsis"}>
                   Projects in {bucketName}
                 </Typography>
                 <Box
@@ -461,7 +553,7 @@ export default function QuintTable({ token, user }) {
                     placeholder="New project..."
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
-                    sx={{ width: "150px", height: "40px" }}
+                    sx={{ width: "250px", height: "40px" }}
                   />
                   <Tooltip title="Create new project">
                     <IconButton
@@ -559,13 +651,41 @@ export default function QuintTable({ token, user }) {
                 )}
               </Box>
             </Box>
+
+            {/* Draggable Divider */}
+            <Box
+              onMouseDown={handleMouseDown}
+              sx={{
+                width: "8px",
+                cursor: "col-resize",
+                backgroundColor: "transparent",
+                transition: "background-color 0.2s",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                "&:hover": {
+                  backgroundColor: "#e3fde5ff",
+                },
+                "&:hover::after": {
+                  content: '""',
+                  position: "absolute",
+                  width: "2px",
+                  height: "40px",
+                  backgroundColor: "#07a644ff",
+                  borderRadius: "2px",
+                },
+              }}
+            />
+
             <Box
               component="iframe"
               src="https://quint-webtools.readthedocs.io/en/latest/"
               sx={{
-                width: "50%",
+                width: `${100 - leftPanelWidth}%`,
                 borderRadius: 1,
                 border: "1px solid #e0e0e0",
+                transition: isResizing ? "none" : "width 0.1s ease",
               }}
             ></Box>
           </Box>
@@ -581,7 +701,6 @@ export default function QuintTable({ token, user }) {
                   alignItems: "center",
                 }}
               >
-                2
                 <Typography className="loading-shine">
                   Loading series...
                 </Typography>
@@ -595,6 +714,8 @@ export default function QuintTable({ token, user }) {
                     setWalnContent(null);
                     setSelectedProject(null);
                     setSelectedBrain(null);
+                    localStorage.removeItem("selectedProject");
+                    localStorage.removeItem("selectedBrain");
                   }}
                   bucketName={bucketName}
                   token={token}

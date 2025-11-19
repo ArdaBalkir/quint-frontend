@@ -26,6 +26,8 @@ import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
+import ebrainsLogo from "../assets/logo-color-white.svg";
+import ebrainsDark from "../assets/logo-color.svg";
 import {
   createUser,
   checkAgreement,
@@ -80,7 +82,7 @@ const tabs = [
   {
     label: "Sandbox",
     url: null,
-    disabled: true,
+    disabled: false,
   },
 ];
 
@@ -137,6 +139,8 @@ const Header = () => {
 
   // OnMount: Handle code exchange or redirect
   useEffect(() => {
+    // TODO: try resolve saved authData has an already valid token by expiry
+
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
 
@@ -248,6 +252,14 @@ const Header = () => {
           gap: 2,
         }}
       >
+        <img
+          src={ebrainsDark}
+          alt="QUINT Logo"
+          style={{
+            height: "86px",
+            marginBottom: "16px",
+          }}
+        />
         <Typography variant="h5" color="text.primary">
           QUINT Online
         </Typography>
@@ -257,7 +269,6 @@ const Header = () => {
       </Box>
     );
   }
-
   if (userAgreementOpen) {
     return (
       <UserAgreement
@@ -323,7 +334,7 @@ const Header = () => {
         <Toolbar
           variant="dense"
           sx={{
-            minHeight: "36px !important",
+            minHeight: "42px !important",
             py: 0,
             px: 1,
           }}
@@ -335,6 +346,24 @@ const Header = () => {
               width: "100%",
             }}
           >
+            <Box
+              sx={{
+                height: "36px",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                marginRight: "8px",
+              }}
+            >
+              <img
+                src={ebrainsLogo}
+                alt="EBRAINS Logo"
+                style={{
+                  height: "48px",
+                  display: "block",
+                }}
+              />
+            </Box>
             <Tabs
               value={currentTab}
               onChange={(event, newValue) => switchToTab(newValue)}
@@ -342,6 +371,7 @@ const Header = () => {
                 minHeight: "36px",
                 "& .MuiTab-root": {
                   minHeight: "36px",
+                  height: "auto",
                   fontSize: "0.875rem",
                   padding: "0 14px",
                   minWidth: "auto",
@@ -430,7 +460,7 @@ const Header = () => {
               top: "50%",
               transform: "translate(-50%, -50%)",
               zIndex: 1,
-              display: "flex",
+              display: { sm: "none", lg: "flex" },
               flexDirection: "row",
             }}
           >

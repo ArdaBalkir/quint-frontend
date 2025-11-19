@@ -147,8 +147,8 @@ export default function CreationDialog({
         </DialogTitle>
         <DialogContent sx={{ padding: "20px" }}>
           <DialogContentText sx={{ marginBottom: "20px" }}>
-            Enter the name of the series, or click on already created serie,
-            upload files, choose and click submit.
+            Enter the name of the series, or select an existing series, upload
+            files and click submit.
           </DialogContentText>
           <Autocomplete
             freeSolo

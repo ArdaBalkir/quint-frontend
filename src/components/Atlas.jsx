@@ -14,6 +14,7 @@ import {
 import netunzip from "../actions/atlasUtils";
 import logger from "../utils/logger.js";
 import { uploadToJson } from "../actions/handleCollabs";
+// TODO does not use new snakcbars
 
 // Extractor definitions
 // Filename has to match the exact name of the DZIP file instead of dzi
@@ -248,12 +249,14 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
                 if (dzips.length === 0) {
                   updateInfo({
                     open: true,
-                    message: `No DZIPs provided for atlas creation`,
+                    message: `DZI files are required to generate a registration file. Please convert your images to DZI format`,
                     severity: "error",
                   });
                   // Reset creating state to false
                   // moved to logic onclick as the button carried onto execute refreshBrain
-                  logger.warn("No DZIPs provided for atlas creation");
+                  logger.warn(
+                    "DZI files are required to generate a registration file. Please convert your images to DZI format"
+                  );
                   return;
                 }
 
