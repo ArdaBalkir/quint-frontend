@@ -556,6 +556,14 @@ const Nutil = ({ token }) => {
         const parsedEntries = JSON.parse(storedBrainEntries);
         setBrainEntries(parsedEntries);
         logger.debug("Brain entries loaded", { count: parsedEntries.length });
+
+        // Auto-select if there's only one brain entry
+        if (parsedEntries.length === 1) {
+          handleBrainSelect(parsedEntries[0]);
+          logger.info("Auto-selected", {
+            brain: parsedEntries[0].name,
+          });
+        }
       }
     } catch (error) {
       logger.error("Error loading brain entries", error);
@@ -916,7 +924,7 @@ const Nutil = ({ token }) => {
                 pl: 2.5,
               }}
             >
-              {/* Left column */}
+              {/* Left column 
               <Box
                 sx={{
                   display: "flex",
@@ -959,6 +967,7 @@ const Nutil = ({ token }) => {
                   }
                 />
               </Box>
+              */}
 
               {/* Right column */}
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -1092,18 +1101,14 @@ const Nutil = ({ token }) => {
                         )}
 
                       {task.status === "completed" && (
-                        <Button
-                          size="small"
-                          startIcon={<Visibility />}
-                          variant="outlined"
-                          sx={{ mt: 1.5 }}
-                          onClick={() => {
-                            // Add logic to view results
-                            // TODO Use a to sandbox link to open the results
-                          }}
+                        <Typography
+                          variant="caption"
+                          display="block"
+                          sx={{ mt: 1, color: "text.secondary" }}
                         >
-                          View Results
-                        </Button>
+                          You can now view the results in the "Available
+                          Results" section!
+                        </Typography>
                       )}
 
                       {task.completedAt && (
