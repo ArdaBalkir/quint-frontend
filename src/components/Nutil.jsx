@@ -457,6 +457,44 @@ const Nutil = ({ token }) => {
     navigateToSandBox();
   };
 
+  const handleDeleteSegmentations = async () => {
+    if (!token || selectedSegmentations.length === 0) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      await Promise.all(
+        selectedSegmentations.map((seg) =>
+          deleteItem(`${bucketName}/${seg.name}`, token)
+        )
+      );
+      showSuccess(`Deleted ${selectedSegmentations.length} segmentation(s)`);
+      setSelectedSegmentations([]);
+      await getSegmentations(selectedBrain);
+    } catch (error) {
+      logger.error("Failed to delete segmentations", { error });
+      showError("Failed to delete segmentations");
+    }
+  };
+
+  const handleDeleteResult = async (resultPath) => {
+    if (!token) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      const folderPath = resultPath.endsWith("/")
+        ? resultPath
+        : resultPath + "/";
+      await deleteItem(`${bucketName}/${folderPath}`, token);
+      showSuccess("Result is scheduled for deletion!");
+      await fetchCompletedResults();
+    } catch (error) {
+      logger.error("Failed to delete result", { error });
+      showError("Failed to delete result");
+    }
+  };
+
   // Call this when a brain is selected to fetch existing results
   useEffect(() => {
     if (selectedBrain) {
@@ -593,7 +631,7 @@ const Nutil = ({ token }) => {
           count: imageData?.[0]?.images?.length || 0,
         });
         setSegmentations(imageData);
-        setSelectedSegmentations(imageData);
+        setSelectedSegmentations([]);
       } else {
         throw new Error("Invalid response structure");
       }
@@ -738,8 +776,14 @@ const Nutil = ({ token }) => {
                 Upload Segmentations
               </Button>
             </Tooltip>
-            <Button startIcon={<Delete />} size="small" color="error">
-              Delete
+            <Button
+              startIcon={<Delete />}
+              size="small"
+              color="error"
+              onClick={handleDeleteSegmentations}
+              disabled={selectedSegmentations.length === 0 || !token}
+            >
+              Delete Selected
             </Button>
           </Box>
 
@@ -802,43 +846,62 @@ const Nutil = ({ token }) => {
               </Box>
             </ListItem>
           ) : segmentations.length > 0 ? (
-            segmentations.map((image, index) => (
-              <ListItem
-                key={image.hash + index}
-                sx={{
-                  ...styles.listItem,
-                  py: 0.5,
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  <ImageOutlined />{" "}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography variant="body2">
-                      {image.name.split("/").pop()}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography variant="caption">
-                      {new Date(image.last_modified).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "numeric",
-                        }
-                      )}{" "}
-                      • {(image.bytes / 1024 / 1024).toFixed(1)}MB
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            ))
+            segmentations.map((image, index) => {
+              const isSelected = selectedSegmentations.some(
+                (s) => s.name === image.name
+              );
+              return (
+                <ListItem
+                  key={image.hash + index}
+                  sx={{
+                    ...styles.listItem,
+                    py: 0.5,
+                    "&:hover": {
+                      backgroundColor: "rgba(0, 0, 0, 0.04)",
+                      cursor: "pointer",
+                    },
+                  }}
+                  onClick={() => {
+                    setSelectedSegmentations((prev) =>
+                      isSelected
+                        ? prev.filter((s) => s.name !== image.name)
+                        : [...prev, image]
+                    );
+                  }}
+                >
+                  <ListItemIcon>
+                    <ImageOutlined />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: isSelected ? "bold" : "normal",
+                          color: isSelected ? "error.main" : "text.primary",
+                        }}
+                      >
+                        {image.name.split("/").pop()}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption">
+                        {new Date(image.last_modified).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "numeric",
+                          }
+                        )}{" "}
+                        • {(image.bytes / 1024 / 1024).toFixed(1)}MB
+                      </Typography>
+                    }
+                  />
+                </ListItem>
+              );
+            })
           ) : (
             <ListItem>
               <Box
@@ -1243,7 +1306,15 @@ const Nutil = ({ token }) => {
                           atlas={registration.atlas}
                           clouds={[result.path]}
                         />
-                        {/* TODO Add a delete button */}
+                        <Button
+                          size="small"
+                          startIcon={<Delete />}
+                          color="error"
+                          sx={{ fontSize: "0.75rem", py: 0.5 }}
+                          onClick={() => handleDeleteResult(result.path)}
+                        >
+                          Delete
+                        </Button>
                       </Box>
                     </Box>
                   ))
