@@ -17,6 +17,7 @@ import {
   Alert,
   FormControlLabel,
   Switch,
+  IconButton,
 } from "@mui/material";
 import {
   Delete,
@@ -153,7 +154,6 @@ const Nutil = ({ token }) => {
   const [error, setError] = useState(null);
 
   const [segmentations, setSegmentations] = useState([]);
-  const [selectedSegmentations, setSelectedSegmentations] = useState([]);
 
   const [isFetchingSegmentations, setIsFetchingSegmentations] = useState(false);
   const [selectedBrain, setSelectedBrain] = useState(null);
@@ -457,19 +457,33 @@ const Nutil = ({ token }) => {
     navigateToSandBox();
   };
 
-  const handleDeleteSegmentations = async () => {
-    if (!token || selectedSegmentations.length === 0) return;
+  const handleDeleteSegmentation = async (segmentation) => {
+    if (!token) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      await deleteItem(`${bucketName}/${segmentation.name}`, token);
+      showSuccess("Segmentation deleted");
+      await getSegmentations(selectedBrain);
+    } catch (error) {
+      logger.error("Failed to delete segmentation", { error });
+      showError("Failed to delete segmentation");
+    }
+  };
+
+  const handleDeleteAllSegmentations = async () => {
+    if (!token || segmentations.length === 0) return;
     const bucketName = localStorage.getItem("bucketName");
     if (!bucketName) return;
 
     try {
       await Promise.all(
-        selectedSegmentations.map((seg) =>
+        segmentations.map((seg) =>
           deleteItem(`${bucketName}/${seg.name}`, token)
         )
       );
-      showSuccess(`Deleted ${selectedSegmentations.length} segmentation(s)`);
-      setSelectedSegmentations([]);
+      showSuccess(`Deleted ${segmentations.length} segmentation(s)`);
       await getSegmentations(selectedBrain);
     } catch (error) {
       logger.error("Failed to delete segmentations", { error });
@@ -631,7 +645,6 @@ const Nutil = ({ token }) => {
           count: imageData?.[0]?.images?.length || 0,
         });
         setSegmentations(imageData);
-        setSelectedSegmentations([]);
       } else {
         throw new Error("Invalid response structure");
       }
@@ -780,10 +793,10 @@ const Nutil = ({ token }) => {
               startIcon={<Delete />}
               size="small"
               color="error"
-              onClick={handleDeleteSegmentations}
-              disabled={selectedSegmentations.length === 0 || !token}
+              onClick={handleDeleteAllSegmentations}
+              disabled={segmentations.length === 0 || !token}
             >
-              Delete Selected
+              Delete All
             </Button>
           </Box>
 
@@ -847,58 +860,69 @@ const Nutil = ({ token }) => {
             </ListItem>
           ) : segmentations.length > 0 ? (
             segmentations.map((image, index) => {
-              const isSelected = selectedSegmentations.some(
-                (s) => s.name === image.name
-              );
               return (
                 <ListItem
                   key={image.hash + index}
+                  disablePadding
                   sx={{
                     ...styles.listItem,
                     py: 0.5,
-                    "&:hover": {
-                      backgroundColor: "rgba(0, 0, 0, 0.04)",
-                      cursor: "pointer",
-                    },
-                  }}
-                  onClick={() => {
-                    setSelectedSegmentations((prev) =>
-                      isSelected
-                        ? prev.filter((s) => s.name !== image.name)
-                        : [...prev, image]
-                    );
+                    display: "flex",
+                    justifyContent: "space-between",
                   }}
                 >
-                  <ListItemIcon>
-                    <ImageOutlined />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: isSelected ? "bold" : "normal",
-                          color: isSelected ? "error.main" : "text.primary",
-                        }}
-                      >
-                        {image.name.split("/").pop()}
-                      </Typography>
-                    }
-                    secondary={
-                      <Typography variant="caption">
-                        {new Date(image.last_modified).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "numeric",
-                          }
-                        )}{" "}
-                        • {(image.bytes / 1024 / 1024).toFixed(1)}MB
-                      </Typography>
-                    }
-                  />
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      px: 2,
+                      py: 0.5,
+                    }}
+                  >
+                    <ListItemIcon>
+                      <ImageOutlined />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2">
+                          {image.name.split("/").pop()}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography variant="caption">
+                          {new Date(image.last_modified).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "numeric",
+                            }
+                          )}{" "}
+                          • {(image.bytes / 1024 / 1024).toFixed(1)}MB
+                        </Typography>
+                      }
+                    />
+                  </Box>
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    sx={{
+                      mr: 1,
+                      "&:hover": {
+                        color: "error.main",
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                    className="tilt-shake"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSegmentation(image);
+                    }}
+                  >
+                    <Delete />
+                  </IconButton>
                 </ListItem>
               );
             })
