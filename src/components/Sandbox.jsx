@@ -398,6 +398,7 @@ const Sandbox = ({ token, user }) => {
 
               {csvData.headers.includes("name") &&
                 csvData.headers.includes("object_count") &&
+                csvData.headers.includes("area_fraction") &&
                 csvData.headers.includes("r") &&
                 csvData.headers.includes("g") &&
                 csvData.headers.includes("b") &&
@@ -413,42 +414,88 @@ const Sandbox = ({ token, user }) => {
                     : csvData.rows;
 
                   return (
-                    <Plot
-                      data={[
-                        {
-                          x: sortedRows.map((row) => row["name"]),
-                          y: sortedRows.map(
-                            (row) => parseFloat(row["object_count"]) || 0
-                          ),
-                          type: "bar",
-                          name: "Object Count",
-                          marker: {
-                            color: sortedRows.map(
-                              (row) =>
-                                `rgb(${Math.round(row["r"] || 0)},${Math.round(
-                                  row["g"] || 0
-                                )},${Math.round(row["b"] || 0)})`
+                    <>
+                      <Plot
+                        data={[
+                          {
+                            x: sortedRows.map((row) => row["name"]),
+                            y: sortedRows.map(
+                              (row) => parseFloat(row["area_fraction"]) || 0
                             ),
+                            type: "bar",
+                            name: "Area Fraction",
+                            marker: {
+                              color: sortedRows.map(
+                                (row) =>
+                                  `rgb(${Math.round(
+                                    row["r"] || 0
+                                  )},${Math.round(row["g"] || 0)},${Math.round(
+                                    row["b"] || 0
+                                  )})`
+                              ),
+                            },
                           },
-                        },
-                      ]}
-                      layout={{
-                        xaxis: {
-                          title: "Brain Region",
-                          tickangle: -45,
-                        },
-                        yaxis: { title: "Object Count" },
-                        margin: { t: 30, r: 50, b: 150, l: 60 },
-                        showlegend: false,
-                      }}
-                      style={{ width: "100%", height: "600px" }}
-                      config={{ responsive: true }}
-                    />
+                        ]}
+                        layout={{
+                          title: {
+                            text: "Area Fraction by Region",
+                            automargin: true,
+                          },
+                          xaxis: {
+                            tickangle: -45,
+                            automargin: true,
+                          },
+                          yaxis: { automargin: true },
+                          showlegend: false,
+                        }}
+                        style={{ width: "100%", height: "900px" }}
+                        config={{ responsive: true }}
+                      />
+                      <Box sx={{ mt: 4 }}>
+                        <Plot
+                          data={[
+                            {
+                              x: sortedRows.map((row) => row["name"]),
+                              y: sortedRows.map(
+                                (row) => parseFloat(row["object_count"]) || 0
+                              ),
+                              type: "bar",
+                              name: "Object Count",
+                              marker: {
+                                color: sortedRows.map(
+                                  (row) =>
+                                    `rgb(${Math.round(
+                                      row["r"] || 0
+                                    )},${Math.round(
+                                      row["g"] || 0
+                                    )},${Math.round(row["b"] || 0)})`
+                                ),
+                              },
+                            },
+                          ]}
+                          layout={{
+                            title: {
+                              text: "Object Count by Region",
+                              automargin: true,
+                            },
+                            xaxis: {
+                              tickangle: -45,
+                              automargin: true,
+                            },
+                            yaxis: { automargin: true },
+                            showlegend: false,
+                          }}
+                          style={{ width: "100%", height: "700px" }}
+                          config={{ responsive: true }}
+                        />
+                      </Box>
+                    </>
                   );
                 })()}
 
               {(!csvData.headers.includes("name") ||
                 !csvData.headers.includes("object_count") ||
+                !csvData.headers.includes("area_fraction") ||
                 !csvData.headers.includes("r") ||
                 !csvData.headers.includes("g") ||
                 !csvData.headers.includes("b") ||
@@ -457,7 +504,7 @@ const Sandbox = ({ token, user }) => {
                 <Typography variant="body2" color="text.secondary">
                   {!Array.isArray(csvData.rows) || csvData.rows.length === 0
                     ? "No data rows found in CSV file"
-                    : 'Required columns "name", "object_count", "r", "g", "b" not found in CSV data'}
+                    : 'Required columns "name", "object_count", "area_fraction", "r", "g", "b" not found in CSV data'}
                 </Typography>
               )}
             </Paper>
