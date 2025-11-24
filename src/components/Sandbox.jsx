@@ -13,8 +13,6 @@ import {
   ListItemText,
   ListItemIcon,
   Paper,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import { BarChart } from "@mui/icons-material";
 import Plot from "react-plotly.js";
@@ -29,7 +27,6 @@ const Sandbox = ({ token, user }) => {
   const [selectedBrain, setSelectedBrain] = useState(null);
   const [brainEntries, setBrainEntries] = useState([]);
   const [projectName, setProjectName] = useState("");
-  const [sortByCount, setSortByCount] = useState(false);
 
   // csv data state
   const [csvData, setCsvData] = useState(null);
@@ -232,7 +229,9 @@ const Sandbox = ({ token, user }) => {
           flexDirection: "column",
         }}
       >
-        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+        <Box
+          sx={{ p: 2, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}
+        >
           <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>
             Quantification Results
           </Typography>
@@ -384,18 +383,7 @@ const Sandbox = ({ token, user }) => {
                     {csvData.rows.length} regions analyzed
                   </Typography>
                 </Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={sortByCount}
-                      onChange={(e) => setSortByCount(e.target.checked)}
-                      color="primary"
-                    />
-                  }
-                  label="Sort by count"
-                />
-              </Box>
-
+              </Box>{" "}
               {csvData.headers.includes("name") &&
                 csvData.headers.includes("object_count") &&
                 csvData.headers.includes("area_fraction") &&
@@ -403,29 +391,54 @@ const Sandbox = ({ token, user }) => {
                 csvData.headers.includes("g") &&
                 csvData.headers.includes("b") &&
                 Array.isArray(csvData.rows) &&
-                csvData.rows.length > 0 &&
-                (() => {
-                  const sortedRows = sortByCount
-                    ? [...csvData.rows].sort(
-                        (a, b) =>
-                          (parseFloat(b["object_count"]) || 0) -
-                          (parseFloat(a["object_count"]) || 0)
-                      )
-                    : csvData.rows;
-
-                  return (
-                    <>
+                csvData.rows.length > 0 && (
+                  <>
+                    <Plot
+                      data={[
+                        {
+                          x: csvData.rows.map((row) => row["name"]),
+                          y: csvData.rows.map(
+                            (row) => parseFloat(row["area_fraction"]) || 0
+                          ),
+                          type: "bar",
+                          name: "Area Fraction",
+                          marker: {
+                            color: csvData.rows.map(
+                              (row) =>
+                                `rgb(${Math.round(row["r"] || 0)},${Math.round(
+                                  row["g"] || 0
+                                )},${Math.round(row["b"] || 0)})`
+                            ),
+                          },
+                        },
+                      ]}
+                      layout={{
+                        title: {
+                          text: "Area Fraction by Region",
+                          automargin: true,
+                        },
+                        xaxis: {
+                          tickangle: -45,
+                          automargin: true,
+                        },
+                        yaxis: { automargin: true },
+                        showlegend: false,
+                      }}
+                      style={{ width: "100%", height: "900px" }}
+                      config={{ responsive: true }}
+                    />
+                    <Box sx={{ mt: 4 }}>
                       <Plot
                         data={[
                           {
-                            x: sortedRows.map((row) => row["name"]),
-                            y: sortedRows.map(
-                              (row) => parseFloat(row["area_fraction"]) || 0
+                            x: csvData.rows.map((row) => row["name"]),
+                            y: csvData.rows.map(
+                              (row) => parseFloat(row["object_count"]) || 0
                             ),
                             type: "bar",
-                            name: "Area Fraction",
+                            name: "Object Count",
                             marker: {
-                              color: sortedRows.map(
+                              color: csvData.rows.map(
                                 (row) =>
                                   `rgb(${Math.round(
                                     row["r"] || 0
@@ -438,7 +451,7 @@ const Sandbox = ({ token, user }) => {
                         ]}
                         layout={{
                           title: {
-                            text: "Area Fraction by Region",
+                            text: "Object Count by Region",
                             automargin: true,
                           },
                           xaxis: {
@@ -448,51 +461,12 @@ const Sandbox = ({ token, user }) => {
                           yaxis: { automargin: true },
                           showlegend: false,
                         }}
-                        style={{ width: "100%", height: "900px" }}
+                        style={{ width: "100%", height: "700px" }}
                         config={{ responsive: true }}
                       />
-                      <Box sx={{ mt: 4 }}>
-                        <Plot
-                          data={[
-                            {
-                              x: sortedRows.map((row) => row["name"]),
-                              y: sortedRows.map(
-                                (row) => parseFloat(row["object_count"]) || 0
-                              ),
-                              type: "bar",
-                              name: "Object Count",
-                              marker: {
-                                color: sortedRows.map(
-                                  (row) =>
-                                    `rgb(${Math.round(
-                                      row["r"] || 0
-                                    )},${Math.round(
-                                      row["g"] || 0
-                                    )},${Math.round(row["b"] || 0)})`
-                                ),
-                              },
-                            },
-                          ]}
-                          layout={{
-                            title: {
-                              text: "Object Count by Region",
-                              automargin: true,
-                            },
-                            xaxis: {
-                              tickangle: -45,
-                              automargin: true,
-                            },
-                            yaxis: { automargin: true },
-                            showlegend: false,
-                          }}
-                          style={{ width: "100%", height: "700px" }}
-                          config={{ responsive: true }}
-                        />
-                      </Box>
-                    </>
-                  );
-                })()}
-
+                    </Box>
+                  </>
+                )}
               {(!csvData.headers.includes("name") ||
                 !csvData.headers.includes("object_count") ||
                 !csvData.headers.includes("area_fraction") ||

@@ -211,13 +211,13 @@ const Nutil = ({ token }) => {
     if (
       !selectedBrain ||
       !registration.atlas ||
-      !atlasLookup[registration.atlas] || // Ensure atlas is valid for lookup
-      selectedSegmentations.length === 0
+      !atlasLookup[registration.atlas] ||
+      segmentations.length === 0
     ) {
       logger.warn("Missing required data for Nutil analysis", {
         selectedBrain,
         registration,
-        selectedSegmentations,
+        segmentations,
       });
       setError(
         "Missing required data (brain, atlas, or segmentations) for Nutil analysis."
@@ -231,7 +231,7 @@ const Nutil = ({ token }) => {
       const brainPath = `${collabName}/${selectedBrain.path}`;
 
       const segmentationPath =
-        selectedSegmentations[0].name.split("/").slice(0, -1).join("/") + "/";
+        segmentations[0].name.split("/").slice(0, -1).join("/") + "/";
 
       // hex -> bgr
       const hexToRgb = (hex) => {
@@ -1019,7 +1019,9 @@ const Nutil = ({ token }) => {
                   position: "relative",
                 }}
               >
-                <Typography variant="caption">Object Color</Typography>
+                <Typography variant="caption">
+                  Select colour to quantify:
+                </Typography>
                 <Box
                   component="label"
                   sx={{
@@ -1055,7 +1057,11 @@ const Nutil = ({ token }) => {
                 disableElevation
                 size="small"
                 startIcon={<Analytics />}
-                disabled={!registration.atlas || isProcessing}
+                disabled={
+                  !registration.atlas ||
+                  isProcessing ||
+                  segmentations.length === 0
+                }
                 onClick={requestNutil}
                 fullWidth
               >
