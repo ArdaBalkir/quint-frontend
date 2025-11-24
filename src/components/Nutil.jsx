@@ -152,6 +152,7 @@ const Nutil = ({ token }) => {
 
   const [brainEntries, setBrainEntries] = useState([]);
   const [error, setError] = useState(null);
+  const [segmentationCounts, setSegmentationCounts] = useState({});
 
   const [segmentations, setSegmentations] = useState([]);
 
@@ -466,6 +467,7 @@ const Nutil = ({ token }) => {
       await deleteItem(`${bucketName}/${segmentation.name}`, token);
       showSuccess("Segmentation deleted");
       await getSegmentations(selectedBrain);
+      await fetchAllSegmentationCounts([selectedBrain]);
     } catch (error) {
       logger.error("Failed to delete segmentation", { error });
       showError("Failed to delete segmentation");
@@ -485,6 +487,7 @@ const Nutil = ({ token }) => {
       );
       showSuccess(`Deleted ${segmentations.length} segmentation(s)`);
       await getSegmentations(selectedBrain);
+      await fetchAllSegmentationCounts([selectedBrain]);
     } catch (error) {
       logger.error("Failed to delete segmentations", { error });
       showError("Failed to delete segmentations");
@@ -609,6 +612,9 @@ const Nutil = ({ token }) => {
         setBrainEntries(parsedEntries);
         logger.debug("Brain entries loaded", { count: parsedEntries.length });
 
+        // Fetch segmentation counts for all brains
+        fetchAllSegmentationCounts(parsedEntries);
+
         // Auto-select if there's only one brain entry
         if (parsedEntries.length === 1) {
           handleBrainSelect(parsedEntries[0]);
@@ -622,6 +628,39 @@ const Nutil = ({ token }) => {
       setError("Failed to load brain entries");
     }
   }, []);
+
+  const fetchAllSegmentationCounts = async (brains) => {
+    if (!token || !brains || brains.length === 0) return;
+
+    const collabName = localStorage.getItem("bucketName");
+    const counts = {};
+
+    await Promise.all(
+      brains.map(async (brain) => {
+        try {
+          const response = await fetchBrainSegmentations(
+            token,
+            collabName,
+            brain.path
+          );
+          if (response && response[0] && response[0].images) {
+            counts[brain.name] = response[0].images.length;
+          } else {
+            counts[brain.name] = 0;
+          }
+        } catch (error) {
+          logger.error("Error fetching segmentation count for brain", {
+            brain: brain.name,
+            error,
+          });
+          counts[brain.name] = 0;
+        }
+      })
+    );
+
+    setSegmentationCounts((prev) => ({ ...prev, ...counts }));
+    logger.info("Segmentation counts fetched", { counts });
+  };
 
   const getSegmentations = async (brainEntry) => {
     if (!token) {
@@ -746,7 +785,35 @@ const Nutil = ({ token }) => {
                       style={{ width: "1.75rem", height: "1.75rem" }}
                     />
                   </ListItemIcon>
-                  <ListItemText primary={entry.name.split("/").pop()} />
+                  <ListItemText
+                    primary={
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {entry.name.split("/").pop()}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            ml: 1,
+                          }}
+                        >
+                          {segmentationCounts[entry.name] !== undefined
+                            ? `${segmentationCounts[entry.name]} segmentation${
+                                segmentationCounts[entry.name] !== 1 ? "s" : ""
+                              }`
+                            : "..."}
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 </ListItem>
               ))
             ) : (
@@ -1352,7 +1419,10 @@ const Nutil = ({ token }) => {
         token={token}
         project={JSON.parse(localStorage.getItem("selectedProject"))}
         brain={selectedBrain}
-        onUploadComplete={() => getSegmentations(selectedBrain)}
+        onUploadComplete={async () => {
+          await getSegmentations(selectedBrain);
+          await fetchAllSegmentationCounts([selectedBrain]);
+        }}
       />
     </Box>
   );
