@@ -1011,84 +1011,56 @@ const Nutil = ({ token }) => {
                 pl: 2.5,
               }}
             >
-              {/* Left column 
               <Box
                 sx={{
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 1,
+                  position: "relative",
                 }}
               >
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={extractCoordinates}
-                      onChange={(e) => setExtractCoordinates(e.target.checked)}
-                      size="small"
-                      sx={{
-                        mb: 1,
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography variant="caption">
-                      Extract Coordinates
-                    </Typography>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={createVisualizations}
-                      onChange={(e) =>
-                        setCreateVisualizations(e.target.checked)
-                      }
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Typography variant="caption">
-                      Create Visualizations
-                    </Typography>
-                  }
-                />
-              </Box>
-              */}
-
-              {/* Right column */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <Box>
-                  <Typography variant="caption" display="block" gutterBottom>
-                    Object Color
-                  </Typography>
-                  <TextField
+                <Typography variant="caption">Object Color</Typography>
+                <Box
+                  component="label"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    backgroundColor: objectColor,
+                    border: "2px solid #e0e0e0",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    },
+                  }}
+                >
+                  <input
                     type="color"
-                    size="small"
-                    fullWidth
                     value={objectColor}
                     onChange={(e) => setObjectColor(e.target.value)}
-                    sx={{
-                      '& input[type="color"]': {
-                        padding: "2px",
-                        height: "32px",
-                      },
+                    style={{
+                      opacity: 0,
+                      position: "absolute",
+                      width: 0,
+                      height: 0,
                     }}
                   />
                 </Box>
-
-                <Button
-                  variant="contained"
-                  disableElevation
-                  size="small"
-                  startIcon={<Analytics />}
-                  disabled={!registration.atlas || isProcessing}
-                  onClick={requestNutil}
-                  fullWidth
-                >
-                  {isProcessing ? "Processing..." : "Run analysis"}
-                </Button>
               </Box>
+
+              <Button
+                variant="contained"
+                disableElevation
+                size="small"
+                startIcon={<Analytics />}
+                disabled={!registration.atlas || isProcessing}
+                onClick={requestNutil}
+                fullWidth
+              >
+                {isProcessing ? "Processing..." : "Run analysis"}
+              </Button>
             </Box>
           </Box>
           <Box
