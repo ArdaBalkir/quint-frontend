@@ -29,7 +29,7 @@ export const TabProvider = ({ children }) => {
     const bucketName = localStorage.getItem("bucketName");
 
     if (!alignment || alignment === "") {
-      alert("Please set a working alignment first");
+      alert("Please select a project and an image series");
       return false;
     }
 
@@ -56,7 +56,7 @@ export const TabProvider = ({ children }) => {
     const bucketName = localStorage.getItem("bucketName");
 
     if (!alignment || alignment === "") {
-      alert("Please set a working alignment first");
+      alert("Please select a project and an image series");
       return false;
     }
 
@@ -83,8 +83,8 @@ export const TabProvider = ({ children }) => {
     const bucketName = localStorage.getItem("bucketName");
     const mainPath = JSON.parse(localStorage.getItem("selectedBrain"));
 
-    if (!alignment || alignment === "") {
-      alert("Please set a working alignment first");
+    if (!alignment || alignment === "" || !bucketName || !mainPath) {
+      alert("Please select a project and an image series");
       return false;
     }
 
@@ -92,7 +92,7 @@ export const TabProvider = ({ children }) => {
     setCurrentTab(3);
 
     // Use the provided paths or default to the main path
-    const imagesPath = `${mainPath.path}/zipped_images/`;
+    const imagesPath = `${mainPath.path}zipped_images/`;
     const segmentsPath = `${mainPath.path}segmentations/{name}.{extension}`;
 
     const params = new URLSearchParams({
