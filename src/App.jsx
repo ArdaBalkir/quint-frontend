@@ -1,11 +1,11 @@
 import React from "react";
 import "./App.css";
 import Header from "./components/Header";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { createTheme } from "@mui/material/styles";
 import { ThemeProvider } from "@mui/material/styles";
 import { TabProvider } from "./contexts/TabContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
-// TODO Add Token and Auth provider
 
 const theme = createTheme({
   typography: {
@@ -68,15 +68,17 @@ const theme = createTheme({
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <NotificationProvider>
-        <TabProvider>
-          <div className="App" style={{ width: "100%", height: "100vh" }}>
-            <Header />
-          </div>
-        </TabProvider>
-      </NotificationProvider>
-    </ThemeProvider>
+    <ErrorBoundary resetOnRetry={true}>
+      <ThemeProvider theme={theme}>
+        <NotificationProvider>
+          <TabProvider>
+            <div className="App" style={{ width: "100%", height: "100vh" }}>
+              <Header />
+            </div>
+          </TabProvider>
+        </NotificationProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
