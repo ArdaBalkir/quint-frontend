@@ -313,7 +313,7 @@ const Header = () => {
               top: "50%",
               transform: "translate(-50%, -50%)",
               zIndex: 1,
-              display: { sm: "none", lg: "flex" },
+              display: { xs: "none", xl: "flex" },
               flexDirection: "row",
             }}
           >

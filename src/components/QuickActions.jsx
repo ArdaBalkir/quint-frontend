@@ -630,6 +630,13 @@ const QuickActions = ({
                       >
                         Convert images to DZI format
                       </Typography>
+                      <Tooltip title="DZI (Deep Zoom Image) enables smooth viewing of large images by loading only visible regions at the current zoom level.">
+                        <Info
+                          fontSize="small"
+                          color="action"
+                          sx={{ cursor: "help" }}
+                        />
+                      </Tooltip>
                       <Tooltip
                         title={`Deepzoom service: ${getHealthIndicator().text}${
                           deepzoomHealth.lastChecked
