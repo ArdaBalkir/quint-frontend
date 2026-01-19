@@ -288,6 +288,38 @@ const uploadFile = async (
   return { url: uploadUrl, status: response.status === 204 };
 };
 
+// Upload file with progress callback using XMLHttpRequest
+const uploadFileWithProgress = (
+  uploadUrl: string,
+  file: Blob,
+  onProgress: (loaded: number, total: number) => void
+): Promise<{ url: string; status: boolean }> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(event.loaded, event.total);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({ url: uploadUrl, status: xhr.status === 204 });
+      } else {
+        reject(new Error(`Failed to upload file: ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Network error during upload"));
+    });
+
+    xhr.open("PUT", uploadUrl);
+    xhr.send(file);
+  });
+};
+
 export const uploadToPath = async (
   token: string,
   bucketName: string,
@@ -301,6 +333,22 @@ export const uploadToPath = async (
   );
   const uploadUrl = await getUploadUrl(token, bucketName, objectName);
   return uploadFile(uploadUrl, file);
+};
+
+export const uploadToPathWithProgress = async (
+  token: string,
+  bucketName: string,
+  projectName: string,
+  uploadPath: string,
+  file: File,
+  onProgress: (loaded: number, total: number) => void
+): Promise<{ url: string; status: boolean }> => {
+  const objectName = `${projectName}/${uploadPath}${file.name}`.replace(
+    /\/+/g,
+    "/"
+  );
+  const uploadUrl = await getUploadUrl(token, bucketName, objectName);
+  return uploadFileWithProgress(uploadUrl, file, onProgress);
 };
 
 interface CreateProjectUploadObj {

@@ -13,7 +13,7 @@ import {
   Autocomplete,
   LinearProgress,
 } from "@mui/material";
-import { uploadToPath } from "../actions/handleCollabs";
+import { uploadToPathWithProgress } from "../actions/handleCollabs";
 import UploadZone from "./UploadZone";
 
 export default function CreationDialog({
@@ -67,37 +67,44 @@ export default function CreationDialog({
 
     if (filesToUpload.length > 0) {
       try {
-        let completedUploads = 0;
-        const batchSize = 4; // Process 4 files at a time
-        const allResults = [];
+        // Calculate total size for granular progress
+        const totalBytes = filesToUpload.reduce(
+          (sum, file) => sum + file.size,
+          0
+        );
+        // Track bytes uploaded per file
+        const uploadedBytes = new Map();
 
-        // Process files in batches of 4
-        for (let i = 0; i < filesToUpload.length; i += batchSize) {
-          // Get the current batch of files
-          const batch = filesToUpload.slice(i, i + batchSize);
-
-          // Upload this batch in parallel
-          const batchPromises = batch.map((file) =>
-            uploadToPath(
-              token,
-              collabName,
-              project.name,
-              name + "/raw_images/",
-              file
-            ).then((result) => {
-              // Increment completed count and update progress
-              completedUploads++;
-              setUploadProgress(
-                (completedUploads / filesToUpload.length) * 100
-              );
-              return { ...result, originalFile: file };
-            })
+        const updateTotalProgress = () => {
+          const totalUploaded = Array.from(uploadedBytes.values()).reduce(
+            (sum, bytes) => sum + bytes,
+            0
           );
+          const percentage =
+            totalBytes > 0 ? (totalUploaded / totalBytes) * 100 : 0;
+          setUploadProgress(percentage);
+        };
 
-          // Wait for current batch to complete before moving to next batch
-          const batchResults = await Promise.all(batchPromises);
-          allResults.push(...batchResults);
-        }
+        // Upload all files in parallel with granular progress tracking
+        const uploadPromises = filesToUpload.map((file, index) => {
+          // Initialize this file's progress
+          uploadedBytes.set(index, 0);
+
+          return uploadToPathWithProgress(
+            token,
+            collabName,
+            project.name,
+            name + "/raw_images/",
+            file,
+            (loaded, total) => {
+              // Update this file's uploaded bytes and recalculate total
+              uploadedBytes.set(index, loaded);
+              updateTotalProgress();
+            }
+          ).then((result) => ({ ...result, originalFile: file }));
+        });
+
+        const allResults = await Promise.all(uploadPromises);
 
         setIsUploading(false);
         showSuccess("Files uploaded successfully");
