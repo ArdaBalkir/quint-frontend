@@ -73,10 +73,10 @@ export default function CreationDialog({
           0
         );
         // Track bytes uploaded per file
-        const uploadedBytes = new Map();
+        const uploadedBytes = new Array(filesToUpload.length).fill(0);
 
         const updateTotalProgress = () => {
-          const totalUploaded = Array.from(uploadedBytes.values()).reduce(
+          const totalUploaded = uploadedBytes.reduce(
             (sum, bytes) => sum + bytes,
             0
           );
@@ -87,9 +87,6 @@ export default function CreationDialog({
 
         // Upload all files in parallel with granular progress tracking
         const uploadPromises = filesToUpload.map((file, index) => {
-          // Initialize this file's progress
-          uploadedBytes.set(index, 0);
-
           return uploadToPathWithProgress(
             token,
             collabName,
@@ -98,7 +95,7 @@ export default function CreationDialog({
             file,
             (loaded, total) => {
               // Update this file's uploaded bytes and recalculate total
-              uploadedBytes.set(index, loaded);
+              uploadedBytes[index] = loaded;
               updateTotalProgress();
             }
           ).then((result) => ({ ...result, originalFile: file }));
