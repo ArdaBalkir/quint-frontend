@@ -9,6 +9,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Divider,
   Tabs,
   Tab,
   Toolbar,
@@ -23,6 +24,10 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import DescriptionIcon from "@mui/icons-material/Description";
+import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
+import SecurityIcon from "@mui/icons-material/Security";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import TimerIcon from "@mui/icons-material/Timer";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
@@ -108,6 +113,38 @@ const Header = () => {
       backgroundColor: "rgba(0, 0, 0, 0.04)",
       cursor: "pointer",
     },
+  };
+
+  const formatUnixSeconds = (value) => {
+    if (!value || typeof value !== "number") return "—";
+    const date = new Date(value * 1000);
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : date.toLocaleString("en-GB", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+  };
+
+  const formatCountdown = (value) => {
+    if (!value || typeof value !== "number") return "—";
+    const diffMs = value * 1000 - Date.now();
+    if (!Number.isFinite(diffMs)) return "—";
+    if (diffMs <= 0) return "expired";
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) return `in ${hours}h ${minutes}m`;
+    if (minutes > 0) return `in ${minutes}m ${seconds}s`;
+    return `in ${seconds}s`;
+  };
+
+  const formatScope = (scope) => {
+    if (!scope) return "—";
+    return Array.isArray(scope) ? scope.join(" ") : String(scope);
   };
 
   // All authentication logic is now handled by useAuth hook
@@ -341,7 +378,7 @@ const Header = () => {
                 onClick={() =>
                   window.open(
                     "https://quint-webtools.readthedocs.io/en/latest/",
-                    "_blank"
+                    "_blank",
                   )
                 }
                 size="small"
@@ -388,7 +425,7 @@ const Header = () => {
             }}
             role="presentation"
           >
-            <List>
+            <List dense sx={{ pb: 0 }}>
               <ListItem sx={sharedListItemSx}>
                 <ListItemIcon>
                   <AccountCircleIcon />
@@ -409,7 +446,7 @@ const Header = () => {
                 onClick={() => {
                   window.open(
                     // Fixed URL for downloading the example dataset
-                    "https://data-proxy-zipper.ebrains.eu/zip?container=https://data-proxy.ebrains.eu/api/v1/buckets/quint?prefix=Online QUINT demo dataset/"
+                    "https://data-proxy-zipper.ebrains.eu/zip?container=https://data-proxy.ebrains.eu/api/v1/buckets/quint?prefix=Online QUINT demo dataset/",
                   );
                 }}
               >
@@ -441,8 +478,111 @@ const Header = () => {
                   }}
                 />
               </ListItem>
+              {user && <Divider sx={{ my: 1 }} />}
+              {user && (
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    bgcolor: "grey.50",
+                    mx: 2,
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, mb: 1, display: "block" }}
+                  >
+                    Session Information
+                  </Typography>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <SecurityIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Scope"
+                      secondary={formatScope(user?.scope)}
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        sx: {
+                          fontFamily: "monospace",
+                          fontSize: "0.75rem",
+                          wordBreak: "break-word",
+                          mt: 0.25,
+                        },
+                      }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <ScheduleIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Issued"
+                      secondary={formatUnixSeconds(user?.iat)}
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        sx: { mt: 0.25 },
+                      }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <TimerIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Expires"
+                      secondary={
+                        <Box component="span">
+                          <Box
+                            component="span"
+                            sx={{ fontWeight: 600, color: "primary.main" }}
+                          >
+                            {formatCountdown(user?.exp)}
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              color: "text.secondary",
+                              fontSize: "0.75rem",
+                              ml: 0.5,
+                            }}
+                          >
+                            ({formatUnixSeconds(user?.exp)})
+                          </Box>
+                        </Box>
+                      }
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        component: "div",
+                        sx: { mt: 0.25 },
+                      }}
+                    />
+                  </ListItem>
+                </Box>
+              )}
+
               <ListItem sx={sharedListItemSx} onClick={() => handleLogin()}>
-                <ListItemText primary="Login again" />
+                <ListItemText primary="Refresh token manually" />
               </ListItem>
             </List>
             <Box sx={{ padding: "16px", marginTop: "auto" }}>

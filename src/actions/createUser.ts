@@ -4,22 +4,45 @@ interface UserInfo {
   username: string;
   fullname: string;
   email: string;
+  sub?: string;
+  iss?: string;
+  aud?: string | string[];
+  scope?: string | string[];
+  exp?: number;
+  iat?: number;
   [key: string]: any;
+}
+
+function decodeJwtPayload(token: string): Record<string, any> {
+  const payloadBase64Url = token.split(".")[1];
+  if (!payloadBase64Url) {
+    throw new Error("Invalid JWT: missing payload");
+  }
+
+  const base64 = payloadBase64Url.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64.padEnd(
+    base64.length + ((4 - (base64.length % 4)) % 4),
+    "=",
+  );
+  const decodedPayload = atob(padded);
+  return JSON.parse(decodedPayload);
 }
 
 function createUser(token: string): UserInfo {
   try {
-    // Get the payload part of the JWT (second part)
-    const payloadBase64 = token.split(".")[1];
-
-    const decodedPayload = atob(payloadBase64);
-    const payload = JSON.parse(decodedPayload);
+    const payload = decodeJwtPayload(token);
 
     // Map the JWT fields to our UserInfo structure
     const userInfo: UserInfo = {
       username: payload.preferred_username || "",
       fullname: payload.name || "",
       email: payload.email || "",
+      sub: payload.sub,
+      iss: payload.iss,
+      aud: payload.aud,
+      scope: payload.scope || payload.scp,
+      exp: payload.exp,
+      iat: payload.iat,
     };
 
     logger.info("User created", { sub: userInfo.sub });
@@ -34,7 +57,7 @@ function createUser(token: string): UserInfo {
 
 async function checkAgreement(
   username: string,
-  email: string
+  email: string,
 ): Promise<boolean> {
   try {
     // Normalize using NFC for consistent character representation
@@ -58,7 +81,7 @@ async function checkAgreement(
 
     if (!response.ok) {
       throw new Error(
-        `Network response was not ok: ${response.status} ${response.statusText}`
+        `Network response was not ok: ${response.status} ${response.statusText}`,
       );
     }
     logger.debug("Agreement response status", {
