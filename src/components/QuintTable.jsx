@@ -15,6 +15,12 @@ import {
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
+import PersonIcon from "@mui/icons-material/Person"; // user icon
+
+const adminIcon = <PersonAddIcon color="red" />;
+const editorIcon = <PersonIcon color="blue" />;
+const publicIcon = <PersonIcon color="grey" />; // this will point out other rwb's
 
 // Project handling
 import {
@@ -244,7 +250,7 @@ export default function QuintTable({ token, user }) {
                     token: token,
                     collab_id: collabName,
                   }),
-                }
+                },
               );
 
               const data = await response.json();
@@ -323,7 +329,7 @@ export default function QuintTable({ token, user }) {
         projectPath,
         "/",
         1000,
-        { signal: controller.signal }
+        { signal: controller.signal },
       );
       const newRows = brainEntries.map((entry, index) => ({
         id: index,
@@ -384,12 +390,12 @@ export default function QuintTable({ token, user }) {
         bucketName,
         params.row.path,
         null,
-        { signal }
+        { signal },
       );
       setSelectedBrainStats(normalized);
       localStorage.setItem(
         "selectedBrain",
-        JSON.stringify({ ...params.row, project: selectedProject.name })
+        JSON.stringify({ ...params.row, project: selectedProject.name }),
       );
       logger.debug("Selected brain stats", normalized);
 
@@ -400,7 +406,7 @@ export default function QuintTable({ token, user }) {
             token,
             bucketName,
             regFile,
-            signal
+            signal,
           );
           logger.debug("WALN content retrieved", {
             keys: Object.keys(walnContent || {}).length,
@@ -580,13 +586,45 @@ export default function QuintTable({ token, user }) {
                       <AddIcon />
                     </IconButton>
                   </Tooltip>
+                  <Tooltip title="Share with other members">
+                    <IconButton
+                      sx={{
+                        "&:hover": {
+                          transform: "scale(1.1)",
+                          backgroundColor: "transparent",
+                        },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(
+                          `https://wiki.ebrains.eu/bin/view/Collabs/${bucketName}/Team#/editor`,
+                          "_blank",
+                        );
+                      }}
+                    >
+                      <PersonAddIcon
+                        sx={{
+                          cursor: "pointer",
+                        }}
+                        color="primary"
+                      />
+                    </IconButton>
+                  </Tooltip>
+
                   <Tooltip title="Open bucket directory">
                     <IconButton
+                      sx={{
+                        "&:hover": {
+                          transform: "scale(1.1)",
+                          backgroundColor: "transparent",
+                        },
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         window.open(
                           `https://data-proxy.ebrains.eu/${bucketName}`,
-                          "_blank"
+
+                          "_blank",
                         );
                       }}
                     >

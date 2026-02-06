@@ -72,10 +72,10 @@ export default function ProgressPanel({
   const sectionsWithOUVorAnchoring = sectionList.filter(
     (item) =>
       (item?.ouv && item.ouv.length > 0) ||
-      (item?.anchoring && item.anchoring.length > 0)
+      (item?.anchoring && item.anchoring.length > 0),
   ).length;
   const sectionsWithMarkers = sectionList.filter(
-    (item) => item?.markers && item.markers.length > 0
+    (item) => item?.markers && item.markers.length > 0,
   ).length;
 
   // Verbose logging
@@ -223,7 +223,7 @@ export default function ProgressPanel({
                         fontWeight="bold"
                       >
                         {Math.round(
-                          (sectionsWithOUVorAnchoring / totalImages) * 100
+                          (sectionsWithOUVorAnchoring / totalImages) * 100,
                         )}
                         %
                       </Typography>
@@ -421,7 +421,7 @@ export default function ProgressPanel({
                         fontWeight="bold"
                       >
                         {Math.min((segmented / totalImages) * 100, 100).toFixed(
-                          2
+                          2,
                         )}
                         %
                       </Typography>
@@ -476,7 +476,7 @@ export default function ProgressPanel({
                       Quantify
                     </Typography>
                   </Box>
-                  {/*<Tooltip title={`Pynutil tooltip`}>
+                  {/*<Tooltip title={`nutil tooltip`}>
                     <Chip
                       label={`?`}
                       size="small"

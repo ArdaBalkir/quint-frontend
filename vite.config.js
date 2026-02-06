@@ -10,10 +10,10 @@ export default defineConfig({
     port: 3000,
     https: true,
     proxy: {
-      '/api/pynutil': {
+      '/api/nutil': {
         target: 'https://webnutil.apps.ebrains.eu',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/pynutil/, ''),
+        rewrite: (path) => path.replace(/^\/api\/nutil/, ''),
         secure: true
       }
     }

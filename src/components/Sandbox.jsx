@@ -17,7 +17,7 @@ import {
 import { BarChart } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import Papa from "papaparse";
-import { fetchPyNutilResults } from "../actions/handleCollabs";
+import { fetchnutilResults } from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
 
 const Sandbox = ({ token, user }) => {
@@ -41,7 +41,7 @@ const Sandbox = ({ token, user }) => {
   const processPieChartData = (rows, valueKey, topN = 10) => {
     // Sort rows by value descending
     const sortedRows = [...rows].sort(
-      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0)
+      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0),
     );
 
     // Take top N
@@ -51,7 +51,7 @@ const Sandbox = ({ token, user }) => {
     // Calculate sum of rest
     const restSum = restRows.reduce(
       (sum, row) => sum + (parseFloat(row[valueKey]) || 0),
-      0
+      0,
     );
 
     // Prepare data
@@ -60,8 +60,8 @@ const Sandbox = ({ token, user }) => {
     const colors = topRows.map(
       (row) =>
         `rgb(${Math.round(row["r"] || 0)},${Math.round(
-          row["g"] || 0
-        )},${Math.round(row["b"] || 0)})`
+          row["g"] || 0,
+        )},${Math.round(row["b"] || 0)})`,
     );
 
     // Add "Other" if there are rest rows
@@ -134,10 +134,10 @@ const Sandbox = ({ token, user }) => {
         const bucketName = localStorage.getItem("bucketName");
         const resultsPath = `${selectedBrain.path}`;
 
-        const response = await fetchPyNutilResults(
+        const response = await fetchnutilResults(
           token,
           bucketName,
-          resultsPath
+          resultsPath,
         );
 
         if (response && response.length > 0) {
@@ -293,7 +293,7 @@ const Sandbox = ({ token, user }) => {
               label="Select Brain"
               onChange={(e) => {
                 const brain = brainEntries.find(
-                  (b) => b.name === e.target.value
+                  (b) => b.name === e.target.value,
                 );
                 setSelectedBrain(brain);
                 setSelectedResult(null);
@@ -472,7 +472,7 @@ const Sandbox = ({ token, user }) => {
                             {
                               x: csvData.rows.map((row) => row["name"]),
                               y: csvData.rows.map(
-                                (row) => parseFloat(row["area_fraction"]) || 0
+                                (row) => parseFloat(row["area_fraction"]) || 0,
                               ),
                               type: "bar",
                               name: "Area Fraction",
@@ -480,10 +480,10 @@ const Sandbox = ({ token, user }) => {
                                 color: csvData.rows.map(
                                   (row) =>
                                     `rgb(${Math.round(
-                                      row["r"] || 0
+                                      row["r"] || 0,
                                     )},${Math.round(
-                                      row["g"] || 0
-                                    )},${Math.round(row["b"] || 0)})`
+                                      row["g"] || 0,
+                                    )},${Math.round(row["b"] || 0)})`,
                                 ),
                               },
                             },
@@ -509,7 +509,7 @@ const Sandbox = ({ token, user }) => {
                               {
                                 x: csvData.rows.map((row) => row["name"]),
                                 y: csvData.rows.map(
-                                  (row) => parseFloat(row["object_count"]) || 0
+                                  (row) => parseFloat(row["object_count"]) || 0,
                                 ),
                                 type: "bar",
                                 name: "Object Count",
@@ -517,10 +517,10 @@ const Sandbox = ({ token, user }) => {
                                   color: csvData.rows.map(
                                     (row) =>
                                       `rgb(${Math.round(
-                                        row["r"] || 0
+                                        row["r"] || 0,
                                       )},${Math.round(
-                                        row["g"] || 0
-                                      )},${Math.round(row["b"] || 0)})`
+                                        row["g"] || 0,
+                                      )},${Math.round(row["b"] || 0)})`,
                                   ),
                                 },
                               },
@@ -550,7 +550,7 @@ const Sandbox = ({ token, user }) => {
                               ...processPieChartData(
                                 csvData.rows,
                                 "area_fraction",
-                                topNRegions
+                                topNRegions,
                               ),
                               type: "pie",
                               textinfo: "label+percent",
@@ -576,7 +576,7 @@ const Sandbox = ({ token, user }) => {
                                 ...processPieChartData(
                                   csvData.rows,
                                   "object_count",
-                                  topNRegions
+                                  topNRegions,
                                 ),
                                 type: "pie",
                                 textinfo: "label+percent",

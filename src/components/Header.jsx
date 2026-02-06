@@ -24,7 +24,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import DescriptionIcon from "@mui/icons-material/Description";
-import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
+
 import SecurityIcon from "@mui/icons-material/Security";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import TimerIcon from "@mui/icons-material/Timer";

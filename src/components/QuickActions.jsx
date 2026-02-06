@@ -73,10 +73,10 @@ const QuickActions = ({
   const pyramidStats = stats?.pyramids;
   const registrationStats = stats?.registrations;
   const segmentationStats = stats?.segmentations;
-  const pynutilStats = stats?.pynutil;
+  const nutilStats = stats?.nutil;
 
   const nutilResults =
-    pynutilStats?.nutil_results || pynutilStats?.nutilResults || [];
+    nutilStats?.nutil_results || nutilStats?.nutilResults || [];
 
   const unifiedFiles = useMemo(() => {
     const rawImages = rawStats?.tiffs || [];
@@ -122,7 +122,7 @@ const QuickActions = ({
   const [bucketName, setBucketName] = useState(null);
   // current work alignment file
   const [alignment, setAlignment] = useState(
-    localStorage.getItem("alignment") || null
+    localStorage.getItem("alignment") || null,
   );
 
   const [taskStatus, setTaskStatus] = useState({});
@@ -297,7 +297,7 @@ const QuickActions = ({
         filesToProcess.map((imageFile) => {
           const targetPath = `${sourceBrain}zipped_images/`;
           return processImage(imageFile, bucketName, targetPath, token);
-        })
+        }),
       );
 
       // Store the tasks information
@@ -333,7 +333,7 @@ const QuickActions = ({
             try {
               const status = await pollTaskStatus(
                 taskInfo.statusEndpoint,
-                filePath
+                filePath,
               );
 
               // If any task is still processing, we're not done
@@ -372,7 +372,7 @@ const QuickActions = ({
       setPollingInterval(interval);
 
       showSuccess(
-        `Scheduled ${filesToProcess.length} files for conversion - you can leave this page.`
+        `Scheduled ${filesToProcess.length} files for conversion - you can leave this page.`,
       );
     } catch (error) {
       logger.error("Error processing TIFF files", error);
@@ -389,7 +389,7 @@ const QuickActions = ({
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -428,7 +428,7 @@ const QuickActions = ({
     const tasks = Object.values(taskStatus);
     const totalProgress = tasks.reduce(
       (sum, task) => sum + (task.progress || 0),
-      0
+      0,
     );
     return Math.round(totalProgress / tasks.length);
   };
@@ -680,7 +680,7 @@ const QuickActions = ({
                           const firstZip = pyramidStats?.zips?.[0]?.name;
                           if (!firstZip) return;
                           const url = `https://serieszoom.apps.ebrains.eu/?token=${encodeURIComponent(
-                            accessToken
+                            accessToken,
                           )}&dzip=https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${firstZip}`;
                           window.open(url, "_blank", "noopener,noreferrer");
                         } catch (e) {
@@ -752,7 +752,7 @@ const QuickActions = ({
                                 </TableCell>
                                 <TableCell>
                                   {new Date(
-                                    file.rawLastModified
+                                    file.rawLastModified,
                                   ).toLocaleString("en-GB", dateOptions)}
                                 </TableCell>
                                 <TableCell>
@@ -870,7 +870,7 @@ const QuickActions = ({
                                 <TableCell>
                                   {file.isProcessed
                                     ? new Date(
-                                        file.zipLastModified
+                                        file.zipLastModified,
                                       ).toLocaleString("en-GB", dateOptions)
                                     : "-"}
                                 </TableCell>
@@ -978,8 +978,8 @@ const QuickActions = ({
                       {pyramidComplete
                         ? "Complete"
                         : isProcessing
-                        ? "Converting..."
-                        : "Convert"}
+                          ? "Converting..."
+                          : "Convert"}
                     </Button>
                   </Box>
                 </Box>
@@ -1033,7 +1033,7 @@ const QuickActions = ({
             deleteItem(bucketName + "/" + walnJson.jsons?.[0]?.name, token);
             logger.debug(
               "Deleting",
-              bucketName + "/" + walnJson.jsons?.[0]?.name
+              bucketName + "/" + walnJson.jsons?.[0]?.name,
             );
             showInfo("Registration file is being deleted");
             setTimeout(() => {

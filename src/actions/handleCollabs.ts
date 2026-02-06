@@ -4,7 +4,7 @@ type FetchOptions = RequestInit;
 
 const fetchJson = async <T = any>(
   url: string,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<T> => {
   const response = await fetch(url, options);
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -14,7 +14,7 @@ const fetchJson = async <T = any>(
 const fetchWithAuth = <T = any>(
   url: string,
   token: string,
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<T> =>
   fetchJson<T>(url, {
     ...options,
@@ -32,7 +32,7 @@ export async function deleteItem(path: string, token: string): Promise<any> {
 }
 
 export async function listAvailableWorkspaces(
-  token: string
+  token: string,
 ): Promise<string[]> {
   const workspaces = await fetchWithAuth<any[]>(BUCKET_URL.slice(0, -1), token);
   return workspaces.map((w) => w.name);
@@ -53,7 +53,7 @@ export const fetchBucketDir = async (
   prefix?: string,
   delimiter?: string,
   limit: number = 1000,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ): Promise<BucketDirEntry[]> => {
   const params = new URLSearchParams();
   if (prefix) params.append("prefix", prefix);
@@ -93,15 +93,15 @@ const fetchSingleBrainSubdir = async (
   bucketName: string,
   brainPrefix: string,
   subdir: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<BucketStats> => {
-  // Special case for pynutil_results - use the dedicated function
-  if (subdir === "pynutil_results") {
-    const nutilResults = await fetchPyNutilResults(
+  // Special case for nutil_results - use the dedicated function
+  if (subdir === "nutil_results") {
+    const nutilResults = await fetchnutilResults(
       token,
       bucketName,
       brainPrefix,
-      signal
+      signal,
     );
     return {
       name: brainPrefix + subdir,
@@ -123,7 +123,7 @@ const fetchSingleBrainSubdir = async (
   };
   if (subdir === "raw_images") {
     base.tiffs = data.objects.filter((o: any) =>
-      /\.(tif|tiff|png|jpe?g)$/i.test(o.name)
+      /\.(tif|tiff|png|jpe?g)$/i.test(o.name),
     );
   } else if (subdir === "zipped_images") {
     base.zips = data.objects.filter((o: any) => o.name.endsWith(".dzip"));
@@ -139,11 +139,11 @@ export interface BrainStatsNormalized {
   pyramids?: BucketStats; // zipped_images
   registrations?: BucketStats; // jsons
   segmentations?: BucketStats; // segmentations
-  pynutil?: BucketStats; // pynutil_results
+  nutil?: BucketStats; // nutil_results
 }
 
 export const normalizeBrainStats = (
-  stats: BucketStats[]
+  stats: BucketStats[],
 ): BrainStatsNormalized => {
   const normalized: BrainStatsNormalized = {};
   stats.forEach((s) => {
@@ -152,7 +152,7 @@ export const normalizeBrainStats = (
     else if (name.endsWith("zipped_images")) normalized.pyramids = s;
     else if (name.endsWith("jsons")) normalized.registrations = s;
     else if (name.endsWith("segmentations")) normalized.segmentations = s;
-    else if (name.endsWith("pynutil_results")) normalized.pynutil = s;
+    else if (name.endsWith("nutil_results")) normalized.nutil = s;
   });
   return normalized;
 };
@@ -162,7 +162,7 @@ export const fetchBrainStatsNormalized = async (
   bucketName: string,
   brainPrefix: string,
   optional: string | null = null,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ): Promise<BrainStatsNormalized> => {
   const subdirs = optional
     ? [optional]
@@ -171,12 +171,12 @@ export const fetchBrainStatsNormalized = async (
         "zipped_images",
         "jsons",
         "segmentations",
-        "pynutil_results",
+        "nutil_results",
       ];
   const results = await Promise.all(
     subdirs.map((d) =>
-      fetchSingleBrainSubdir(token, bucketName, brainPrefix, d, opts?.signal)
-    )
+      fetchSingleBrainSubdir(token, bucketName, brainPrefix, d, opts?.signal),
+    ),
   );
   return normalizeBrainStats(results);
 };
@@ -192,7 +192,7 @@ export const fetchBrainSegmentations = async (
   token: string,
   bucketName: string,
   brainPrefix: string,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal },
 ): Promise<BrainSegmentation[]> => {
   const params = new URLSearchParams();
   if (brainPrefix) params.append("prefix", `${brainPrefix}segmentations/`);
@@ -210,15 +210,15 @@ export const fetchBrainSegmentations = async (
   ];
 };
 
-export const fetchPyNutilResults = async (
+export const fetchnutilResults = async (
   token: string,
   bucketName: string,
   brainPrefix: string,
   signal?: AbortSignal,
-  useDelimiter: boolean = true
+  useDelimiter: boolean = true,
 ): Promise<BrainSegmentation[]> => {
   const params = new URLSearchParams();
-  if (brainPrefix) params.append("prefix", `${brainPrefix}pynutil_results/`);
+  if (brainPrefix) params.append("prefix", `${brainPrefix}nutil_results/`);
   if (useDelimiter) params.append("delimiter", "/");
   params.append("limit", "1000");
 
@@ -232,11 +232,11 @@ export const fetchPyNutilResults = async (
     if (!subdirs.length) return [];
     return [
       {
-        name: brainPrefix + "pynutil_results",
+        name: brainPrefix + "nutil_results",
         files: subdirs.length,
         size: subdirs.reduce(
           (acc: number, obj: any) => acc + (obj.bytes || 0),
-          0
+          0,
         ),
         images: subdirs,
       },
@@ -246,11 +246,11 @@ export const fetchPyNutilResults = async (
     if (!data.objects?.length) return [];
     return [
       {
-        name: brainPrefix + "pynutil_results",
+        name: brainPrefix + "nutil_results",
         files: data.objects.length,
         size: data.objects.reduce(
           (acc: number, obj: any) => acc + obj.bytes,
-          0
+          0,
         ),
         images: data.objects,
       },
@@ -261,7 +261,7 @@ export const fetchPyNutilResults = async (
 const getUploadUrl = async (
   token: string,
   bucketName: string,
-  objectName: string
+  objectName: string,
 ): Promise<string> => {
   const url = `${BUCKET_URL}${bucketName}/${objectName}`;
   const result = await fetchWithAuth<{ url: string }>(url, token, {
@@ -274,7 +274,7 @@ const getUploadUrl = async (
 const uploadFile = async (
   uploadUrl: string,
   file: Blob | string,
-  contentType?: string
+  contentType?: string,
 ): Promise<{ url: string; status: boolean }> => {
   const headers: Record<string, string> = contentType
     ? { "Content-Type": contentType }
@@ -292,7 +292,7 @@ const uploadFile = async (
 const uploadFileWithProgress = (
   uploadUrl: string,
   file: Blob,
-  onProgress: (loaded: number, total: number) => void
+  onProgress: (loaded: number, total: number) => void,
 ): Promise<{ url: string; status: boolean }> => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -325,11 +325,11 @@ export const uploadToPath = async (
   bucketName: string,
   projectName: string,
   uploadPath: string,
-  file: File
+  file: File,
 ): Promise<{ url: string; status: boolean }> => {
   const objectName = `${projectName}/${uploadPath}${file.name}`.replace(
     /\/+/g,
-    "/"
+    "/",
   );
   const uploadUrl = await getUploadUrl(token, bucketName, objectName);
   return uploadFile(uploadUrl, file);
@@ -341,11 +341,11 @@ export const uploadToPathWithProgress = async (
   projectName: string,
   uploadPath: string,
   file: File,
-  onProgress: (loaded: number, total: number) => void
+  onProgress: (loaded: number, total: number) => void,
 ): Promise<{ url: string; status: boolean }> => {
   const objectName = `${projectName}/${uploadPath}${file.name}`.replace(
     /\/+/g,
-    "/"
+    "/",
   );
   const uploadUrl = await getUploadUrl(token, bucketName, objectName);
   return uploadFileWithProgress(uploadUrl, file, onProgress);
@@ -358,16 +358,16 @@ interface CreateProjectUploadObj {
 }
 
 export const createProject = async (
-  uploadObj: CreateProjectUploadObj
+  uploadObj: CreateProjectUploadObj,
 ): Promise<{ url: string; status: boolean }> => {
   const objectName = `${uploadObj.projectName}/projectsettings.json`.replace(
     /\/+/g,
-    "/"
+    "/",
   );
   const uploadUrl = await getUploadUrl(
     uploadObj.token,
     uploadObj.bucketName,
-    objectName
+    objectName,
   );
   const content = {
     created_at: new Date().toISOString(),
@@ -381,12 +381,12 @@ export const uploadToSegments = async (
   bucketName: string,
   projectName: string,
   brainName: string,
-  file: File
+  file: File,
 ): Promise<{ url: string; status: boolean }> => {
   const objectName =
     `${projectName}/${brainName}/segmentations/${file.name}`.replace(
       /\/+/g,
-      "/"
+      "/",
     );
   const uploadUrl = await getUploadUrl(token, bucketName, objectName);
   return uploadFile(uploadUrl, file);
@@ -395,24 +395,24 @@ export const uploadToSegments = async (
 export const uploadToJson = async (
   uploadObj: CreateProjectUploadObj & { brainName: string },
   fileName: string,
-  content: any
+  content: any,
 ): Promise<{ url: string; status: boolean }> => {
   const objectName =
     `${uploadObj.projectName}/${uploadObj.brainName}/jsons/${fileName}`.replace(
       /\/+/g,
-      "/"
+      "/",
     );
   const uploadUrl = await getUploadUrl(
     uploadObj.token,
     uploadObj.bucketName,
-    objectName
+    objectName,
   );
   return uploadFile(uploadUrl, JSON.stringify(content), "application/json");
 };
 
 export async function checkBucketExists(
   token: string,
-  searchTerm: string
+  searchTerm: string,
 ): Promise<boolean> {
   try {
     const url = `${BUCKET_URL.slice(0, -1)}?search=${searchTerm}`;
@@ -427,13 +427,13 @@ export const downloadWalnJson = async (
   token: string,
   bucketName: string,
   objectPath: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<any> => {
   const url = `${BUCKET_URL}${bucketName}/${objectPath}?redirect=false`;
   const { url: downloadUrl } = await fetchWithAuth<{ url: string }>(
     url,
     token,
-    { signal }
+    { signal },
   );
   const contentResponse = await fetch(downloadUrl, { signal });
   if (!contentResponse.ok) throw new Error("Failed to download WALN content");
