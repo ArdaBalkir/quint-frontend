@@ -4,7 +4,6 @@ import {
   AppBar,
   Button,
   Box,
-  CircularProgress,
   Drawer,
   List,
   ListItem,
@@ -17,48 +16,27 @@ import {
   Typography,
   IconButton,
   Dialog,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
-import FindInPageIcon from "@mui/icons-material/FindInPage";
-import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
+import DescriptionIcon from "@mui/icons-material/Description";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
 import ebrainsLogo from "../assets/logo-color-white.svg";
 import ebrainsDark from "../assets/logo-color.svg";
-import {
-  createUser,
-  checkAgreement,
-  signDocument,
-} from "../actions/createUser";
 import { useTabContext } from "../contexts/TabContext";
-
-// Variable loading for URLs
-const OIDC = import.meta.env.VITE_APP_OIDC;
-
-// Dev instance switch pain points
-const TOKEN_URL = import.meta.env.VITE_APP_TOKEN_URL;
-const MY_URL = import.meta.env.VITE_APP_MY_URL;
+import { useAuth } from "../hooks/useAuth.js";
 
 const tabs = [
-  /*
-  {
-    icon: <HomeRoundedIcon />,
-    label: "Projects",
-    url: null,
-    disabled: false,
-  },
-  // To be implemented once the project context is ready
-  {
-  */
   {
     label: "Projects",
     url: null,
     disabled: false,
   },
-
   {
     label: "WebAlign",
     url: "https://webalign.apps.ebrains.eu/index.php",
@@ -91,36 +69,31 @@ logger.info("Application mode", { mode: process.env.NODE_ENV });
 logger.info("Logging in start");
 
 const Header = () => {
-  const [auth, setAuth] = useState(false);
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+  const {
+    isLoading,
+    isAuthenticated,
+    token,
+    user,
+    needsAgreement,
+    handleLogin,
+    handleAcceptAgreement,
+  } = useAuth();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Added loading state
-  // Control for the iframe, further divergence from an iframe can be done within the Mainframe component
-  // Mainly for Native use of the applications and the webalign etc i frame ones
   const {
     currentTab,
     switchToTab,
     navigateToWebAlign,
     navigateToWebWarp,
+    navigateToWebIlastik,
     nativeSelection,
     setNativeSelection,
     currentUrl,
     handleFrameChange,
+    validationError,
+    setValidationError,
   } = useTabContext();
   const [docsOpen, setDocsOpen] = useState(false);
-
-  // Login alert
-  const [loginAlert, setLoginAlert] = useState(false); // Default to false
-  const [userAgreementOpen, setUserAgreementOpen] = useState(false); // Default to false
-
-  // Tab context to interact
-
-  const handleLogin = () => {
-    // Redirect immediately
-    window.location.href = `${OIDC}?response_type=code&login=true&client_id=quintweb&redirect_uri=${MY_URL}`;
-    // WIP url https://rodentworkbench.apps.ebrains.eu/new/
-  };
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -137,106 +110,7 @@ const Header = () => {
     },
   };
 
-  // OnMount: Handle code exchange or redirect
-  useEffect(() => {
-    // TODO: try resolve saved authData has an already valid token by expiry
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-
-    if (code) {
-      setIsLoading(true); // Keep loading while fetching token
-      fetch(`${TOKEN_URL}?code=${code}`)
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then((data) => {
-          logger.debug("Token received", { hasAccess: !!data?.access_token });
-          if (data.token && data.token.access_token) {
-            setToken(data.token.access_token);
-            // User fetching will happen in the next effect
-            // Clean the url after successful token fetch
-            window.history.replaceState(null, null, window.location.pathname);
-          } else {
-            // Handle cases where the response is ok but doesn't contain the expected token
-
-            logger.error("Token data missing or invalid", data);
-            setToken(null); // Ensure token is null
-            handleLogin(); // Redirect to login if token exchange failed
-          }
-        })
-        .catch((error) => {
-          logger.error("Token couldn't be retrieved", error);
-          setToken(null); // Ensure token is null on error
-          // Optionally show an error message to the user before redirecting
-          handleLogin(); // Redirect to login on fetch error
-          // This will no longer freak out when the IAM is too slow to respond
-        });
-    } else {
-      // No code in URL, redirect immediately to login
-      // Check if a token might already exist (e.g., from a previous session, though not implemented here)
-      // If not implementing token persistence, always redirect if no code.
-      logger.info("No code found, redirecting to login");
-      handleLogin();
-      // Keep isLoading true as we are redirecting away
-    }
-  }, []); // Runs only once on mount
-
-  // Get user info when token is available
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (!token) {
-        // If token becomes null after attempting fetch, stop loading
-        // This condition might be hit if token fetch failed but didn't redirect immediately
-        // Or if the initial state is null and no code was found (though redirect should handle that)
-        // Check if a code was present initially to avoid stopping loading during redirect
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!urlParams.has("code")) {
-          setIsLoading(false); // Only stop loading if we weren't trying to exchange a code
-        }
-        return;
-      }
-
-      try {
-        logger.debug("Fetching user info");
-        const userInfo = await createUser(token);
-        setUser(userInfo);
-        logger.info("User info received", { user: userInfo?.username });
-        localStorage.setItem("userInfo", JSON.stringify(userInfo));
-        const agreement = await checkAgreement(
-          userInfo["username"],
-          userInfo["email"]
-        );
-        logger.debug("User agreement status", { agreement });
-        if (!agreement) {
-          logger.info("User has not accepted the agreement");
-          setLoginAlert(true); // Show login alert if user hasn't accepted the agreement
-          setIsLoading(false); // Stop loading after user is fetched
-          setUserAgreementOpen(true); // Open user agreement dialog
-        } else {
-          logger.info("User has accepted the agreement");
-          setLoginAlert(false); // Hide login alert if user has accepted the agreement
-          setAuth(true);
-          setIsLoading(false); // Stop loading after user is fetched
-          setLoginAlert(false); // Hide login alert if shown
-        }
-      } catch (error) {
-        logger.error("User couldn't be retrieved", error);
-        setAuth(false);
-        setUser(null);
-        setToken(null); // Invalidate token if user fetch fails
-        // setIsLoading(false); // Stop loading on error
-        handleLogin(); // Uncomment this line if you want to force re-login on user fetch error
-      }
-    };
-
-    fetchUser();
-  }, [token]); // Runs when token changes
-
-  // Removed the auto-redirect useEffect with setTimeout
+  // All authentication logic is now handled by useAuth hook
 
   // Show loading screen while authenticating or redirecting
   if (isLoading) {
@@ -269,37 +143,12 @@ const Header = () => {
       </Box>
     );
   }
-  if (userAgreementOpen) {
+  if (needsAgreement) {
     return (
       <UserAgreement
-        open={userAgreementOpen}
-        onClose={() => setUserAgreementOpen(false)}
-        onAccept={async () => {
-          try {
-            // Call signDocument with the token as required by the function signature
-            await signDocument(token);
-
-            // Verify the agreement was properly signed
-            const agreementSigned = await checkAgreement(
-              user?.username,
-              user?.email
-            );
-
-            if (agreementSigned) {
-              logger.info("Agreement signed & verified");
-              setUserAgreementOpen(false);
-              setAuth(true);
-              setLoginAlert(false);
-              setIsLoading(false);
-            } else {
-              logger.error("Agreement signature could not be verified");
-              // Optionally show an error message to the user
-            }
-          } catch (error) {
-            logger.error("Error during agreement signing", error);
-            // Handle error, maybe show a notification to the user
-          }
-        }}
+        open={needsAgreement}
+        onClose={() => {}} // Prevent closing without accepting
+        onAccept={handleAcceptAgreement}
         userEmail={user?.email}
         userName={user?.fullname}
       />
@@ -325,10 +174,9 @@ const Header = () => {
       <AppBar
         position="flex"
         sx={{
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          color: "black",
+          backgroundColor: "black",
+          color: "white",
           boxShadow: "none",
-          borderBottom: "1px solid #ccc",
         }}
       >
         <Toolbar
@@ -366,7 +214,6 @@ const Header = () => {
             </Box>
             <Tabs
               value={currentTab}
-              onChange={(event, newValue) => switchToTab(newValue)}
               sx={{
                 minHeight: "36px",
                 "& .MuiTab-root": {
@@ -417,6 +264,7 @@ const Header = () => {
 
                     switch (tab.label) {
                       case "Projects":
+                        switchToTab(0);
                         setNativeSelection({
                           native: true,
                           app: "workspace",
@@ -428,7 +276,11 @@ const Header = () => {
                       case "WebWarp":
                         navigateToWebWarp();
                         break;
+                      case "WebIlastik":
+                        navigateToWebIlastik();
+                        break;
                       case "WebNutil": {
+                        switchToTab(4);
                         setNativeSelection({
                           native: true,
                           app: "nutil",
@@ -439,6 +291,7 @@ const Header = () => {
                         break;
                       }
                       case "Sandbox":
+                        switchToTab(5);
                         setNativeSelection({
                           native: true,
                           app: "sandbox",
@@ -460,7 +313,7 @@ const Header = () => {
               top: "50%",
               transform: "translate(-50%, -50%)",
               zIndex: 1,
-              display: { sm: "none", lg: "flex" },
+              display: { xs: "none", xl: "flex" },
               flexDirection: "row",
             }}
           >
@@ -501,7 +354,7 @@ const Header = () => {
                   mr: 1,
                 }}
               >
-                <FindInPageIcon />
+                <DescriptionIcon />
               </IconButton>
             </Tooltip>
             <Tooltip title="Account, settings and FAQ">
@@ -622,7 +475,21 @@ const Header = () => {
           title="Rodent Workbench Documentation"
         />
       </Dialog>
-      {auth && user && (
+      <Snackbar
+        open={!!validationError}
+        autoHideDuration={4000}
+        onClose={() => setValidationError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setValidationError(null)}
+          severity="warning"
+          sx={{ width: "100%" }}
+        >
+          {validationError}
+        </Alert>
+      </Snackbar>
+      {isAuthenticated && user && (
         <Mainframe
           url={currentUrl}
           native={nativeSelection}

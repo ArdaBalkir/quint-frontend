@@ -13,8 +13,6 @@ import {
   ListItemText,
   ListItemIcon,
   Paper,
-  FormControlLabel,
-  Switch,
 } from "@mui/material";
 import { BarChart } from "@mui/icons-material";
 import Plot from "react-plotly.js";
@@ -29,12 +27,52 @@ const Sandbox = ({ token, user }) => {
   const [selectedBrain, setSelectedBrain] = useState(null);
   const [brainEntries, setBrainEntries] = useState([]);
   const [projectName, setProjectName] = useState("");
-  const [sortByCount, setSortByCount] = useState(false);
+  const [chartType, setChartType] = useState("bar"); // 'bar' or 'pie'
+  const [topNRegions, setTopNRegions] = useState(10); // Number of top regions to show in pie chart
 
   // csv data state
   const [csvData, setCsvData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  /**
+   * Process data for pie chart - show top N regions, group rest into "Other"
+   */
+  const processPieChartData = (rows, valueKey, topN = 10) => {
+    // Sort rows by value descending
+    const sortedRows = [...rows].sort(
+      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0)
+    );
+
+    // Take top N
+    const topRows = sortedRows.slice(0, topN);
+    const restRows = sortedRows.slice(topN);
+
+    // Calculate sum of rest
+    const restSum = restRows.reduce(
+      (sum, row) => sum + (parseFloat(row[valueKey]) || 0),
+      0
+    );
+
+    // Prepare data
+    const labels = topRows.map((row) => row["name"]);
+    const values = topRows.map((row) => parseFloat(row[valueKey]) || 0);
+    const colors = topRows.map(
+      (row) =>
+        `rgb(${Math.round(row["r"] || 0)},${Math.round(
+          row["g"] || 0
+        )},${Math.round(row["b"] || 0)})`
+    );
+
+    // Add "Other" if there are rest rows
+    if (restRows.length > 0 && restSum > 0) {
+      labels.push(`Other (${restRows.length} regions)`);
+      values.push(restSum);
+      colors.push("rgb(200, 200, 200)"); // Gray color for "Other"
+    }
+
+    return { labels, values, colors };
+  };
 
   // load saved data from localStorage on mount
   useEffect(() => {
@@ -232,7 +270,9 @@ const Sandbox = ({ token, user }) => {
           flexDirection: "column",
         }}
       >
-        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+        <Box
+          sx={{ p: 2, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}
+        >
           <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>
             Quantification Results
           </Typography>
@@ -260,11 +300,12 @@ const Sandbox = ({ token, user }) => {
                 setCsvData(null);
               }}
             >
-              {brainEntries.map((brain) => (
-                <MenuItem key={brain.name} value={brain.name}>
-                  {brain.name}
-                </MenuItem>
-              ))}
+              {Array.isArray(brainEntries) &&
+                brainEntries.map((brain) => (
+                  <MenuItem key={brain.name} value={brain.name}>
+                    {brain.name}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
         </Box>
@@ -383,71 +424,185 @@ const Sandbox = ({ token, user }) => {
                     {csvData.rows.length} regions analyzed
                   </Typography>
                 </Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={sortByCount}
-                      onChange={(e) => setSortByCount(e.target.checked)}
-                      color="primary"
-                    />
-                  }
-                  label="Sort by count"
-                />
+                <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Chart Type</InputLabel>
+                    <Select
+                      value={chartType}
+                      label="Chart Type"
+                      onChange={(e) => setChartType(e.target.value)}
+                    >
+                      <MenuItem value="bar">Bar Chart</MenuItem>
+                      <MenuItem value="pie">Pie Chart</MenuItem>
+                    </Select>
+                  </FormControl>
+                  {chartType === "pie" && (
+                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                      <InputLabel>Top Regions</InputLabel>
+                      <Select
+                        value={topNRegions}
+                        label="Top Regions"
+                        onChange={(e) => setTopNRegions(e.target.value)}
+                      >
+                        <MenuItem value={5}>Top 5</MenuItem>
+                        <MenuItem value={10}>Top 10</MenuItem>
+                        <MenuItem value={15}>Top 15</MenuItem>
+                        <MenuItem value={20}>Top 20</MenuItem>
+                        <MenuItem value={csvData.rows.length}>
+                          All ({csvData.rows.length})
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+                </Box>
               </Box>
-
               {csvData.headers.includes("name") &&
                 csvData.headers.includes("object_count") &&
+                csvData.headers.includes("area_fraction") &&
                 csvData.headers.includes("r") &&
                 csvData.headers.includes("g") &&
                 csvData.headers.includes("b") &&
                 Array.isArray(csvData.rows) &&
-                csvData.rows.length > 0 &&
-                (() => {
-                  const sortedRows = sortByCount
-                    ? [...csvData.rows].sort(
-                        (a, b) =>
-                          (parseFloat(b["object_count"]) || 0) -
-                          (parseFloat(a["object_count"]) || 0)
-                      )
-                    : csvData.rows;
-
-                  return (
-                    <Plot
-                      data={[
-                        {
-                          x: sortedRows.map((row) => row["name"]),
-                          y: sortedRows.map(
-                            (row) => parseFloat(row["object_count"]) || 0
-                          ),
-                          type: "bar",
-                          name: "Object Count",
-                          marker: {
-                            color: sortedRows.map(
-                              (row) =>
-                                `rgb(${Math.round(row["r"] || 0)},${Math.round(
-                                  row["g"] || 0
-                                )},${Math.round(row["b"] || 0)})`
-                            ),
-                          },
-                        },
-                      ]}
-                      layout={{
-                        xaxis: {
-                          title: "Brain Region",
-                          tickangle: -45,
-                        },
-                        yaxis: { title: "Object Count" },
-                        margin: { t: 30, r: 50, b: 150, l: 60 },
-                        showlegend: false,
-                      }}
-                      style={{ width: "100%", height: "600px" }}
-                      config={{ responsive: true }}
-                    />
-                  );
-                })()}
-
+                csvData.rows.length > 0 && (
+                  <>
+                    {chartType === "bar" ? (
+                      <>
+                        <Plot
+                          data={[
+                            {
+                              x: csvData.rows.map((row) => row["name"]),
+                              y: csvData.rows.map(
+                                (row) => parseFloat(row["area_fraction"]) || 0
+                              ),
+                              type: "bar",
+                              name: "Area Fraction",
+                              marker: {
+                                color: csvData.rows.map(
+                                  (row) =>
+                                    `rgb(${Math.round(
+                                      row["r"] || 0
+                                    )},${Math.round(
+                                      row["g"] || 0
+                                    )},${Math.round(row["b"] || 0)})`
+                                ),
+                              },
+                            },
+                          ]}
+                          layout={{
+                            title: {
+                              text: "Area Fraction by Region",
+                              automargin: true,
+                            },
+                            xaxis: {
+                              tickangle: -45,
+                              automargin: true,
+                            },
+                            yaxis: { automargin: true },
+                            showlegend: false,
+                          }}
+                          style={{ width: "100%", height: "900px" }}
+                          config={{ responsive: true }}
+                        />
+                        <Box sx={{ mt: 4 }}>
+                          <Plot
+                            data={[
+                              {
+                                x: csvData.rows.map((row) => row["name"]),
+                                y: csvData.rows.map(
+                                  (row) => parseFloat(row["object_count"]) || 0
+                                ),
+                                type: "bar",
+                                name: "Object Count",
+                                marker: {
+                                  color: csvData.rows.map(
+                                    (row) =>
+                                      `rgb(${Math.round(
+                                        row["r"] || 0
+                                      )},${Math.round(
+                                        row["g"] || 0
+                                      )},${Math.round(row["b"] || 0)})`
+                                  ),
+                                },
+                              },
+                            ]}
+                            layout={{
+                              title: {
+                                text: "Object Count by Region",
+                                automargin: true,
+                              },
+                              xaxis: {
+                                tickangle: -45,
+                                automargin: true,
+                              },
+                              yaxis: { automargin: true },
+                              showlegend: false,
+                            }}
+                            style={{ width: "100%", height: "700px" }}
+                            config={{ responsive: true }}
+                          />
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <Plot
+                          data={[
+                            {
+                              ...processPieChartData(
+                                csvData.rows,
+                                "area_fraction",
+                                topNRegions
+                              ),
+                              type: "pie",
+                              textinfo: "label+percent",
+                              textposition: "outside",
+                              automargin: true,
+                            },
+                          ]}
+                          layout={{
+                            title: {
+                              text: `Area Fraction Distribution (Top ${topNRegions} Regions)`,
+                              automargin: true,
+                            },
+                            showlegend: true,
+                            legend: { orientation: "v", x: 1, y: 0.5 },
+                          }}
+                          style={{ width: "100%", height: "700px" }}
+                          config={{ responsive: true }}
+                        />
+                        <Box sx={{ mt: 4 }}>
+                          <Plot
+                            data={[
+                              {
+                                ...processPieChartData(
+                                  csvData.rows,
+                                  "object_count",
+                                  topNRegions
+                                ),
+                                type: "pie",
+                                textinfo: "label+percent",
+                                textposition: "outside",
+                                automargin: true,
+                              },
+                            ]}
+                            layout={{
+                              title: {
+                                text: `Object Count Distribution (Top ${topNRegions} Regions)`,
+                                automargin: true,
+                              },
+                              showlegend: true,
+                              legend: { orientation: "v", x: 1, y: 0.5 },
+                            }}
+                            style={{ width: "100%", height: "700px" }}
+                            config={{ responsive: true }}
+                          />
+                        </Box>
+                      </>
+                    )}
+                  </>
+                )}
               {(!csvData.headers.includes("name") ||
                 !csvData.headers.includes("object_count") ||
+                !csvData.headers.includes("area_fraction") ||
                 !csvData.headers.includes("r") ||
                 !csvData.headers.includes("g") ||
                 !csvData.headers.includes("b") ||
@@ -456,7 +611,7 @@ const Sandbox = ({ token, user }) => {
                 <Typography variant="body2" color="text.secondary">
                   {!Array.isArray(csvData.rows) || csvData.rows.length === 0
                     ? "No data rows found in CSV file"
-                    : 'Required columns "name", "object_count", "r", "g", "b" not found in CSV data'}
+                    : 'Required columns "name", "object_count", "area_fraction", "r", "g", "b" not found in CSV data'}
                 </Typography>
               )}
             </Paper>

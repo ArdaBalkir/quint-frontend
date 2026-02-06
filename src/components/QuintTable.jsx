@@ -11,11 +11,6 @@ import {
   ListItemText,
   TextField,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from "@mui/material";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AddIcon from "@mui/icons-material/Add";
@@ -33,6 +28,7 @@ import {
 import CreationDialog from "./CreationDialog.jsx";
 import BrainTable from "./BrainTable.jsx";
 import QuickActions from "./QuickActions.jsx";
+import ConfirmationDialog from "./ConfirmationDialog.jsx";
 
 export default function QuintTable({ token, user }) {
   const { showSuccess, showError } = useNotification();
@@ -143,13 +139,9 @@ export default function QuintTable({ token, user }) {
         return <Typography>Select a workspace to continue</Typography>;
       case "loading":
         return (
-          <Box
-            sx={{ display: "flex", gap: 2, justifyContent: "center", py: 4 }}
-          >
-            <Typography className="loading-shine" sx={{ pl: 2 }}>
-              Loading projects in the workspace...
-            </Typography>
-          </Box>
+          <Typography className="loading-shine">
+            Loading projects in the workspace...
+          </Typography>
         );
       case "error":
         return (
@@ -158,7 +150,26 @@ export default function QuintTable({ token, user }) {
           </Box>
         );
       case "empty":
-        return <Typography>This bucket has no projects yet</Typography>;
+        return (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              py: 6,
+              gap: 2,
+            }}
+          >
+            <Typography variant="h6" color="text.secondary">
+              No projects yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Create your first project by typing a name in the "New project..."
+              field above
+            </Typography>
+          </Box>
+        );
       default:
         return null; // Projects will be rendered normally
     }
@@ -759,66 +770,36 @@ export default function QuintTable({ token, user }) {
         brainEntries={projectBrainEntries}
         onUploadComplete={refreshProjectBrains}
       />
-      <Dialog
+      <ConfirmationDialog
         open={deleteDialogOpen}
-        onClose={() => {
+        title={`Deleting project "${projectToDelete?.name}"`}
+        message="This action is irreversible! You will lose all data in this project."
+        confirmText={projectToDelete?.name}
+        confirmInput={confirmInput}
+        onConfirmInputChange={setConfirmInput}
+        onConfirm={async () => {
+          const deletingPath = `${bucketName}/${projectToDelete.name}/`;
+          try {
+            await deleteItem(deletingPath, token);
+            showSuccess("Project deleted.");
+            setDeleteDialogOpen(false);
+            setConfirmInput("");
+            setTimeout(() => {
+              fetchAndUpdateProjects(bucketName);
+            }, 1000);
+          } catch (error) {
+            showError("Failed to delete project.");
+            setDeleteDialogOpen(false);
+            setConfirmInput("");
+          }
+        }}
+        onCancel={() => {
           setDeleteDialogOpen(false);
           setConfirmInput("");
         }}
-      >
-        <DialogTitle>
-          Deleting project <b>{projectToDelete?.name}</b>
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This action is irreversible! You will lose all data in this project.
-            <br />
-            Please type <b>{projectToDelete?.name}</b> to confirm deletion.
-          </DialogContentText>
-          <Box mt={2}>
-            <input
-              type="text"
-              value={confirmInput}
-              onChange={(e) => setConfirmInput(e.target.value)}
-              placeholder={`Type "${projectToDelete?.name}"`}
-              style={{ width: "100%", padding: 8, fontSize: 16 }}
-              autoFocus
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setDeleteDialogOpen(false);
-              setConfirmInput("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              let deletingPath = `${bucketName}/${projectToDelete.name}/`;
-              try {
-                await deleteItem(deletingPath, token);
-                showSuccess("Project deleted.");
-                setDeleteDialogOpen(false);
-                setConfirmInput("");
-                setTimeout(() => {
-                  fetchAndUpdateProjects(bucketName);
-                }, 1000);
-              } catch (error) {
-                showError("Failed to delete project.");
-                setDeleteDialogOpen(false);
-                setConfirmInput("");
-              }
-            }}
-            disabled={confirmInput !== projectToDelete?.name}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        confirmLabel="Delete"
+        confirmColor="error"
+      />
     </Box>
   );
 }

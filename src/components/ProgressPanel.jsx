@@ -139,7 +139,7 @@ export default function ProgressPanel({
                   },
                 }}
               >
-                <Delete sx={{ fontSize: 16 }} />
+                <Delete className="tilt-shake" sx={{ fontSize: 16 }} />
               </IconButton>
             </Tooltip>
           </Stack>

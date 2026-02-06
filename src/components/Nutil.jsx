@@ -17,6 +17,7 @@ import {
   Alert,
   FormControlLabel,
   Switch,
+  IconButton,
 } from "@mui/material";
 import {
   Delete,
@@ -151,9 +152,9 @@ const Nutil = ({ token }) => {
 
   const [brainEntries, setBrainEntries] = useState([]);
   const [error, setError] = useState(null);
+  const [segmentationCounts, setSegmentationCounts] = useState({});
 
   const [segmentations, setSegmentations] = useState([]);
-  const [selectedSegmentations, setSelectedSegmentations] = useState([]);
 
   const [isFetchingSegmentations, setIsFetchingSegmentations] = useState(false);
   const [selectedBrain, setSelectedBrain] = useState(null);
@@ -211,13 +212,13 @@ const Nutil = ({ token }) => {
     if (
       !selectedBrain ||
       !registration.atlas ||
-      !atlasLookup[registration.atlas] || // Ensure atlas is valid for lookup
-      selectedSegmentations.length === 0
+      !atlasLookup[registration.atlas] ||
+      segmentations.length === 0
     ) {
       logger.warn("Missing required data for Nutil analysis", {
         selectedBrain,
         registration,
-        selectedSegmentations,
+        segmentations,
       });
       setError(
         "Missing required data (brain, atlas, or segmentations) for Nutil analysis."
@@ -231,7 +232,7 @@ const Nutil = ({ token }) => {
       const brainPath = `${collabName}/${selectedBrain.path}`;
 
       const segmentationPath =
-        selectedSegmentations[0].name.split("/").slice(0, -1).join("/") + "/";
+        segmentations[0].name.split("/").slice(0, -1).join("/") + "/";
 
       // hex -> bgr
       const hexToRgb = (hex) => {
@@ -457,6 +458,60 @@ const Nutil = ({ token }) => {
     navigateToSandBox();
   };
 
+  const handleDeleteSegmentation = async (segmentation) => {
+    if (!token) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      await deleteItem(`${bucketName}/${segmentation.name}`, token);
+      showSuccess("Segmentation deleted");
+      await getSegmentations(selectedBrain);
+      await fetchAllSegmentationCounts([selectedBrain]);
+    } catch (error) {
+      logger.error("Failed to delete segmentation", { error });
+      showError("Failed to delete segmentation");
+    }
+  };
+
+  const handleDeleteAllSegmentations = async () => {
+    if (!token || segmentations.length === 0) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      await Promise.all(
+        segmentations.map((seg) =>
+          deleteItem(`${bucketName}/${seg.name}`, token)
+        )
+      );
+      showSuccess(`Deleted ${segmentations.length} segmentation(s)`);
+      await getSegmentations(selectedBrain);
+      await fetchAllSegmentationCounts([selectedBrain]);
+    } catch (error) {
+      logger.error("Failed to delete segmentations", { error });
+      showError("Failed to delete segmentations");
+    }
+  };
+
+  const handleDeleteResult = async (resultPath) => {
+    if (!token) return;
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    try {
+      const folderPath = resultPath.endsWith("/")
+        ? resultPath
+        : resultPath + "/";
+      await deleteItem(`${bucketName}/${folderPath}`, token);
+      showSuccess("Result is scheduled for deletion!");
+      await fetchCompletedResults();
+    } catch (error) {
+      logger.error("Failed to delete result", { error });
+      showError("Failed to delete result");
+    }
+  };
+
   // Call this when a brain is selected to fetch existing results
   useEffect(() => {
     if (selectedBrain) {
@@ -557,6 +612,9 @@ const Nutil = ({ token }) => {
         setBrainEntries(parsedEntries);
         logger.debug("Brain entries loaded", { count: parsedEntries.length });
 
+        // Fetch segmentation counts for all brains
+        fetchAllSegmentationCounts(parsedEntries);
+
         // Auto-select if there's only one brain entry
         if (parsedEntries.length === 1) {
           handleBrainSelect(parsedEntries[0]);
@@ -570,6 +628,39 @@ const Nutil = ({ token }) => {
       setError("Failed to load brain entries");
     }
   }, []);
+
+  const fetchAllSegmentationCounts = async (brains) => {
+    if (!token || !brains || brains.length === 0) return;
+
+    const collabName = localStorage.getItem("bucketName");
+    const counts = {};
+
+    await Promise.all(
+      brains.map(async (brain) => {
+        try {
+          const response = await fetchBrainSegmentations(
+            token,
+            collabName,
+            brain.path
+          );
+          if (response && response[0] && response[0].images) {
+            counts[brain.name] = response[0].images.length;
+          } else {
+            counts[brain.name] = 0;
+          }
+        } catch (error) {
+          logger.error("Error fetching segmentation count for brain", {
+            brain: brain.name,
+            error,
+          });
+          counts[brain.name] = 0;
+        }
+      })
+    );
+
+    setSegmentationCounts((prev) => ({ ...prev, ...counts }));
+    logger.info("Segmentation counts fetched", { counts });
+  };
 
   const getSegmentations = async (brainEntry) => {
     if (!token) {
@@ -593,7 +684,6 @@ const Nutil = ({ token }) => {
           count: imageData?.[0]?.images?.length || 0,
         });
         setSegmentations(imageData);
-        setSelectedSegmentations(imageData);
       } else {
         throw new Error("Invalid response structure");
       }
@@ -695,7 +785,35 @@ const Nutil = ({ token }) => {
                       style={{ width: "1.75rem", height: "1.75rem" }}
                     />
                   </ListItemIcon>
-                  <ListItemText primary={entry.name.split("/").pop()} />
+                  <ListItemText
+                    primary={
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
+                      >
+                        <Typography variant="body2">
+                          {entry.name.split("/").pop()}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            ml: 1,
+                          }}
+                        >
+                          {segmentationCounts[entry.name] !== undefined
+                            ? `${segmentationCounts[entry.name]} segmentation${
+                                segmentationCounts[entry.name] !== 1 ? "s" : ""
+                              }`
+                            : "..."}
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 </ListItem>
               ))
             ) : (
@@ -738,8 +856,14 @@ const Nutil = ({ token }) => {
                 Upload Segmentations
               </Button>
             </Tooltip>
-            <Button startIcon={<Delete />} size="small" color="error">
-              Delete
+            <Button
+              startIcon={<Delete />}
+              size="small"
+              color="error"
+              onClick={handleDeleteAllSegmentations}
+              disabled={segmentations.length === 0 || !token}
+            >
+              Delete All
             </Button>
           </Box>
 
@@ -802,43 +926,73 @@ const Nutil = ({ token }) => {
               </Box>
             </ListItem>
           ) : segmentations.length > 0 ? (
-            segmentations.map((image, index) => (
-              <ListItem
-                key={image.hash + index}
-                sx={{
-                  ...styles.listItem,
-                  py: 0.5,
-                  "&:hover": {
-                    backgroundColor: "rgba(0, 0, 0, 0.04)",
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  <ImageOutlined />{" "}
-                </ListItemIcon>
-                <ListItemText
-                  primary={
-                    <Typography variant="body2">
-                      {image.name.split("/").pop()}
-                    </Typography>
-                  }
-                  secondary={
-                    <Typography variant="caption">
-                      {new Date(image.last_modified).toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "numeric",
-                        }
-                      )}{" "}
-                      • {(image.bytes / 1024 / 1024).toFixed(1)}MB
-                    </Typography>
-                  }
-                />
-              </ListItem>
-            ))
+            segmentations.map((image, index) => {
+              return (
+                <ListItem
+                  key={image.hash + index}
+                  disablePadding
+                  sx={{
+                    ...styles.listItem,
+                    py: 0.5,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      px: 2,
+                      py: 0.5,
+                    }}
+                  >
+                    <ListItemIcon>
+                      <ImageOutlined />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2">
+                          {image.name.split("/").pop()}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography variant="caption">
+                          {new Date(image.last_modified).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "numeric",
+                            }
+                          )}{" "}
+                          • {(image.bytes / 1024 / 1024).toFixed(1)}MB
+                        </Typography>
+                      }
+                    />
+                  </Box>
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    sx={{
+                      mr: 1,
+                      "&:hover": {
+                        color: "error.main",
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                    className="tilt-shake"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSegmentation(image);
+                    }}
+                  >
+                    <Delete />
+                  </IconButton>
+                </ListItem>
+              );
+            })
           ) : (
             <ListItem>
               <Box
@@ -924,84 +1078,62 @@ const Nutil = ({ token }) => {
                 pl: 2.5,
               }}
             >
-              {/* Left column 
               <Box
                 sx={{
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 1,
+                  position: "relative",
                 }}
               >
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={extractCoordinates}
-                      onChange={(e) => setExtractCoordinates(e.target.checked)}
-                      size="small"
-                      sx={{
-                        mb: 1,
-                      }}
-                    />
-                  }
-                  label={
-                    <Typography variant="caption">
-                      Extract Coordinates
-                    </Typography>
-                  }
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={createVisualizations}
-                      onChange={(e) =>
-                        setCreateVisualizations(e.target.checked)
-                      }
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Typography variant="caption">
-                      Create Visualizations
-                    </Typography>
-                  }
-                />
-              </Box>
-              */}
-
-              {/* Right column */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <Box>
-                  <Typography variant="caption" display="block" gutterBottom>
-                    Object Color
-                  </Typography>
-                  <TextField
+                <Typography variant="caption">
+                  Select colour to quantify:
+                </Typography>
+                <Box
+                  component="label"
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    backgroundColor: objectColor,
+                    border: "2px solid #e0e0e0",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      transform: "scale(1.1)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                    },
+                  }}
+                >
+                  <input
                     type="color"
-                    size="small"
-                    fullWidth
                     value={objectColor}
                     onChange={(e) => setObjectColor(e.target.value)}
-                    sx={{
-                      '& input[type="color"]': {
-                        padding: "2px",
-                        height: "32px",
-                      },
+                    style={{
+                      opacity: 0,
+                      position: "absolute",
+                      width: 0,
+                      height: 0,
                     }}
                   />
                 </Box>
-
-                <Button
-                  variant="contained"
-                  disableElevation
-                  size="small"
-                  startIcon={<Analytics />}
-                  disabled={!registration.atlas || isProcessing}
-                  onClick={requestNutil}
-                  fullWidth
-                >
-                  {isProcessing ? "Processing..." : "Run analysis"}
-                </Button>
               </Box>
+
+              <Button
+                variant="contained"
+                disableElevation
+                size="small"
+                startIcon={<Analytics />}
+                disabled={
+                  !registration.atlas ||
+                  isProcessing ||
+                  segmentations.length === 0
+                }
+                onClick={requestNutil}
+                fullWidth
+              >
+                {isProcessing ? "Processing..." : "Run analysis"}
+              </Button>
             </Box>
           </Box>
           <Box
@@ -1243,7 +1375,15 @@ const Nutil = ({ token }) => {
                           atlas={registration.atlas}
                           clouds={[result.path]}
                         />
-                        {/* TODO Add a delete button */}
+                        <Button
+                          size="small"
+                          startIcon={<Delete />}
+                          color="error"
+                          sx={{ fontSize: "0.75rem", py: 0.5 }}
+                          onClick={() => handleDeleteResult(result.path)}
+                        >
+                          Delete
+                        </Button>
                       </Box>
                     </Box>
                   ))
@@ -1279,7 +1419,10 @@ const Nutil = ({ token }) => {
         token={token}
         project={JSON.parse(localStorage.getItem("selectedProject"))}
         brain={selectedBrain}
-        onUploadComplete={() => getSegmentations(selectedBrain)}
+        onUploadComplete={async () => {
+          await getSegmentations(selectedBrain);
+          await fetchAllSegmentationCounts([selectedBrain]);
+        }}
       />
     </Box>
   );

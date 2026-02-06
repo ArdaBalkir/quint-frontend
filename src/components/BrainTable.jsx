@@ -12,11 +12,6 @@ import {
   Icon,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
 } from "@mui/material";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import Add from "@mui/icons-material/Add";
@@ -24,6 +19,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import FolderOffOutlinedIcon from "@mui/icons-material/FolderOffOutlined";
 import mBrain from "../mBrain.ico";
 import { deleteItem } from "../actions/handleCollabs.ts";
+import ConfirmationDialog from "./ConfirmationDialog.jsx";
 
 const BrainList = ({
   rows,
@@ -158,55 +154,24 @@ const BrainList = ({
           </ListItem>
         ))}
       </List>
-      <Dialog
+      <ConfirmationDialog
         open={deleteDialogOpen}
-        onClose={() => {
+        title={`Deleting series "${brainToDelete?.name}"`}
+        message="This action is irreversible! You will lose all progress made on this series."
+        confirmText={brainToDelete?.name}
+        confirmInput={confirmInput}
+        onConfirmInputChange={setConfirmInput}
+        onConfirm={() => {
+          handleDeleteConfirm();
+          setConfirmInput("");
+        }}
+        onCancel={() => {
           setDeleteDialogOpen(false);
           setConfirmInput("");
         }}
-      >
-        <DialogTitle>
-          Deleting series <b>{brainToDelete?.name}</b>
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This action is irreversible! You will lose all progress made on this
-            series.
-            <br />
-            Please type <b>{brainToDelete?.name}</b> to confirm deletion.
-          </DialogContentText>
-          <Box mt={2}>
-            <input
-              type="text"
-              value={confirmInput}
-              onChange={(e) => setConfirmInput(e.target.value)}
-              placeholder={`Type "${brainToDelete?.name}"`}
-              style={{ width: "100%", padding: 8, fontSize: 16 }}
-              autoFocus
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setDeleteDialogOpen(false);
-              setConfirmInput("");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            onClick={() => {
-              handleDeleteConfirm();
-              setConfirmInput("");
-            }}
-            disabled={confirmInput !== brainToDelete?.name}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        confirmLabel="Delete"
+        confirmColor="error"
+      />
     </>
   );
 };
