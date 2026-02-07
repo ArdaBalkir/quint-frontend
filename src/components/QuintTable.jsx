@@ -11,16 +11,27 @@ import {
   ListItemText,
   TextField,
   Button,
+  Select,
+  MenuItem,
 } from "@mui/material";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
 import PersonIcon from "@mui/icons-material/Person"; // user icon
 
-const adminIcon = <PersonAddIcon color="red" />;
-const editorIcon = <PersonIcon color="blue" />;
-const publicIcon = <PersonIcon color="grey" />; // this will point out other rwb's
+const getRoleColor = (role) => {
+  if (role === "administrator") return "#0e9d3e";
+  if (role === "editor") return "#1976d2";
+  return "#9e9e9e";
+};
+
+const getRoleLabel = (role) => {
+  if (role === "administrator") return "admin";
+  if (role === "editor") return "editor";
+  return "viewer";
+};
 
 // Project handling
 import {
@@ -30,6 +41,7 @@ import {
   checkBucketExists,
   downloadWalnJson,
   deleteItem,
+  fetchAvailableBuckets,
 } from "../actions/handleCollabs.ts";
 import CreationDialog from "./CreationDialog.jsx";
 import BrainTable from "./BrainTable.jsx";
@@ -42,6 +54,7 @@ export default function QuintTable({ token, user }) {
   // Query helpers
   // null until resolved so 'no-workspace' state can be meaningful
   const [bucketName, setBucketName] = useState(null);
+  const [availableBuckets, setAvailableBuckets] = useState([]);
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(() => {
     try {
@@ -282,6 +295,16 @@ export default function QuintTable({ token, user }) {
       };
 
       initializeWorkspace();
+
+      // Fetch all available RWB buckets for the dropdown
+      fetchAvailableBuckets(token, "rwb")
+        .then((buckets) => {
+          logger.debug("Available buckets fetched", buckets);
+          setAvailableBuckets(buckets);
+        })
+        .catch((error) => {
+          logger.error("Error fetching available buckets", error);
+        });
     } catch (error) {
       logger.error("Error parsing userInfo", error);
     }
@@ -289,11 +312,28 @@ export default function QuintTable({ token, user }) {
 
   // Second effect: Fetch projects when we have both token and bucketName
   useEffect(() => {
-    if (token && bucketName && projects.length === 0) {
+    if (token && bucketName) {
       localStorage.setItem("bucketName", bucketName);
       fetchAndUpdateProjects(bucketName);
     }
   }, [token, bucketName]); // Only depends on token and bucketName
+
+  // Bucket switch handler
+  const handleBucketChange = (newBucketName) => {
+    if (newBucketName === bucketName) return;
+    // Reset project/brain state when switching buckets
+    setSelectedProject(null);
+    setSelectedBrain(null);
+    setSelectedBrainStats(null);
+    setWalnContent(null);
+    setRows([]);
+    setProjects([]);
+    setProjectBrainEntries([]);
+    localStorage.removeItem("selectedProject");
+    localStorage.removeItem("selectedBrain");
+    localStorage.removeItem("projectBrainEntries");
+    setBucketName(newBucketName);
+  };
 
   // Third effect: Restore project/brain selection on mount
   useEffect(() => {
@@ -551,12 +591,97 @@ export default function QuintTable({ token, user }) {
                   mb: 2,
                 }}
               >
-                {/* Main header with the bucket title as rwb-username
-                  DONE enlarge the input menu
-                */}
-                <Typography variant="h5" align="left" textOverflow={"ellipsis"}>
-                  Projects in {bucketName}
-                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <Typography variant="h6" noWrap>
+                    Projects in
+                  </Typography>
+                  <Select
+                    value={bucketName || ""}
+                    onChange={(e) => handleBucketChange(e.target.value)}
+                    size="small"
+                    variant="outlined"
+                    IconComponent={ArrowDropDownIcon}
+                    sx={{
+                      minWidth: 200,
+                      maxWidth: 320,
+                      fontWeight: 600,
+                      fontSize: "1.1rem",
+                      height: "40px",
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        py: 0.5,
+                      },
+                    }}
+                    renderValue={(selected) => {
+                      const bucket = availableBuckets.find(
+                        (b) => b.name === selected,
+                      );
+                      return (
+                        <Typography
+                          noWrap
+                          sx={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          {selected}
+                        </Typography>
+                      );
+                    }}
+                  >
+                    {availableBuckets.length === 0 && bucketName && (
+                      <MenuItem value={bucketName}>
+                        <ListItemText
+                          primary={bucketName}
+                          sx={{
+                            "& .MuiListItemText-primary": {
+                              color: getRoleColor("administrator"),
+                              fontWeight: 500,
+                            },
+                          }}
+                        />
+                      </MenuItem>
+                    )}
+                    {availableBuckets.map((bucket) => (
+                      <MenuItem
+                        key={bucket.name}
+                        value={bucket.name}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 2,
+                        }}
+                      >
+                        <ListItemText
+                          primary={bucket.name}
+                          sx={{
+                            "& .MuiListItemText-primary": {
+                              fontWeight: 500,
+                            },
+                          }}
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: getRoleColor(bucket.role),
+                            opacity: 0.8,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getRoleLabel(bucket.role)}
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
                 <Box
                   sx={{
                     display: "flex",

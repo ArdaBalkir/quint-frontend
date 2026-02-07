@@ -38,6 +38,20 @@ export async function listAvailableWorkspaces(
   return workspaces.map((w) => w.name);
 }
 
+export interface AvailableBucket {
+  name: string;
+  role: string; // 'administrator' | 'editor' | 'viewer'
+  is_public: boolean;
+}
+
+export async function fetchAvailableBuckets(
+  token: string,
+  search: string = "rwb",
+): Promise<AvailableBucket[]> {
+  const url = `${BUCKET_URL.slice(0, -1)}?search=${encodeURIComponent(search)}`;
+  return fetchWithAuth<AvailableBucket[]>(url, token);
+}
+
 export const fetchCollab = (token: string, collabName: string): Promise<any> =>
   fetchWithAuth(`https://wiki.ebrains.eu/rest/v1/collabs/${collabName}`, token);
 
