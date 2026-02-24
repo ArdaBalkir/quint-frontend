@@ -630,7 +630,7 @@ const QuickActions = ({
                       >
                         Convert images to DZI format
                       </Typography>
-                      <Tooltip title="DZI (Deep Zoom Image) enables smooth viewing of large images by loading only visible regions at the current zoom level.">
+                      <Tooltip title="DZI (Deep Zoom Image) enables smooth viewing of large images and is the file format used by our tools.">
                         <Info
                           fontSize="small"
                           color="action"
@@ -931,7 +931,15 @@ const QuickActions = ({
                         color: "text.secondary",
                       }}
                     >
-                      Progress: {pyramidCount} / {brainStats.files || 0} images
+                      Progress:{" "}
+                      {Math.max(
+                        pyramidCount,
+                        Math.round(
+                          (calculateOverallProgress() / 100) *
+                            (brainStats.files || 0),
+                        ),
+                      )}{" "}
+                      / {brainStats.files || 0} images
                     </Typography>
                     <LinearProgress
                       variant="determinate"

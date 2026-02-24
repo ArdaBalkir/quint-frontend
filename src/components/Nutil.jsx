@@ -890,7 +890,7 @@ const Nutil = ({ token }) => {
 
               const comparisonUrl = `https://serieszoom.apps.ebrains.eu/?dzip=${encodeURIComponent(
                 dzipUrl,
-              )}&overlay=${encodeURIComponent(overlayUrl)}`;
+              )}&overlay=${encodeURIComponent(overlayUrl)}&token=${encodeURIComponent(token)}`;
 
               window.open(comparisonUrl, "_blank");
             }}
