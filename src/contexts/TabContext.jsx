@@ -57,7 +57,7 @@ export const TabProvider = ({ children }) => {
   const navigateToExternalTool = (
     tabIndex,
     urlTemplate,
-    customAlignment = null
+    customAlignment = null,
   ) => {
     const validation = validateNavigation(customAlignment);
 
@@ -83,7 +83,7 @@ export const TabProvider = ({ children }) => {
     return navigateToExternalTool(
       1,
       "https://webalign.apps.ebrains.eu/index.php?clb-collab-id={bucketName}&filename={alignment}",
-      customAlignment
+      customAlignment,
     );
   };
 
@@ -91,7 +91,7 @@ export const TabProvider = ({ children }) => {
     return navigateToExternalTool(
       2,
       "https://webwarp.apps.ebrains.eu/webwarp.php?clb-collab-id={bucketName}&filename={alignment}",
-      customAlignment
+      customAlignment,
     );
   };
 
@@ -125,7 +125,7 @@ export const TabProvider = ({ children }) => {
   };
 
   const navigateToWebNutil = () => {
-    setCurrentTab(3);
+    setCurrentTab(4);
     setNativeSelection({
       native: true,
       app: "nutil",
@@ -133,8 +133,14 @@ export const TabProvider = ({ children }) => {
     return true;
   };
 
+  const navigateToMeshView = (url) => {
+    setCurrentTab(5);
+    handleFrameChange(url);
+    return true;
+  };
+
   const navigateToSandBox = () => {
-    setCurrentTab(4);
+    setCurrentTab(6);
     setNativeSelection({
       native: true,
       app: "sandbox",
@@ -151,6 +157,7 @@ export const TabProvider = ({ children }) => {
         navigateToWebWarp,
         navigateToWebIlastik,
         navigateToWebNutil,
+        navigateToMeshView,
         navigateToSandBox,
         nativeSelection,
         setNativeSelection,

@@ -122,11 +122,12 @@ const MeshviewButton = ({ atlas, clouds }) => {
   // Mesh View viewer route
   // Supports a single json for now,
   // TODO allow multiple jsons to be passed in the url after private bucket is resolved
+  const { navigateToMeshView } = useTabContext();
   const handleClick = () => {
     const urlPrefix = "https://data-proxy.ebrains.eu/api/v1/public/buckets/";
     const collabName = localStorage.getItem("bucketName");
     const url = `${MESH_URL}?atlas=${atlasLookup[atlas]}&cloud=${urlPrefix}${collabName}/${clouds}whole_series_meshview/objects_meshview.json`;
-    window.open(url, "_blank");
+    navigateToMeshView(url);
   };
   return (
     <Button

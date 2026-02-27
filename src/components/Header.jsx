@@ -63,6 +63,11 @@ const tabs = [
     disabled: false,
   },
   {
+    label: "MeshView",
+    url: null,
+    disabled: false,
+  },
+  {
     label: "Sandbox",
     url: null,
     disabled: false,
@@ -255,33 +260,41 @@ const Header = () => {
                 minHeight: "36px",
                 "& .MuiTab-root": {
                   minHeight: "36px",
-                  height: "auto",
+                  height: "36px",
                   fontSize: "0.875rem",
-                  padding: "0 14px",
+                  // Extra left padding so text clears the 12px notch
+                  padding: "0 16px 0 20px",
                   minWidth: "auto",
                   opacity: 1,
-                  transition: "opacity 0.1s",
-                  color: "black",
+                  color: "rgba(0, 0, 0, 0.87)",
                   textTransform: "none",
-                  backgroundColor: "rgba(255, 255, 255, 0.69)",
+                  backgroundColor: "rgba(255, 255, 255, 0.72)",
+                  // Fixed 12px arrow depth — consistent across all tab widths
                   clipPath:
-                    "polygon(90% 0, 100% 50%, 90% 100%, 0 100%, 10% 50%, 0 0)", // Arrow shape
-                  marginLeft: -0.5, // Spacing is 0 for now as arrows look to be fitting in
-                  "&:first-child": {
+                    "polygon(calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%, 0 0)",
+                  marginLeft: "-12px",
+                  position: "relative",
+                  transition: "background-color 0.15s, color 0.15s",
+                  "&:first-of-type": {
+                    // Flat left edge for the first tab
                     clipPath:
-                      "polygon(90% 0, 100% 50%, 90% 100%, 0 100%, 0 0, 0 0)",
-                    borderRadius: "2px",
-                    marginLeft: -0.5,
+                      "polygon(calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 0 0)",
+                    marginLeft: 0,
+                    paddingLeft: "14px",
                   },
                   "&.Mui-selected": {
                     color: "white",
                     opacity: 1,
                     backgroundColor: "primary.main",
+                    zIndex: 20,
                   },
-                  "&:hover": {
-                    opacity: 1,
-                    backgroundColor: "transparent",
-                    color: "white",
+                  "&:hover:not(.Mui-selected):not(.Mui-disabled)": {
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    color: "rgba(0, 0, 0, 0.87)",
+                    zIndex: 19,
+                  },
+                  "&.Mui-disabled": {
+                    opacity: 0.45,
                   },
                 },
                 "& .MuiTabs-indicator": {
@@ -293,6 +306,8 @@ const Header = () => {
                 <Tab
                   key={index}
                   label={tab.icon || tab.label}
+                  // Left tabs stack on top of right tabs so arrows remain visible
+                  sx={{ zIndex: tabs.length - index + 10 }}
                   // Disable tabs if not authenticated (user object is null)
                   disabled={!user && tab.label !== "Projects"}
                   onClick={() => {
@@ -327,8 +342,15 @@ const Header = () => {
                         });
                         break;
                       }
-                      case "Sandbox":
+                      case "MeshView":
                         switchToTab(5);
+                        setNativeSelection({
+                          native: false,
+                          app: "frame",
+                        });
+                        break;
+                      case "Sandbox":
+                        switchToTab(6);
                         setNativeSelection({
                           native: true,
                           app: "sandbox",
