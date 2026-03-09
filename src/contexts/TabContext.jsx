@@ -133,9 +133,12 @@ export const TabProvider = ({ children }) => {
     return true;
   };
 
-  const navigateToMeshView = (url) => {
+  const navigateToMeshView = () => {
     setCurrentTab(5);
-    handleFrameChange(url);
+    setNativeSelection({
+      native: true,
+      app: "meshview",
+    });
     return true;
   };
 

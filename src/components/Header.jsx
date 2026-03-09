@@ -28,6 +28,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import SecurityIcon from "@mui/icons-material/Security";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import TimerIcon from "@mui/icons-material/Timer";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
@@ -69,6 +70,7 @@ const tabs = [
   },
   {
     label: "Sandbox",
+    icon: <AddCircleOutlineIcon fontSize="small" />,
     url: null,
     disabled: false,
   },
@@ -345,8 +347,8 @@ const Header = () => {
                       case "MeshView":
                         switchToTab(5);
                         setNativeSelection({
-                          native: false,
-                          app: "frame",
+                          native: true,
+                          app: "meshview",
                         });
                         break;
                       case "Sandbox":
@@ -367,66 +369,84 @@ const Header = () => {
 
           <Box
             sx={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 1,
-              display: { xs: "none", xl: "flex" },
-              flexDirection: "row",
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: "0.875rem",
-                color: "white",
-              }}
-            >
-              QUINT Online
-            </Typography>
-          </Box>
-          <Box
-            sx={{
               display: "flex",
               alignItems: "center",
               position: "absolute",
               flexDirection: "row",
               right: 0,
               mr: 2,
+              gap: 1.5,
             }}
           >
-            <Tooltip title="Docs">
-              <IconButton
-                onClick={() =>
-                  window.open(
-                    "https://quint-webtools.readthedocs.io/en/latest/",
-                    "_blank",
-                  )
-                }
-                size="small"
-                sx={{
-                  color: "white",
-                  padding: 0,
-                  "&:hover": {
-                    backgroundColor: "transparent",
-                  },
-                  mr: 1,
-                }}
-              >
-                <DescriptionIcon />
-              </IconButton>
-            </Tooltip>
+            <Typography
+              sx={{
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                color: "white",
+                letterSpacing: "0.04em",
+                display: { xs: "none", md: "block" },
+                userSelect: "none",
+              }}
+            >
+              QUINT Online
+            </Typography>
+            <Button
+              onClick={() =>
+                window.open(
+                  "https://quint-webtools.readthedocs.io/en/latest/",
+                  "_blank",
+                )
+              }
+              startIcon={
+                <DescriptionIcon sx={{ fontSize: "1rem !important" }} />
+              }
+              sx={{
+                cursor: "pointer",
+                fontWeight: 600,
+                color: "white",
+                textTransform: "none",
+                fontSize: "0.8rem",
+                px: 1.25,
+                py: 0.4,
+                border: "1px solid rgba(255,255,255,0.35)",
+                borderRadius: "6px",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                backdropFilter: "blur(4px)",
+                lineHeight: 1,
+                minWidth: 0,
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(255,255,255,0.65)",
+                },
+              }}
+            >
+              Docs
+            </Button>
             <Tooltip title="Account, settings and FAQ">
               <Button
                 // Always use handleLogin if user is not present
                 onClick={user ? toggleDrawer : handleLogin}
+                startIcon={
+                  <AccountCircleIcon sx={{ fontSize: "1rem !important" }} />
+                }
                 sx={{
-                  textAlign: "right",
                   cursor: "pointer",
-                  fontWeight: "bold",
+                  fontWeight: 600,
                   color: "white",
                   textTransform: "none",
-                  padding: 0,
+                  fontSize: "0.8rem",
+                  px: 1.25,
+                  py: 0.4,
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(4px)",
+                  lineHeight: 1,
+                  minWidth: 0,
+                  "&:hover": {
+                    backgroundColor: "rgba(255,255,255,0.18)",
+                    border: "1px solid rgba(255,255,255,0.65)",
+                  },
                   "& .MuiTypography-root": {
                     variant: "body2",
                   },

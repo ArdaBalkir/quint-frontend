@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import QuintTable from "./QuintTable";
 import Nutil from "./Nutil";
 import Sandbox from "./Sandbox";
+import Meshview from "./Meshview";
 import { useTabContext } from "../contexts/TabContext";
 
 const Mainframe = ({ token, user }) => {
@@ -32,6 +33,8 @@ const Mainframe = ({ token, user }) => {
             <Nutil token={token} user={user} />
           ) : nativeSelection.app === "sandbox" ? (
             <Sandbox token={token} />
+          ) : nativeSelection.app === "meshview" ? (
+            <Meshview token={token} />
           ) : null}
         </Box>
       ) : (
