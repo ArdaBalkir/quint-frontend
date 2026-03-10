@@ -237,9 +237,7 @@ export default function ProgressPanel({
                   endIcon={<ArrowOutward />}
                   disableElevation
                   onClick={() => navigateToWebAlign(currentRegistration)}
-                  disabled={
-                    !walnContent || sectionsWithOUVorAnchoring === totalImages
-                  }
+                  disabled={!walnContent}
                   sx={{ fontSize: "0.8rem", mt: 0.5, textTransform: "none" }}
                   fullWidth
                   className="glass-button"
