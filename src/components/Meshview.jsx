@@ -414,7 +414,7 @@ const Meshview = ({ token }) => {
             <Box sx={{ borderTop: "1px solid #e0e0e0", mt: "auto" }}>
               <ListItem
                 onClick={() => {
-                  setActiveMeshUrl(MESH_URL);
+                  setActiveMeshUrl("https://meshview.apps.ebrains.eu/");
                   setActiveResultLabel("Meshview");
                 }}
                 sx={{
@@ -423,9 +423,11 @@ const Meshview = ({ token }) => {
                   "&:hover": { backgroundColor: "#f5f5f5" },
                   borderLeft: "3px solid",
                   borderLeftColor:
-                    activeMeshUrl === MESH_URL ? "primary.main" : "transparent",
+                    activeMeshUrl === "https://meshview.apps.ebrains.eu/"
+                      ? "primary.main"
+                      : "transparent",
                   backgroundColor:
-                    activeMeshUrl === MESH_URL
+                    activeMeshUrl === "https://meshview.apps.ebrains.eu/"
                       ? "rgba(28,148,86,0.06)"
                       : "transparent",
                   transition: "all 0.15s ease",
