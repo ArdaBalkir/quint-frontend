@@ -17,7 +17,7 @@ try {
 
 Write-Host "Building Docker image..." -ForegroundColor Cyan
 try {
-    docker build . -t "$env:REGISTRY/workbench-quint:staging"
+    docker build . --build-arg MODE=staging -t "$env:REGISTRY/workbench-quint:staging"
     if ($LASTEXITCODE -ne 0) {
         throw "Docker build failed with exit code $LASTEXITCODE"
     }
