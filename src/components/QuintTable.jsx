@@ -13,6 +13,7 @@ import {
   Button,
   Select,
   MenuItem,
+  Menu,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
@@ -20,6 +21,10 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
 import PersonIcon from "@mui/icons-material/Person"; // user icon
+import CloseIcon from "@mui/icons-material/Close";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import CreateIcon from "@mui/icons-material/Create";
+import HubIcon from "@mui/icons-material/Hub";
 
 const getRoleColor = (role) => {
   if (role === "administrator") return "#0e9d3e";
@@ -47,6 +52,7 @@ import CreationDialog from "./CreationDialog.jsx";
 import BrainTable from "./BrainTable.jsx";
 import QuickActions from "./QuickActions.jsx";
 import ConfirmationDialog from "./ConfirmationDialog.jsx";
+import KgDatasetDialog from "./KgDatasetDialog.jsx";
 
 export default function QuintTable({ token, user }) {
   const { showSuccess, showError } = useNotification();
@@ -104,8 +110,11 @@ export default function QuintTable({ token, user }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isFetchingStats, setIsFetchingStats] = useState(false);
   const [updatingBrains, setUpdatingBrains] = useState(false);
-  // To create a new project state
+  // Project creation state
+  const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
+  const [createMode, setCreateMode] = useState(null); // null | "write"
   const [newProjectName, setNewProjectName] = useState("");
+  const [kgDialogOpen, setKgDialogOpen] = useState(false);
 
   // Project view issues
   const [projectIssue, setProjectIssue] = useState({
@@ -487,6 +496,45 @@ export default function QuintTable({ token, user }) {
     }
   };
 
+  const sanitizeProjectName = (title) =>
+    title
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9-_\s]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60);
+
+  const handleKgViewDataSelect = async (dataset, viewDataItem) => {
+    const projectName = sanitizeProjectName(
+      viewDataItem?.label || dataset.title || dataset.id,
+    );
+    setKgDialogOpen(false);
+
+    if (viewDataItem?.bucket && viewDataItem?.objectPath) {
+      try {
+        const objPath = viewDataItem.objectPath.replace(/\/$/, "") + "/";
+        await fetch(`https://createzoom.apps.ebrains.eu/api/data-proxy/copy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            src_bucket: viewDataItem.bucket,
+            object_path: objPath,
+            dest_bucket: bucketName,
+            dest_name: projectName + "/",
+          }),
+        });
+      } catch (err) {
+        console.error("KG data copy failed", err);
+      }
+    }
+
+    createProjectCall(projectName);
+  };
+
   const createProjectCall = async (projectName) => {
     logger.info("Creating project", { projectName });
     try {
@@ -690,27 +738,125 @@ export default function QuintTable({ token, user }) {
                     justifyContent: "space-between",
                   }}
                 >
-                  <TextField
-                    size="small"
-                    placeholder="New project..."
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    sx={{ width: "250px", height: "40px" }}
-                  />
-                  <Tooltip title="Create new project">
-                    <IconButton
-                      sx={{ alignSelf: "flex-start" }}
-                      onClick={() => {
-                        if (newProjectName.trim()) {
-                          createProjectCall(newProjectName);
-                          setNewProjectName("");
-                        }
-                      }}
-                      disabled={!newProjectName.trim()}
+                  {createMode === "write" ? (
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                     >
-                      <AddIcon />
-                    </IconButton>
-                  </Tooltip>
+                      <TextField
+                        size="small"
+                        placeholder="Project name..."
+                        value={newProjectName}
+                        autoFocus
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newProjectName.trim()) {
+                            createProjectCall(newProjectName);
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }
+                          if (e.key === "Escape") {
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }
+                        }}
+                        sx={{ width: "200px", height: "40px" }}
+                      />
+                      <Tooltip title="Create project">
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              if (newProjectName.trim()) {
+                                createProjectCall(newProjectName);
+                                setNewProjectName("");
+                              }
+                              setCreateMode(null);
+                            }}
+                            disabled={!newProjectName.trim()}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Cancel">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
+                      sx={{
+                        textTransform: "none",
+                        height: "40px",
+                        borderRadius: 2,
+                        fontWeight: 500,
+                      }}
+                    >
+                      New project
+                    </Button>
+                  )}
+                  <Menu
+                    anchorEl={createMenuAnchor}
+                    open={Boolean(createMenuAnchor)}
+                    onClose={() => setCreateMenuAnchor(null)}
+                    transformOrigin={{ horizontal: "right", vertical: "top" }}
+                    anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                    PaperProps={{ sx: { mt: 0.5, minWidth: 240 } }}
+                  >
+                    <MenuItem
+                      onClick={() => {
+                        setCreateMenuAnchor(null);
+                        setCreateMode("write");
+                      }}
+                      sx={{ py: 1.25, px: 2 }}
+                    >
+                      <Box
+                        sx={{ display: "flex", gap: 1.5, alignItems: "center" }}
+                      >
+                        <CreateIcon fontSize="small" color="primary" />
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            Write project name
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Upload your own images!
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        setCreateMenuAnchor(null);
+                        setKgDialogOpen(true);
+                      }}
+                      sx={{ py: 1.25, px: 2 }}
+                    >
+                      <Box
+                        sx={{ display: "flex", gap: 1.5, alignItems: "center" }}
+                      >
+                        <HubIcon fontSize="small" color="primary" />
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            Import from EBRAINS KG
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Browse Knowledge Graph datasets
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </MenuItem>
+                  </Menu>
                   <Tooltip title="Share with other members">
                     <IconButton
                       sx={{
@@ -932,6 +1078,12 @@ export default function QuintTable({ token, user }) {
         token={token}
         brainEntries={projectBrainEntries}
         onUploadComplete={refreshProjectBrains}
+      />
+      <KgDatasetDialog
+        open={kgDialogOpen}
+        onClose={() => setKgDialogOpen(false)}
+        onSelectViewData={handleKgViewDataSelect}
+        token={token}
       />
       <ConfirmationDialog
         open={deleteDialogOpen}
