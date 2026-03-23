@@ -410,7 +410,7 @@ const Meshview = ({ token }) => {
                 })}
               </List>
             )}
-            {/* Bare Meshview shortcut at the bottom */}
+            {/* Bare Meshview shortcut at the bottom 
             <Box sx={{ borderTop: "1px solid #e0e0e0", mt: "auto" }}>
               <ListItem
                 onClick={() => {
@@ -462,7 +462,7 @@ const Meshview = ({ token }) => {
                   }
                 />
               </ListItem>
-            </Box>
+            </Box> */}
           </Box>
         )}
       </Box>

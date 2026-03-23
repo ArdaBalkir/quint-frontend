@@ -482,8 +482,9 @@ export default function QuintTable({ token, user }) {
       setSelectedBrainStats(null);
       setWalnContent(null);
     } finally {
-      setIsFetchingStats(false);
+      // Only clear loading if this is still the active fetch (not superseded by a newer selection)
       if (brainFetchControllerRef.current === controller) {
+        setIsFetchingStats(false);
         brainFetchControllerRef.current = null;
       }
     }

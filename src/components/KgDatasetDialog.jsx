@@ -165,12 +165,15 @@ export default function KgDatasetDialog({
           size: PAGE_SIZE,
         });
         if (q.trim()) params.set("q", q.trim());
-        const resp = await fetch(`${KG_SEARCH_URL}?${params}`, {
-          method: "POST",
-          signal: ctrl.signal,
-          headers: authHeaders(),
-          body: JSON.stringify(SEARCH_BODY),
-        });
+        const resp = await fetch(
+          `${KG_SEARCH_URL}?${params}&services[0]=LocaliZoom`,
+          {
+            method: "POST",
+            signal: ctrl.signal,
+            headers: authHeaders(),
+            body: JSON.stringify(SEARCH_BODY),
+          },
+        );
         if (!resp.ok) throw new Error("KG search failed");
         const data = await resp.json();
         const hits = Array.isArray(data.hits) ? data.hits : [];

@@ -69,8 +69,8 @@ const tabs = [
     disabled: false,
   },
   {
-    label: "Sandbox",
-    icon: <AddCircleOutlineIcon fontSize="small" />,
+    label: "Plots",
+    // icon: <AddCircleOutlineIcon fontSize="small" />,
     url: null,
     disabled: false,
   },
@@ -284,6 +284,12 @@ const Header = () => {
                     marginLeft: 0,
                     paddingLeft: "14px",
                   },
+                  "&:last-of-type": {
+                    // Flat right edge for the last tab (inverse of first)
+                    clipPath:
+                      "polygon(100% 0, 100% 100%, 0 100%, 12px 50%, 0 0)",
+                    paddingRight: "14px",
+                  },
                   "&.Mui-selected": {
                     color: "white",
                     opacity: 1,
@@ -351,7 +357,7 @@ const Header = () => {
                           app: "meshview",
                         });
                         break;
-                      case "Sandbox":
+                      case "Plots":
                         switchToTab(6);
                         setNativeSelection({
                           native: true,
