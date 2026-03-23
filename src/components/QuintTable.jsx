@@ -62,6 +62,7 @@ export default function QuintTable({ token, user }) {
   const [bucketName, setBucketName] = useState(null);
   const [availableBuckets, setAvailableBuckets] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [projectSeriesCounts, setProjectSeriesCounts] = useState({});
   const [selectedProject, setSelectedProject] = useState(() => {
     try {
       const stored = localStorage.getItem("selectedProject");
@@ -228,6 +229,13 @@ export default function QuintTable({ token, user }) {
           severity: "info",
           loading: false,
         });
+        Promise.all(
+          projects.map((p) =>
+            fetchBucketDir(token, collabName, `${p.name}/`, "/", 1000, { signal: controller.signal })
+              .then((brains) => [p.name, brains.length])
+              .catch(() => [p.name, null])
+          )
+        ).then((entries) => setProjectSeriesCounts(Object.fromEntries(entries)));
       })
       .catch((error) => {
         if (error.name === "AbortError") {
@@ -655,12 +663,12 @@ export default function QuintTable({ token, user }) {
                     value={bucketName || ""}
                     onChange={(e) => handleBucketChange(e.target.value)}
                     size="small"
-                    variant="outlined"
+                    
                     IconComponent={ArrowDropDownIcon}
                     sx={{
                       minWidth: 200,
                       maxWidth: 320,
-                      fontWeight: 600,
+                      fontWeight: 400,
                       fontSize: "1.1rem",
                       height: "40px",
                       "& .MuiSelect-select": {
@@ -678,7 +686,7 @@ export default function QuintTable({ token, user }) {
                         <Typography
                           noWrap
                           sx={{
-                            fontWeight: 600,
+                            fontWeight: 400,
                           }}
                         >
                           {selected}
@@ -693,7 +701,7 @@ export default function QuintTable({ token, user }) {
                           sx={{
                             "& .MuiListItemText-primary": {
                               color: getRoleColor("administrator"),
-                              fontWeight: 500,
+                              fontWeight: 400,
                             },
                           }}
                         />
@@ -713,7 +721,7 @@ export default function QuintTable({ token, user }) {
                           primary={bucket.name}
                           sx={{
                             "& .MuiListItemText-primary": {
-                              fontWeight: 500,
+                              fontWeight: 400,
                             },
                           }}
                         />
@@ -965,7 +973,14 @@ export default function QuintTable({ token, user }) {
                         }
                         onClick={() => handleProjectSelect(project)}
                       >
-                        <ListItemText primary={project.name} />
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, pt: .5, pb: .5 }}>
+                          <Typography fontWeight={400}>{project.name}</Typography>
+                          {projectSeriesCounts[project.name] != null && (
+                            <Typography variant="caption" color="text.secondary">
+                              {projectSeriesCounts[project.name]} series
+                            </Typography>
+                          )}
+                        </Box>
                       </ListItem>
                     ))}
                   </List>

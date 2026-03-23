@@ -72,29 +72,9 @@ className="glass-button"
   overflow: hidden;
 }
 
-.glass-button::before {
-  content: "";
-  position: absolute;
-  display: block;
-  width: 50%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.5);
-  filter: blur(0px);
-  transition: transform 400ms ease;
-  transform: skewX(45deg) translateX(220%);
-  top: 0;
-  left: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
 .glass-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 25px 40px rgba(0, 0, 0, 0.15);
-}
-
-.glass-button:hover::before {
-  transform: skewX(45deg) translateX(-150%);
 }
 
 .glass-button > * {
