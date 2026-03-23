@@ -835,7 +835,7 @@ export default function QuintTable({ token, user }) {
                         </Box>
                       </Box>
                     </MenuItem>
-                    <MenuItem
+                    {/*<MenuItem
                       onClick={() => {
                         setCreateMenuAnchor(null);
                         setKgDialogOpen(true);
@@ -855,7 +855,7 @@ export default function QuintTable({ token, user }) {
                           </Typography>
                         </Box>
                       </Box>
-                    </MenuItem>
+                    </MenuItem>*/}
                   </Menu>
                   <Tooltip title="Share with other members">
                     <IconButton
@@ -1036,6 +1036,7 @@ export default function QuintTable({ token, user }) {
                     setSelectedBrain(null);
                     localStorage.removeItem("selectedProject");
                     localStorage.removeItem("selectedBrain");
+                    localStorage.removeItem("alignment");
                   }}
                   bucketName={bucketName}
                   token={token}
