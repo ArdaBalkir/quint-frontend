@@ -973,7 +973,7 @@ export default function QuintTable({ token, user }) {
                         }
                         onClick={() => handleProjectSelect(project)}
                       >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 2, pt: .5, pb: .5 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: .5, pb: .5 }}>
                           <Typography fontWeight={400}>{project.name}</Typography>
                           {projectSeriesCounts[project.name] != null && (
                             <Typography variant="caption" color="text.secondary">
