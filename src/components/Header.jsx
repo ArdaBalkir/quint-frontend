@@ -55,7 +55,7 @@ const tabs = [
   },
   {
     label: "WebIlastik",
-    url: "https://app.ilastik.org/public/nehuba/index.html#!%7B%22layout%22:%22xy%22%7D",
+    url: "https://app.ilastik.org/app/",
     disabled: false,
   },
   {

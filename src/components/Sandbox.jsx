@@ -324,8 +324,8 @@ const Sandbox = ({ token, user }) => {
           gap: 2,
         }}
       >
-        <CircularProgress />
-        <Typography variant="body2" color="text.secondary">
+        
+        <Typography variant="body2" color="text.secondary" className="loading-shine">
           Loading brain data...
         </Typography>
       </Box>

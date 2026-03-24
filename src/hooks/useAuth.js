@@ -69,6 +69,7 @@ export const useAuth = () => {
 
                     if (accessToken) {
                         setToken(accessToken);
+                        localStorage.setItem("token", accessToken);
                         window.history.replaceState(null, null, window.location.pathname);
                     } else {
                         logger.error("Token data missing or invalid", data);

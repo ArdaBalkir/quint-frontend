@@ -96,11 +96,11 @@ export const TabProvider = ({ children }) => {
   };
 
   const navigateToWebIlastik = () => {
-    const alignment = localStorage.getItem("alignment");
     const bucketName = localStorage.getItem("bucketName");
     const mainPath = JSON.parse(localStorage.getItem("selectedBrain"));
+    const token = localStorage.getItem("token");
 
-    if (!alignment || alignment === "" || !bucketName || !mainPath) {
+    if (!bucketName || !mainPath) {
       setValidationError("Please select a project and an image series");
       logger.warn("WebIlastik navigation validation failed");
       return false;
@@ -108,16 +108,16 @@ export const TabProvider = ({ children }) => {
 
     setCurrentTab(3);
 
-    const imagesPath = `${mainPath.path}zipped_images/`;
-    const segmentsPath = `${mainPath.path}segmentations/{name}.{extension}`;
+    const workdir = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${mainPath.path}`;
 
     const params = new URLSearchParams({
-      ebrains_bucket_name: bucketName,
-      ebrains_bucket_path: imagesPath,
-      output_path_pattern: segmentsPath,
+      workdir,
+      token,
+      server: "https://app.ilastik.org/api/",
+      allocator: "https://app.ilastik.org/allocator",
     });
 
-    const url = `https://app.ilastik.org/public/nehuba/index.html?${params.toString()}#!%7B%22layout%22%3A%22xy%22%7D`;
+    const url = `https://app.ilastik.org/app/?${params.toString()}`;
     logger.debug("Ilastik URL", { url });
     handleFrameChange(url);
     setValidationError(null);
