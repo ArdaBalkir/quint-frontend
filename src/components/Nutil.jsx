@@ -178,11 +178,13 @@ const Nutil = ({ token }) => {
       if (!bucketName) return [];
       const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
       if (!stored) return [];
-      return JSON.parse(stored).map((task) => ({
-        ...task,
-        createdAt: task.createdAt ? new Date(task.createdAt) : null,
-        completedAt: task.completedAt ? new Date(task.completedAt) : null,
-      }));
+      return JSON.parse(stored)
+        .filter((t) => t.status !== "completed" && t.status !== "failed")
+        .map((task) => ({
+          ...task,
+          createdAt: task.createdAt ? new Date(task.createdAt) : null,
+          completedAt: task.completedAt ? new Date(task.completedAt) : null,
+        }));
     } catch {
       return [];
     }
@@ -206,31 +208,31 @@ const Nutil = ({ token }) => {
       case "completed":
         return {
           color: "success.light",
-          icon: <CheckCircle fontSize="small" />,
+          icon: <CheckCircle fontSize="small" sx={{ color: "white" }} />,
         };
       case "failed":
-        return { color: "error.light", icon: <Error fontSize="small" /> };
+        return { color: "error.light", icon: <Error fontSize="small" sx={{ color: "white" }} /> };
       case "pending":
         return {
           color: "warning.light",
-          icon: <HourglassEmpty fontSize="small" />,
+          icon: <HourglassEmpty fontSize="small" sx={{ color: "white" }} />,
         };
       case "downloading json":
         return {
           color: "info.light",
-          icon: <CloudDownload fontSize="small" />,
+          icon: <CloudDownload fontSize="small" sx={{ color: "white" }} />,
         };
       case "downloading segments":
         return {
           color: "info.light",
-          icon: <CloudDownload fontSize="small" />,
+          icon: <CloudDownload fontSize="small" sx={{ color: "white" }} />,
         };
       case "quantifying":
-        return { color: "info.light", icon: <BarChart fontSize="small" /> };
+        return { color: "info.light", icon: <BarChart fontSize="small" sx={{ color: "white" }} /> };
       case "uploading":
-        return { color: "info.light", icon: <CloudUpload fontSize="small" /> };
+        return { color: "info.light", icon: <CloudUpload fontSize="small" sx={{ color: "white" }} /> };
       default:
-        return { color: "warning.light", icon: <Help fontSize="small" /> };
+        return { color: "warning.light", icon: <Help fontSize="small" sx={{ color: "white" }} /> };
     }
   };
 
@@ -629,7 +631,10 @@ const Nutil = ({ token }) => {
   useEffect(() => {
     const bucketName = localStorage.getItem("bucketName");
     if (!bucketName) return;
-    localStorage.setItem(`nutilTasks_${bucketName}`, JSON.stringify(tasks));
+    const activeTasks = tasks.filter(
+      (t) => t.status !== "completed" && t.status !== "failed",
+    );
+    localStorage.setItem(`nutilTasks_${bucketName}`, JSON.stringify(activeTasks));
   }, [tasks]);
 
   useEffect(() => {
