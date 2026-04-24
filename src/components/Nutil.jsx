@@ -172,9 +172,34 @@ const Nutil = ({ token }) => {
   const [createVisualizations, setCreateVisualizations] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const bucketName = localStorage.getItem("bucketName");
+      if (!bucketName) return [];
+      const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
+      if (!stored) return [];
+      return JSON.parse(stored).map((task) => ({
+        ...task,
+        createdAt: task.createdAt ? new Date(task.createdAt) : null,
+        completedAt: task.completedAt ? new Date(task.completedAt) : null,
+      }));
+    } catch {
+      return [];
+    }
+  });
   const [completedResults, setCompletedResults] = useState([]);
-  const [isPolling, setIsPolling] = useState(false);
+  const [isPolling, setIsPolling] = useState(() => {
+    try {
+      const bucketName = localStorage.getItem("bucketName");
+      if (!bucketName) return false;
+      const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
+      if (!stored) return false;
+      const tasks = JSON.parse(stored);
+      return tasks.some((t) => t.status !== "completed" && t.status !== "failed");
+    } catch {
+      return false;
+    }
+  });
 
   const getStatusInfo = (status) => {
     switch (status) {
@@ -600,6 +625,13 @@ const Nutil = ({ token }) => {
     };
   }, [tasks, isPolling, token]); // Added token to dependencies as it's used in pollTaskStatus
 
+  // Persist tasks to localStorage whenever they change
+  useEffect(() => {
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+    localStorage.setItem(`nutilTasks_${bucketName}`, JSON.stringify(tasks));
+  }, [tasks]);
+
   useEffect(() => {
     try {
       // Getting the brain entries from localstorage, previously set by clicking on a project
@@ -620,6 +652,7 @@ const Nutil = ({ token }) => {
           });
         }
       }
+
     } catch (error) {
       logger.error("Error loading brain entries", error);
       setError("Failed to load brain entries");
