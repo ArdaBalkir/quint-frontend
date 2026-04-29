@@ -106,31 +106,43 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             .then((json) => json.url);
       };
 
-      for (let [index, dzipObj] of sortedDzips.entries()) {
-        const zipdir = await netunzip(
-          urlLocator(
-            `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${dzipObj.name}`
-          )
-        );
+      let processedCount = 0;
+      const updateAtlasProgress = () => {
+        processedCount += 1;
+        setAtlasProgress(processedCount / sortedDzips.length);
+        logger.debug("Atlas section processed", {
+          index: processedCount,
+          total: sortedDzips.length,
+        });
+      };
+      const sections = await Promise.all(
+        sortedDzips.map(async (dzipObj, index) => {
+          const zipdir = await netunzip(
+            urlLocator(
+              `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${dzipObj.name}`
+            )
+          );
 
-        const dziEntry = Array.from(zipdir.entries.values()).find((entry) =>
-          entry.name.endsWith(".dzi")
-        );
+          const dziEntry = Array.from(zipdir.entries.values()).find((entry) =>
+            entry.name.endsWith(".dzi")
+          );
 
-        if (dziEntry) {
+          if (!dziEntry) {
+            updateAtlasProgress();
+            return null;
+          }
+
           const data = await zipdir.get(dziEntry);
           const dziContent = new TextDecoder().decode(data);
           const dziData = dzisection(dziContent, dziEntry.name);
           const sectionData = convertDziToSection(dziData, index + 1);
-          atlas.sections.push(sectionData);
-        }
 
-        setAtlasProgress((index + 1) / sortedDzips.length);
-        logger.debug("Atlas section processed", {
-          index: index + 1,
-          total: sortedDzips.length,
-        });
-      }
+          updateAtlasProgress();
+          return sectionData;
+        })
+      );
+
+      atlas.sections = sections.filter(Boolean);
 
       const walnName = `${atlasName
         .toLowerCase()
@@ -190,10 +202,47 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             flexDirection: "row",
             alignItems: "center",
             gap: 1,
-            mt: 1,
-            mb: 1,
+            justifyContent: "space-between",
           }}
         >
+          <FormControl
+            fullWidth
+            variant="standard"
+            sx={{
+              margin: "1px",
+              flex: 1,
+              minWidth: 220,
+            }}
+          >
+            <InputLabel htmlFor="grouped-select">
+              Select the reference atlas
+            </InputLabel>
+            <Select
+              defaultValue=""
+              id="grouped-select"
+              label="Select the reference atlas"
+              dense="true"
+              onChange={(event) => {
+                const value = event.target.value;
+                setAtlasName(value ? atlasValueToName[value] : null);
+              }}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              <ListSubheader>Rat Brain Atlases</ListSubheader>
+              <MenuItem value={2}>
+                Waxholm Space Atlas of the Sprague Dawley rat v3
+              </MenuItem>
+              <MenuItem value={3}>
+                Waxholm Space Atlas of the Sprague Dawley rat v4
+              </MenuItem>
+              <ListSubheader>Mouse Brain Atlases</ListSubheader>
+              <MenuItem value={5}>
+                Allen Mouse Brain Atlas version 3 2017
+              </MenuItem>
+            </Select>
+          </FormControl>
           <input
             ref={fileInputRef}
             type="file"
@@ -257,8 +306,8 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             }}
           >
             {desktopFile
-              ? "Clear desktop alignment"
-              : "Upload desktop alignment"}
+              ? "Clear existing registration"
+              : "Upload existing registration"}
           </Button>
           {desktopFile && (
             <Typography
@@ -267,52 +316,6 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
               {desktopFile.slices.length} slices loaded
             </Typography>
           )}
-        </Box>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <FormControl
-            fullWidth
-            variant="standard"
-            sx={{
-              margin: "1px",
-              width: "80%",
-            }}
-          >
-            <InputLabel htmlFor="grouped-select">
-              Select the reference atlas
-            </InputLabel>
-            <Select
-              defaultValue=""
-              id="grouped-select"
-              label="Select the reference atlas"
-              dense="true"
-              onChange={(event) => {
-                const value = event.target.value;
-                setAtlasName(value ? atlasValueToName[value] : null);
-              }}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              <ListSubheader>Rat Brain Atlases</ListSubheader>
-              <MenuItem value={2}>
-                Waxholm Space Atlas of the Sprague Dawley rat v3
-              </MenuItem>
-              <MenuItem value={3}>
-                Waxholm Space Atlas of the Sprague Dawley rat v4
-              </MenuItem>
-              <ListSubheader>Mouse Brain Atlases</ListSubheader>
-              <MenuItem value={5}>
-                Allen Mouse Brain Atlas version 3 2017
-              </MenuItem>
-            </Select>
-          </FormControl>
           {creating && <Typography>Generating registration...</Typography>}
           {!creating && (
             <Button

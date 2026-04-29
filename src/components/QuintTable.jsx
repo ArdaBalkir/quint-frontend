@@ -694,7 +694,10 @@ export default function QuintTable({ token, user }) {
                       );
                     }}
                   >
-                    {availableBuckets.length === 0 && bucketName && (
+                    {bucketName &&
+                      !availableBuckets.some(
+                        (bucket) => bucket.name === bucketName,
+                      ) && (
                       <MenuItem value={bucketName}>
                         <ListItemText
                           primary={bucketName}
