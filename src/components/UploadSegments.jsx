@@ -46,19 +46,24 @@ export default function UploadSegments({
 
     if (filesToUpload.length > 0) {
       try {
-        const uploadedFiles = [];
-        for (let i = 0; i < filesToUpload.length; i++) {
-          const file = filesToUpload[i];
-          const result = await uploadToPath(
-            token,
-            collabName,
-            project.name,
-            `${brain.name}/segmentations/`,
-            file,
-          );
-          uploadedFiles.push({ ...result, originalFile: file });
-          setUploadProgress(((i + 1) / filesToUpload.length) * 100);
-        }
+        let completedUploads = 0;
+        const uploadedFiles = await Promise.all(
+          filesToUpload.map((file) =>
+            uploadToPath(
+              token,
+              collabName,
+              project.name,
+              `${brain.name}/segmentations/`,
+              file,
+            ).then((result) => {
+              completedUploads += 1;
+              setUploadProgress(
+                (completedUploads / filesToUpload.length) * 100,
+              );
+              return { ...result, originalFile: file };
+            })
+          )
+        );
         setIsUploading(false);
         setInfoMessage({
           open: true,
