@@ -7,21 +7,12 @@
  * @param {object} src - Desktop alignment object (must have a `slices` array)
  * @param {object} dst - Web alignment object (must have a `sections` array)
  * @returns {object} A deep-cloned `dst` with `ouv` / `markers` fields merged in
- * @throws {string} If the series lengths mismatch or a section cannot be matched
+ * @throws {string} If a destination section has no `_s` suffix or a duplicate is found
  */
 function desktopToWeb(src, dst) {
     dst = structuredClone(dst);
     const slices = src.slices; // QuickNII-VisuAlign
     const sections = dst.sections; // WebAlign-WebWarp-LocaliZoom
-    if (slices.length !== sections.length) {
-        throw (
-            "Series mismatch: " +
-            slices.length +
-            " vs " +
-            sections.length +
-            " sections."
-        );
-    }
     const checks = new Set();
     const mapped = new Map();
     for (const section of sections) {
@@ -37,16 +28,9 @@ function desktopToWeb(src, dst) {
     }
     for (const slice of slices) {
         const m = slice.filename.match(/.*(_s\d+[a-zA-Z]?)/);
-        if (!m) {
-            throw "No section number: " + slice.filename;
+        if (!m || !mapped.has(m[1])) {
+            continue;
         }
-        if (!checks.has(m[1])) {
-            throw "Can not find matching section: " + slice.filename;
-        }
-        checks.delete(m[1]);
-    }
-    for (const slice of slices) {
-        const m = slice.filename.match(/.*(_s\d+[a-zA-Z]?)/);
         const section = mapped.get(m[1]);
         if (slice.anchoring) {
             section.ouv = slice.anchoring;
