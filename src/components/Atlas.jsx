@@ -10,6 +10,9 @@ import {
   MenuItem,
   ListSubheader,
   Button,
+  Chip,
+  LinearProgress,
+  Tooltip,
 } from "@mui/material";
 import netunzip from "../actions/atlasUtils";
 import logger from "../utils/logger.js";
@@ -66,6 +69,8 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
   const [atlasProgress, setAtlasProgress] = useState(0);
   const [desktopFile, setDesktopFile] = useState(null);
   const fileInputRef = useRef(null);
+  const canGenerate = Boolean(atlasName && dzips?.length && !creating);
+  const processedImages = Math.round(atlasProgress * imageCount);
 
   const createAtlas = async (atlasName, bucketName, dzips, token) => {
     logger.info("Creating atlas", {
@@ -309,95 +314,113 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
               ? "Clear existing registration"
               : "Upload existing registration"}
           </Button>
-          {desktopFile && (
-            <Typography
-              sx={{ color: "success.main", fontSize: 12, flexShrink: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-            >
-              {desktopFile.slices.length} slices loaded
+          <Chip
+            size="small"
+            label={
+              desktopFile
+                ? `${desktopFile.slices.length} slices loaded`
+                : "No existing registration"
+            }
+            color={desktopFile ? "success" : "default"}
+            variant={desktopFile ? "filled" : "outlined"}
+            sx={{ flexShrink: 0 }}
+          />
+          {creating && (
+            <Typography sx={{ fontSize: 13, whiteSpace: "nowrap" }}>
+              {processedImages} / {imageCount} images
             </Typography>
           )}
-          {creating && <Typography>Generating registration...</Typography>}
           {!creating && (
-            <Button
-              variant="outlined"
-              sx={{
-                borderColor: "black",
-                color: "black",
-
-                "&:hover": {
-                  borderColor: "black",
-                  backgroundColor: "rgba(0, 0, 0, 0.04)",
-                },
-              }}
-              onClick={async () => {
-                if (!atlasName) {
-                  updateInfo({
-                    open: true,
-                    message: `Please select an atlas`,
-                    severity: "error",
-                  });
-                  return;
-                }
-                if (!bucketName || !dzips || !token) {
-                  updateInfo({
-                    open: true,
-                    message: `Missing required parameters for createAtlas`,
-                    severity: "error",
-                  });
-
-                  logger.warn("Missing required parameters for createAtlas");
-                  return;
-                }
-                if (dzips.length === 0) {
-                  updateInfo({
-                    open: true,
-                    message: `DZI files are required to generate a registration file. Please convert your images to DZI format`,
-                    severity: "error",
-                  });
-                  // Reset creating state to false
-                  // moved to logic onclick as the button carried onto execute refreshBrain
-                  logger.warn(
-                    "DZI files are required to generate a registration file. Please convert your images to DZI format"
-                  );
-                  return;
-                }
-
-                setCreating(true);
-                logger.debug("Submitting atlas creation request");
-                updateInfo({
-                  open: true,
-                  message: desktopFile
-                    ? `Generating registration file and merging desktop alignment...`
-                    : `Generation of the registration file is in progress...`,
-                  severity: "info",
-                });
-                try {
-                  await createAtlas(atlasName, bucketName, dzips, token);
-                  refreshBrain();
-                } catch (err) {
-                  updateInfo({
-                    open: true,
-                    message: err.message || "Failed to generate registration file",
-                    severity: "error",
-                  });
-                  logger.error("Atlas creation failed", err);
-                }
-                setCreating(false);
-              }}
+            <Tooltip
+              title={
+                !atlasName
+                  ? "Select a reference atlas first"
+                  : !dzips?.length
+                    ? "Convert images to DZI before generating a registration"
+                    : "Generate registration file"
+              }
             >
-              Generate
-            </Button>
+              <span>
+                <Button
+                  variant="outlined"
+                  disabled={!canGenerate}
+                  sx={{
+                    borderColor: "black",
+                    color: "black",
+
+                    "&:hover": {
+                      borderColor: "black",
+                      backgroundColor: "rgba(0, 0, 0, 0.04)",
+                    },
+                  }}
+                  onClick={async () => {
+                    if (!atlasName) {
+                      updateInfo({
+                        open: true,
+                        message: `Please select an atlas`,
+                        severity: "error",
+                      });
+                      return;
+                    }
+                    if (!bucketName || !dzips || !token) {
+                      updateInfo({
+                        open: true,
+                        message: `Missing required parameters for createAtlas`,
+                        severity: "error",
+                      });
+
+                      logger.warn("Missing required parameters for createAtlas");
+                      return;
+                    }
+                    if (dzips.length === 0) {
+                      updateInfo({
+                        open: true,
+                        message: `DZI files are required to generate a registration file. Please convert your images to DZI format`,
+                        severity: "error",
+                      });
+                      logger.warn(
+                        "DZI files are required to generate a registration file. Please convert your images to DZI format"
+                      );
+                      return;
+                    }
+
+                    setCreating(true);
+                    logger.debug("Submitting atlas creation request");
+                    updateInfo({
+                      open: true,
+                      message: desktopFile
+                        ? `Generating registration file and merging desktop alignment...`
+                        : `Generation of the registration file is in progress...`,
+                      severity: "info",
+                    });
+                    try {
+                      await createAtlas(atlasName, bucketName, dzips, token);
+                      refreshBrain();
+                    } catch (err) {
+                      updateInfo({
+                        open: true,
+                        message:
+                          err.message || "Failed to generate registration file",
+                        severity: "error",
+                      });
+                      logger.error("Atlas creation failed", err);
+                    }
+                    setCreating(false);
+                  }}
+                >
+                  Generate
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </Box>
         <Box sx={{ width: "100%", height: 10 }}>
           {creating && (
-            <Box
-              sx={{
-                width: `${atlasProgress * 100}%`,
-                height: "100%",
-                backgroundColor: "primary.main",
-              }}
-            ></Box>
+            <LinearProgress
+              variant="determinate"
+              value={atlasProgress * 100}
+              sx={{ height: 8, borderRadius: 1, mt: 1 }}
+            />
           )}
         </Box>
       </CardContent>
