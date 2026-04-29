@@ -65,8 +65,11 @@ export const useAuth = () => {
                 })
                 .then((data) => {
                     logger.debug("Token received", { hasAccess: !!data?.access_token });
-                    if (data.token && data.token.access_token) {
-                        setToken(data.token.access_token);
+                    const accessToken = data?.token?.access_token;
+
+                    if (accessToken) {
+                        setToken(accessToken);
+                        localStorage.setItem("token", accessToken);
                         window.history.replaceState(null, null, window.location.pathname);
                     } else {
                         logger.error("Token data missing or invalid", data);

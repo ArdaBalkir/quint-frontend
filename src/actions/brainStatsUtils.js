@@ -3,7 +3,7 @@
 
 /**
  * @param {Array<{name:string}>} stats
- * @returns {{rawImages?:object, pyramids?:object, registrations?:object, segmentations?:object, pynutil?:object}}
+ * @returns {{rawImages?:object, pyramids?:object, registrations?:object, segmentations?:object, nutil?:object}}
  */
 export function normalizeBrainStats(stats) {
     const normalized = {};
@@ -14,7 +14,7 @@ export function normalizeBrainStats(stats) {
         else if (name.endsWith('zipped_images')) normalized.pyramids = s;
         else if (name.endsWith('jsons')) normalized.registrations = s;
         else if (name.endsWith('segmentations')) normalized.segmentations = s;
-        else if (name.endsWith('pynutil_results')) normalized.pynutil = s;
+        else if (name.endsWith('nutil_results')) normalized.nutil = s;
     });
     return normalized;
 }

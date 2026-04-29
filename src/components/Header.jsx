@@ -9,6 +9,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Divider,
   Tabs,
   Tab,
   Toolbar,
@@ -23,6 +24,11 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import DescriptionIcon from "@mui/icons-material/Description";
+
+import SecurityIcon from "@mui/icons-material/Security";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import TimerIcon from "@mui/icons-material/Timer";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
@@ -49,7 +55,7 @@ const tabs = [
   },
   {
     label: "WebIlastik",
-    url: "https://app.ilastik.org/public/nehuba/index.html#!%7B%22layout%22:%22xy%22%7D",
+    url: "https://app.ilastik.org/app/",
     disabled: false,
   },
   {
@@ -58,7 +64,13 @@ const tabs = [
     disabled: false,
   },
   {
-    label: "Sandbox",
+    label: "MeshView",
+    url: null,
+    disabled: false,
+  },
+  {
+    label: "Plots",
+    // icon: <AddCircleOutlineIcon fontSize="small" />,
     url: null,
     disabled: false,
   },
@@ -108,6 +120,38 @@ const Header = () => {
       backgroundColor: "rgba(0, 0, 0, 0.04)",
       cursor: "pointer",
     },
+  };
+
+  const formatUnixSeconds = (value) => {
+    if (!value || typeof value !== "number") return "—";
+    const date = new Date(value * 1000);
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : date.toLocaleString("en-GB", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+  };
+
+  const formatCountdown = (value) => {
+    if (!value || typeof value !== "number") return "—";
+    const diffMs = value * 1000 - Date.now();
+    if (!Number.isFinite(diffMs)) return "—";
+    if (diffMs <= 0) return "expired";
+
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (hours > 0) return `in ${hours}h ${minutes}m`;
+    if (minutes > 0) return `in ${minutes}m ${seconds}s`;
+    return `in ${seconds}s`;
+  };
+
+  const formatScope = (scope) => {
+    if (!scope) return "—";
+    return Array.isArray(scope) ? scope.join(" ") : String(scope);
   };
 
   // All authentication logic is now handled by useAuth hook
@@ -218,33 +262,47 @@ const Header = () => {
                 minHeight: "36px",
                 "& .MuiTab-root": {
                   minHeight: "36px",
-                  height: "auto",
+                  height: "36px",
                   fontSize: "0.875rem",
-                  padding: "0 14px",
+                  // Extra left padding so text clears the 12px notch
+                  padding: "0 16px 0 20px",
                   minWidth: "auto",
                   opacity: 1,
-                  transition: "opacity 0.1s",
-                  color: "black",
+                  color: "rgba(0, 0, 0, 0.87)",
                   textTransform: "none",
-                  backgroundColor: "rgba(255, 255, 255, 0.69)",
+                  backgroundColor: "rgba(255, 255, 255, 0.72)",
+                  // Fixed 12px arrow depth — consistent across all tab widths
                   clipPath:
-                    "polygon(90% 0, 100% 50%, 90% 100%, 0 100%, 10% 50%, 0 0)", // Arrow shape
-                  marginLeft: -0.5, // Spacing is 0 for now as arrows look to be fitting in
-                  "&:first-child": {
+                    "polygon(calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%, 0 0)",
+                  marginLeft: "-12px",
+                  position: "relative",
+                  transition: "background-color 0.15s, color 0.15s",
+                  "&:first-of-type": {
+                    // Flat left edge for the first tab
                     clipPath:
-                      "polygon(90% 0, 100% 50%, 90% 100%, 0 100%, 0 0, 0 0)",
-                    borderRadius: "2px",
-                    marginLeft: -0.5,
+                      "polygon(calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 0 0)",
+                    marginLeft: 0,
+                    paddingLeft: "14px",
+                  },
+                  "&:last-of-type": {
+                    // Flat right edge for the last tab (inverse of first)
+                    clipPath:
+                      "polygon(100% 0, 100% 100%, 0 100%, 12px 50%, 0 0)",
+                    paddingRight: "14px",
                   },
                   "&.Mui-selected": {
                     color: "white",
                     opacity: 1,
                     backgroundColor: "primary.main",
+                    zIndex: 20,
                   },
-                  "&:hover": {
-                    opacity: 1,
-                    backgroundColor: "transparent",
-                    color: "white",
+                  "&:hover:not(.Mui-selected):not(.Mui-disabled)": {
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    color: "rgba(0, 0, 0, 0.87)",
+                    zIndex: 19,
+                  },
+                  "&.Mui-disabled": {
+                    opacity: 0.45,
                   },
                 },
                 "& .MuiTabs-indicator": {
@@ -256,6 +314,8 @@ const Header = () => {
                 <Tab
                   key={index}
                   label={tab.icon || tab.label}
+                  // Left tabs stack on top of right tabs so arrows remain visible
+                  sx={{ zIndex: tabs.length - index + 10 }}
                   // Disable tabs if not authenticated (user object is null)
                   disabled={!user && tab.label !== "Projects"}
                   onClick={() => {
@@ -290,8 +350,15 @@ const Header = () => {
                         });
                         break;
                       }
-                      case "Sandbox":
+                      case "MeshView":
                         switchToTab(5);
+                        setNativeSelection({
+                          native: true,
+                          app: "meshview",
+                        });
+                        break;
+                      case "Plots":
+                        switchToTab(6);
                         setNativeSelection({
                           native: true,
                           app: "sandbox",
@@ -308,66 +375,84 @@ const Header = () => {
 
           <Box
             sx={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 1,
-              display: { xs: "none", xl: "flex" },
-              flexDirection: "row",
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: "0.875rem",
-                color: "white",
-              }}
-            >
-              QUINT Online
-            </Typography>
-          </Box>
-          <Box
-            sx={{
               display: "flex",
               alignItems: "center",
               position: "absolute",
               flexDirection: "row",
               right: 0,
               mr: 2,
+              gap: 1.5,
             }}
           >
-            <Tooltip title="Docs">
-              <IconButton
-                onClick={() =>
-                  window.open(
-                    "https://quint-webtools.readthedocs.io/en/latest/",
-                    "_blank"
-                  )
-                }
-                size="small"
-                sx={{
-                  color: "white",
-                  padding: 0,
-                  "&:hover": {
-                    backgroundColor: "transparent",
-                  },
-                  mr: 1,
-                }}
-              >
-                <DescriptionIcon />
-              </IconButton>
-            </Tooltip>
+            <Typography
+              sx={{
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                color: "white",
+                letterSpacing: "0.04em",
+                display: { xs: "none", md: "block" },
+                userSelect: "none",
+              }}
+            >
+              QUINT Online
+            </Typography>
+            <Button
+              onClick={() =>
+                window.open(
+                  "https://quint-webtools.readthedocs.io/en/latest/",
+                  "_blank",
+                )
+              }
+              startIcon={
+                <DescriptionIcon sx={{ fontSize: "1rem !important" }} />
+              }
+              sx={{
+                cursor: "pointer",
+                fontWeight: 600,
+                color: "white",
+                textTransform: "none",
+                fontSize: "0.8rem",
+                px: 1.25,
+                py: 0.4,
+                border: "1px solid rgba(255,255,255,0.35)",
+                borderRadius: "6px",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                backdropFilter: "blur(4px)",
+                lineHeight: 1,
+                minWidth: 0,
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.18)",
+                  border: "1px solid rgba(255,255,255,0.65)",
+                },
+              }}
+            >
+              Docs
+            </Button>
             <Tooltip title="Account, settings and FAQ">
               <Button
                 // Always use handleLogin if user is not present
                 onClick={user ? toggleDrawer : handleLogin}
+                startIcon={
+                  <AccountCircleIcon sx={{ fontSize: "1rem !important" }} />
+                }
                 sx={{
-                  textAlign: "right",
                   cursor: "pointer",
-                  fontWeight: "bold",
+                  fontWeight: 600,
                   color: "white",
                   textTransform: "none",
-                  padding: 0,
+                  fontSize: "0.8rem",
+                  px: 1.25,
+                  py: 0.4,
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(4px)",
+                  lineHeight: 1,
+                  minWidth: 0,
+                  "&:hover": {
+                    backgroundColor: "rgba(255,255,255,0.18)",
+                    border: "1px solid rgba(255,255,255,0.65)",
+                  },
                   "& .MuiTypography-root": {
                     variant: "body2",
                   },
@@ -388,7 +473,7 @@ const Header = () => {
             }}
             role="presentation"
           >
-            <List>
+            <List dense sx={{ pb: 0 }}>
               <ListItem sx={sharedListItemSx}>
                 <ListItemIcon>
                   <AccountCircleIcon />
@@ -409,7 +494,7 @@ const Header = () => {
                 onClick={() => {
                   window.open(
                     // Fixed URL for downloading the example dataset
-                    "https://data-proxy-zipper.ebrains.eu/zip?container=https://data-proxy.ebrains.eu/api/v1/buckets/quint?prefix=Online QUINT demo dataset/"
+                    "https://data-proxy-zipper.ebrains.eu/zip?container=https://data-proxy.ebrains.eu/api/v1/buckets/quint?prefix=Online QUINT demo dataset/",
                   );
                 }}
               >
@@ -441,8 +526,111 @@ const Header = () => {
                   }}
                 />
               </ListItem>
+              {user && <Divider sx={{ my: 1 }} />}
+              {user && (
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    bgcolor: "grey.50",
+                    mx: 2,
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, mb: 1, display: "block" }}
+                  >
+                    Session Information
+                  </Typography>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <SecurityIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Scope"
+                      secondary={formatScope(user?.scope)}
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        sx: {
+                          fontFamily: "monospace",
+                          fontSize: "0.75rem",
+                          wordBreak: "break-word",
+                          mt: 0.25,
+                        },
+                      }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <ScheduleIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Issued"
+                      secondary={formatUnixSeconds(user?.iat)}
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        sx: { mt: 0.25 },
+                      }}
+                    />
+                  </ListItem>
+                  <ListItem sx={{ px: 0, py: 0.75 }}>
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <TimerIcon fontSize="small" color="action" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary="Expires"
+                      secondary={
+                        <Box component="span">
+                          <Box
+                            component="span"
+                            sx={{ fontWeight: 600, color: "primary.main" }}
+                          >
+                            {formatCountdown(user?.exp)}
+                          </Box>
+                          <Box
+                            component="span"
+                            sx={{
+                              color: "text.secondary",
+                              fontSize: "0.75rem",
+                              ml: 0.5,
+                            }}
+                          >
+                            ({formatUnixSeconds(user?.exp)})
+                          </Box>
+                        </Box>
+                      }
+                      primaryTypographyProps={{
+                        variant: "caption",
+                        color: "text.secondary",
+                        fontWeight: 500,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                        color: "text.primary",
+                        component: "div",
+                        sx: { mt: 0.25 },
+                      }}
+                    />
+                  </ListItem>
+                </Box>
+              )}
+
               <ListItem sx={sharedListItemSx} onClick={() => handleLogin()}>
-                <ListItemText primary="Login again" />
+                <ListItemText primary="Refresh token manually" />
               </ListItem>
             </List>
             <Box sx={{ padding: "16px", marginTop: "auto" }}>

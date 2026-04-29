@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -14,6 +14,7 @@ import {
 import netunzip from "../actions/atlasUtils";
 import logger from "../utils/logger.js";
 import { uploadToJson } from "../actions/handleCollabs";
+import desktopToWeb from "../actions/desktopToWeb";
 // TODO does not use new snakcbars
 
 // Extractor definitions
@@ -63,6 +64,8 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
   const [creating, setCreating] = useState(false);
   const [imageCount, setImageCount] = useState(0);
   const [atlasProgress, setAtlasProgress] = useState(0);
+  const [desktopFile, setDesktopFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const createAtlas = async (atlasName, bucketName, dzips, token) => {
     logger.info("Creating atlas", {
@@ -136,8 +139,20 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
         .replace(/[:.]/g, "-")
         .replace("T", "_")
         .slice(0, 19)}.waln`;
-      const response = await uploadToJson(uploadObj, walnName, atlas);
-      return atlas;
+      let finalAtlas = atlas;
+      if (desktopFile) {
+        try {
+          finalAtlas = desktopToWeb(desktopFile, atlas);
+          logger.info("Desktop alignment merged into atlas");
+        } catch (mergeError) {
+          logger.error("Failed to merge desktop alignment", mergeError);
+          throw new Error(
+            typeof mergeError === "string" ? mergeError : mergeError.message
+          );
+        }
+      }
+      const response = await uploadToJson(uploadObj, walnName, finalAtlas);
+      return finalAtlas;
     } catch (error) {
       logger.error("Error creating atlas", error);
       throw error;
@@ -168,6 +183,90 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
           <Typography sx={{ color: "text.secondary", fontSize: 14 }}>
             Generate registration file
           </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 1,
+            mt: 1,
+            mb: 1,
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (evt) => {
+                try {
+                  const parsed = JSON.parse(evt.target.result);
+                  if (!parsed.slices || !Array.isArray(parsed.slices)) {
+                    updateInfo({
+                      open: true,
+                      message: "Invalid desktop alignment file: missing 'slices' array",
+                      severity: "error",
+                    });
+                    setDesktopFile(null);
+                    e.target.value = "";
+                    return;
+                  }
+                  setDesktopFile(parsed);
+                  logger.info("Desktop alignment file loaded", {
+                    slices: parsed.slices.length,
+                    filename: file.name,
+                  });
+                } catch {
+                  updateInfo({
+                    open: true,
+                    message: "Could not parse desktop alignment file",
+                    severity: "error",
+                  });
+                  setDesktopFile(null);
+                  e.target.value = "";
+                }
+              };
+              reader.readAsText(file);
+            }}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            sx={{
+              borderColor: desktopFile ? "success.main" : "grey.500",
+              color: desktopFile ? "success.main" : "grey.600",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              "&:hover": {
+                borderColor: desktopFile ? "success.dark" : "grey.700",
+                backgroundColor: "rgba(0,0,0,0.04)",
+              },
+            }}
+            onClick={() => {
+              if (desktopFile) {
+                setDesktopFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
+          >
+            {desktopFile
+              ? "Clear desktop alignment"
+              : "Upload desktop alignment"}
+          </Button>
+          {desktopFile && (
+            <Typography
+              sx={{ color: "success.main", fontSize: 12, flexShrink: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >
+              {desktopFile.slices.length} slices loaded
+            </Typography>
+          )}
         </Box>
         <Box
           sx={{
@@ -264,11 +363,22 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
                 logger.debug("Submitting atlas creation request");
                 updateInfo({
                   open: true,
-                  message: `Generation of the registration file is in progress...`,
+                  message: desktopFile
+                    ? `Generating registration file and merging desktop alignment...`
+                    : `Generation of the registration file is in progress...`,
                   severity: "info",
                 });
-                await createAtlas(atlasName, bucketName, dzips, token);
-                refreshBrain();
+                try {
+                  await createAtlas(atlasName, bucketName, dzips, token);
+                  refreshBrain();
+                } catch (err) {
+                  updateInfo({
+                    open: true,
+                    message: err.message || "Failed to generate registration file",
+                    severity: "error",
+                  });
+                  logger.error("Atlas creation failed", err);
+                }
                 setCreating(false);
               }}
             >

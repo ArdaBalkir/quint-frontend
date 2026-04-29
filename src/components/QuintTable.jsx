@@ -11,10 +11,32 @@ import {
   ListItemText,
   TextField,
   Button,
+  Select,
+  MenuItem,
+  Menu,
 } from "@mui/material";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PersonAddIcon from "@mui/icons-material/PersonAdd"; // used for the bucket sharing/workspace icon later on
+import PersonIcon from "@mui/icons-material/Person"; // user icon
+import CloseIcon from "@mui/icons-material/Close";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import CreateIcon from "@mui/icons-material/Create";
+import HubIcon from "@mui/icons-material/Hub";
+
+const getRoleColor = (role) => {
+  if (role === "administrator") return "#0e9d3e";
+  if (role === "editor") return "#1976d2";
+  return "#9e9e9e";
+};
+
+const getRoleLabel = (role) => {
+  if (role === "administrator") return "admin";
+  if (role === "editor") return "editor";
+  return "viewer";
+};
 
 // Project handling
 import {
@@ -24,11 +46,13 @@ import {
   checkBucketExists,
   downloadWalnJson,
   deleteItem,
+  fetchAvailableBuckets,
 } from "../actions/handleCollabs.ts";
 import CreationDialog from "./CreationDialog.jsx";
 import BrainTable from "./BrainTable.jsx";
 import QuickActions from "./QuickActions.jsx";
 import ConfirmationDialog from "./ConfirmationDialog.jsx";
+import KgDatasetDialog from "./KgDatasetDialog.jsx";
 
 export default function QuintTable({ token, user }) {
   const { showSuccess, showError } = useNotification();
@@ -36,7 +60,9 @@ export default function QuintTable({ token, user }) {
   // Query helpers
   // null until resolved so 'no-workspace' state can be meaningful
   const [bucketName, setBucketName] = useState(null);
+  const [availableBuckets, setAvailableBuckets] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [projectSeriesCounts, setProjectSeriesCounts] = useState({});
   const [selectedProject, setSelectedProject] = useState(() => {
     try {
       const stored = localStorage.getItem("selectedProject");
@@ -85,8 +111,11 @@ export default function QuintTable({ token, user }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isFetchingStats, setIsFetchingStats] = useState(false);
   const [updatingBrains, setUpdatingBrains] = useState(false);
-  // To create a new project state
+  // Project creation state
+  const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
+  const [createMode, setCreateMode] = useState(null); // null | "write"
   const [newProjectName, setNewProjectName] = useState("");
+  const [kgDialogOpen, setKgDialogOpen] = useState(false);
 
   // Project view issues
   const [projectIssue, setProjectIssue] = useState({
@@ -200,6 +229,13 @@ export default function QuintTable({ token, user }) {
           severity: "info",
           loading: false,
         });
+        Promise.all(
+          projects.map((p) =>
+            fetchBucketDir(token, collabName, `${p.name}/`, "/", 1000, { signal: controller.signal })
+              .then((brains) => [p.name, brains.length])
+              .catch(() => [p.name, null])
+          )
+        ).then((entries) => setProjectSeriesCounts(Object.fromEntries(entries)));
       })
       .catch((error) => {
         if (error.name === "AbortError") {
@@ -244,7 +280,7 @@ export default function QuintTable({ token, user }) {
                     token: token,
                     collab_id: collabName,
                   }),
-                }
+                },
               );
 
               const data = await response.json();
@@ -276,6 +312,16 @@ export default function QuintTable({ token, user }) {
       };
 
       initializeWorkspace();
+
+      // Fetch all available RWB buckets for the dropdown
+      fetchAvailableBuckets(token, "rwb")
+        .then((buckets) => {
+          logger.debug("Available buckets fetched", buckets);
+          setAvailableBuckets(buckets);
+        })
+        .catch((error) => {
+          logger.error("Error fetching available buckets", error);
+        });
     } catch (error) {
       logger.error("Error parsing userInfo", error);
     }
@@ -283,11 +329,28 @@ export default function QuintTable({ token, user }) {
 
   // Second effect: Fetch projects when we have both token and bucketName
   useEffect(() => {
-    if (token && bucketName && projects.length === 0) {
+    if (token && bucketName) {
       localStorage.setItem("bucketName", bucketName);
       fetchAndUpdateProjects(bucketName);
     }
   }, [token, bucketName]); // Only depends on token and bucketName
+
+  // Bucket switch handler
+  const handleBucketChange = (newBucketName) => {
+    if (newBucketName === bucketName) return;
+    // Reset project/brain state when switching buckets
+    setSelectedProject(null);
+    setSelectedBrain(null);
+    setSelectedBrainStats(null);
+    setWalnContent(null);
+    setRows([]);
+    setProjects([]);
+    setProjectBrainEntries([]);
+    localStorage.removeItem("selectedProject");
+    localStorage.removeItem("selectedBrain");
+    localStorage.removeItem("projectBrainEntries");
+    setBucketName(newBucketName);
+  };
 
   // Third effect: Restore project/brain selection on mount
   useEffect(() => {
@@ -323,7 +386,7 @@ export default function QuintTable({ token, user }) {
         projectPath,
         "/",
         1000,
-        { signal: controller.signal }
+        { signal: controller.signal },
       );
       const newRows = brainEntries.map((entry, index) => ({
         id: index,
@@ -384,12 +447,12 @@ export default function QuintTable({ token, user }) {
         bucketName,
         params.row.path,
         null,
-        { signal }
+        { signal },
       );
       setSelectedBrainStats(normalized);
       localStorage.setItem(
         "selectedBrain",
-        JSON.stringify({ ...params.row, project: selectedProject.name })
+        JSON.stringify({ ...params.row, project: selectedProject.name }),
       );
       logger.debug("Selected brain stats", normalized);
 
@@ -400,7 +463,7 @@ export default function QuintTable({ token, user }) {
             token,
             bucketName,
             regFile,
-            signal
+            signal,
           );
           logger.debug("WALN content retrieved", {
             keys: Object.keys(walnContent || {}).length,
@@ -427,8 +490,9 @@ export default function QuintTable({ token, user }) {
       setSelectedBrainStats(null);
       setWalnContent(null);
     } finally {
-      setIsFetchingStats(false);
+      // Only clear loading if this is still the active fetch (not superseded by a newer selection)
       if (brainFetchControllerRef.current === controller) {
+        setIsFetchingStats(false);
         brainFetchControllerRef.current = null;
       }
     }
@@ -439,6 +503,45 @@ export default function QuintTable({ token, user }) {
     if (selectedBrain) {
       handleBrainSelect({ row: selectedBrain });
     }
+  };
+
+  const sanitizeProjectName = (title) =>
+    title
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9-_\s]/g, "")
+      .trim()
+      .replace(/\s+/g, "_")
+      .slice(0, 60);
+
+  const handleKgViewDataSelect = async (dataset, viewDataItem) => {
+    const projectName = sanitizeProjectName(
+      viewDataItem?.label || dataset.title || dataset.id,
+    );
+    setKgDialogOpen(false);
+
+    if (viewDataItem?.bucket && viewDataItem?.objectPath) {
+      try {
+        const objPath = viewDataItem.objectPath.replace(/\/$/, "") + "/";
+        await fetch(`https://createzoom.apps.ebrains.eu/api/data-proxy/copy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            src_bucket: viewDataItem.bucket,
+            object_path: objPath,
+            dest_bucket: bucketName,
+            dest_name: projectName + "/",
+          }),
+        });
+      } catch (err) {
+        console.error("KG data copy failed", err);
+      }
+    }
+
+    createProjectCall(projectName);
   };
 
   const createProjectCall = async (projectName) => {
@@ -545,12 +648,97 @@ export default function QuintTable({ token, user }) {
                   mb: 2,
                 }}
               >
-                {/* Main header with the bucket title as rwb-username
-                  DONE enlarge the input menu
-                */}
-                <Typography variant="h5" align="left" textOverflow={"ellipsis"}>
-                  Projects in {bucketName}
-                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <Typography variant="h6" noWrap>
+                    Projects in
+                  </Typography>
+                  <Select
+                    value={bucketName || ""}
+                    onChange={(e) => handleBucketChange(e.target.value)}
+                    size="small"
+                    
+                    IconComponent={ArrowDropDownIcon}
+                    sx={{
+                      minWidth: 200,
+                      maxWidth: 320,
+                      fontWeight: 400,
+                      fontSize: "1.1rem",
+                      height: "40px",
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        py: 0.5,
+                      },
+                    }}
+                    renderValue={(selected) => {
+                      const bucket = availableBuckets.find(
+                        (b) => b.name === selected,
+                      );
+                      return (
+                        <Typography
+                          noWrap
+                          sx={{
+                            fontWeight: 400,
+                          }}
+                        >
+                          {selected}
+                        </Typography>
+                      );
+                    }}
+                  >
+                    {availableBuckets.length === 0 && bucketName && (
+                      <MenuItem value={bucketName}>
+                        <ListItemText
+                          primary={bucketName}
+                          sx={{
+                            "& .MuiListItemText-primary": {
+                              color: getRoleColor("administrator"),
+                              fontWeight: 400,
+                            },
+                          }}
+                        />
+                      </MenuItem>
+                    )}
+                    {availableBuckets.map((bucket) => (
+                      <MenuItem
+                        key={bucket.name}
+                        value={bucket.name}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 2,
+                        }}
+                      >
+                        <ListItemText
+                          primary={bucket.name}
+                          sx={{
+                            "& .MuiListItemText-primary": {
+                              fontWeight: 400,
+                            },
+                          }}
+                        />
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: getRoleColor(bucket.role),
+                            opacity: 0.8,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getRoleLabel(bucket.role)}
+                        </Typography>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </Box>
                 <Box
                   sx={{
                     display: "flex",
@@ -559,34 +747,164 @@ export default function QuintTable({ token, user }) {
                     justifyContent: "space-between",
                   }}
                 >
-                  <TextField
-                    size="small"
-                    placeholder="New project..."
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    sx={{ width: "250px", height: "40px" }}
-                  />
-                  <Tooltip title="Create new project">
-                    <IconButton
-                      sx={{ alignSelf: "flex-start" }}
-                      onClick={() => {
-                        if (newProjectName.trim()) {
-                          createProjectCall(newProjectName);
-                          setNewProjectName("");
-                        }
-                      }}
-                      disabled={!newProjectName.trim()}
+                  {createMode === "write" ? (
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                     >
-                      <AddIcon />
+                      <TextField
+                        size="small"
+                        placeholder="Project name..."
+                        value={newProjectName}
+                        autoFocus
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newProjectName.trim()) {
+                            createProjectCall(newProjectName);
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }
+                          if (e.key === "Escape") {
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }
+                        }}
+                        sx={{ width: "200px", height: "40px" }}
+                      />
+                      <Tooltip title="Create project">
+                        <span>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              if (newProjectName.trim()) {
+                                createProjectCall(newProjectName);
+                                setNewProjectName("");
+                              }
+                              setCreateMode(null);
+                            }}
+                            disabled={!newProjectName.trim()}
+                          >
+                            <AddIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Cancel">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setNewProjectName("");
+                            setCreateMode(null);
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
+                      sx={{
+                        textTransform: "none",
+                        height: "40px",
+                        borderRadius: 2,
+                        fontWeight: 500,
+                      }}
+                    >
+                      New project
+                    </Button>
+                  )}
+                  <Menu
+                    anchorEl={createMenuAnchor}
+                    open={Boolean(createMenuAnchor)}
+                    onClose={() => setCreateMenuAnchor(null)}
+                    transformOrigin={{ horizontal: "right", vertical: "top" }}
+                    anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                    PaperProps={{ sx: { mt: 0.5, minWidth: 240 } }}
+                  >
+                    <MenuItem
+                      onClick={() => {
+                        setCreateMenuAnchor(null);
+                        setCreateMode("write");
+                      }}
+                      sx={{ py: 1.25, px: 2 }}
+                    >
+                      <Box
+                        sx={{ display: "flex", gap: 1.5, alignItems: "center" }}
+                      >
+                        <CreateIcon fontSize="small" color="primary" />
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            Write project name
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Upload your own images!
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </MenuItem>
+                    {/*<MenuItem
+                      onClick={() => {
+                        setCreateMenuAnchor(null);
+                        setKgDialogOpen(true);
+                      }}
+                      sx={{ py: 1.25, px: 2 }}
+                    >
+                      <Box
+                        sx={{ display: "flex", gap: 1.5, alignItems: "center" }}
+                      >
+                        <HubIcon fontSize="small" color="primary" />
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            Import from EBRAINS KG
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Browse Knowledge Graph datasets
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </MenuItem>*/}
+                  </Menu>
+                  <Tooltip title="Share with other members">
+                    <IconButton
+                      sx={{
+                        "&:hover": {
+                          transform: "scale(1.1)",
+                          backgroundColor: "transparent",
+                        },
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(
+                          `https://wiki.ebrains.eu/bin/view/Collabs/${bucketName}/Team#/editor`,
+                          "_blank",
+                        );
+                      }}
+                    >
+                      <PersonAddIcon
+                        sx={{
+                          cursor: "pointer",
+                        }}
+                        color="primary"
+                      />
                     </IconButton>
                   </Tooltip>
+
                   <Tooltip title="Open bucket directory">
                     <IconButton
+                      sx={{
+                        "&:hover": {
+                          transform: "scale(1.1)",
+                          backgroundColor: "transparent",
+                        },
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         window.open(
                           `https://data-proxy.ebrains.eu/${bucketName}`,
-                          "_blank"
+
+                          "_blank",
                         );
                       }}
                     >
@@ -655,7 +973,14 @@ export default function QuintTable({ token, user }) {
                         }
                         onClick={() => handleProjectSelect(project)}
                       >
-                        <ListItemText primary={project.name} />
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: .5, pb: .5 }}>
+                          <Typography fontWeight={400}>{project.name}</Typography>
+                          {projectSeriesCounts[project.name] != null && (
+                            <Typography variant="caption" color="text.secondary">
+                              {projectSeriesCounts[project.name]} series
+                            </Typography>
+                          )}
+                        </Box>
                       </ListItem>
                     ))}
                   </List>
@@ -727,6 +1052,7 @@ export default function QuintTable({ token, user }) {
                     setSelectedBrain(null);
                     localStorage.removeItem("selectedProject");
                     localStorage.removeItem("selectedBrain");
+                    localStorage.removeItem("alignment");
                   }}
                   bucketName={bucketName}
                   token={token}
@@ -769,6 +1095,12 @@ export default function QuintTable({ token, user }) {
         token={token}
         brainEntries={projectBrainEntries}
         onUploadComplete={refreshProjectBrains}
+      />
+      <KgDatasetDialog
+        open={kgDialogOpen}
+        onClose={() => setKgDialogOpen(false)}
+        onSelectViewData={handleKgViewDataSelect}
+        token={token}
       />
       <ConfirmationDialog
         open={deleteDialogOpen}

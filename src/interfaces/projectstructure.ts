@@ -17,7 +17,7 @@ export interface BrainStatsNormalized {
   pyramids?: BucketStats;
   registrations?: BucketStats;
   segmentations?: BucketStats;
-  pynutil?: BucketStats;
+  nutil?: BucketStats;
 }
 
 export interface BucketStats {

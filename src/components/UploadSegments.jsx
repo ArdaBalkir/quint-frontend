@@ -54,7 +54,7 @@ export default function UploadSegments({
             collabName,
             project.name,
             `${brain.name}/segmentations/`,
-            file
+            file,
           );
           uploadedFiles.push({ ...result, originalFile: file });
           setUploadProgress(((i + 1) / filesToUpload.length) * 100);
@@ -62,16 +62,16 @@ export default function UploadSegments({
         setIsUploading(false);
         setInfoMessage({
           open: true,
-          message: "Segments uploaded successfully!",
+          message: "Segmentations uploaded successfully!",
           severity: "success",
         });
         return uploadedFiles;
       } catch (error) {
         setIsUploading(false);
-        logger.error("Error uploading segments", error);
+        logger.error("Error uploading segmentations", error);
         setInfoMessage({
           open: true,
-          message: "Error uploading segments",
+          message: "Error uploading segmentations",
           severity: "error",
         });
         throw error;

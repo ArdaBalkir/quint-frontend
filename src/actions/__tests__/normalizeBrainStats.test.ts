@@ -35,14 +35,14 @@ describe("normalizeBrainStats", () => {
         jsons: [{ name: "reg.waln" }],
       },
       { name: "proj/brain/segmentations", files: 0, size: 0 },
-      { name: "proj/brain/pynutil_results", files: 0, size: 0 },
+      { name: "proj/brain/nutil_results", files: 0, size: 0 },
     ];
     const normalized: BrainStatsNormalized = normalizeBrainStats(sample as any);
     expect(normalized.rawImages?.tiffs?.length).toBe(2);
     expect(normalized.pyramids?.zips?.length).toBe(1);
     expect(normalized.registrations?.jsons?.length).toBe(1);
     expect(normalized.segmentations?.files).toBe(0);
-    expect(normalized.pynutil?.files).toBe(0);
+    expect(normalized.nutil?.files).toBe(0);
   });
 
   it("returns empty object for invalid input", () => {

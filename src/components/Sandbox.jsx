@@ -2,6 +2,7 @@ import logger from "../utils/logger.js";
 import { useState, useEffect } from "react";
 import {
   Box,
+  Button,
   CircularProgress,
   Typography,
   FormControl,
@@ -14,11 +15,12 @@ import {
   ListItemIcon,
   Paper,
 } from "@mui/material";
-import { BarChart } from "@mui/icons-material";
+import { BarChart, FolderOpen } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import Papa from "papaparse";
-import { fetchPyNutilResults } from "../actions/handleCollabs";
+import { fetchnutilResults } from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
+import { useTabContext } from "../contexts/TabContext";
 
 const Sandbox = ({ token, user }) => {
   // state for nutil results list
@@ -33,7 +35,15 @@ const Sandbox = ({ token, user }) => {
   // csv data state
   const [csvData, setCsvData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBrainLoading, setIsBrainLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { switchToTab, setNativeSelection } = useTabContext();
+
+  const goToProjects = () => {
+    switchToTab(0);
+    setNativeSelection({ native: true, app: "workspace" });
+  };
 
   /**
    * Process data for pie chart - show top N regions, group rest into "Other"
@@ -41,7 +51,7 @@ const Sandbox = ({ token, user }) => {
   const processPieChartData = (rows, valueKey, topN = 10) => {
     // Sort rows by value descending
     const sortedRows = [...rows].sort(
-      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0)
+      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0),
     );
 
     // Take top N
@@ -51,7 +61,7 @@ const Sandbox = ({ token, user }) => {
     // Calculate sum of rest
     const restSum = restRows.reduce(
       (sum, row) => sum + (parseFloat(row[valueKey]) || 0),
-      0
+      0,
     );
 
     // Prepare data
@@ -60,8 +70,8 @@ const Sandbox = ({ token, user }) => {
     const colors = topRows.map(
       (row) =>
         `rgb(${Math.round(row["r"] || 0)},${Math.round(
-          row["g"] || 0
-        )},${Math.round(row["b"] || 0)})`
+          row["g"] || 0,
+        )},${Math.round(row["b"] || 0)})`,
     );
 
     // Add "Other" if there are rest rows
@@ -105,11 +115,25 @@ const Sandbox = ({ token, user }) => {
   // fetch brain entries on mount
   useEffect(() => {
     const fetchBrainEntriesAsync = async () => {
-      try {
-        const bucketName = localStorage.getItem("bucketName");
-        if (!bucketName || !token) return;
+      const bucketName = localStorage.getItem("bucketName");
+      if (!bucketName || !token) return;
 
-        const brains = await getBrainStats(token, bucketName);
+      setIsBrainLoading(true);
+      try {
+        const selectedProjectStr = localStorage.getItem("selectedProject");
+        if (!selectedProjectStr) {
+          setBrainEntries([]);
+          return;
+        }
+        const selectedProject = JSON.parse(selectedProjectStr);
+        const projectName = selectedProject?.name;
+        if (!projectName) {
+          setBrainEntries([]);
+          return;
+        }
+
+        const { listBrains } = await import("../actions/brainRepository.ts");
+        const brains = await listBrains(token, bucketName, projectName);
         setBrainEntries(brains || []);
 
         // auto-select first brain if none selected
@@ -118,6 +142,9 @@ const Sandbox = ({ token, user }) => {
         }
       } catch (err) {
         logger.error("Failed to fetch brain entries", err);
+        setBrainEntries([]);
+      } finally {
+        setIsBrainLoading(false);
       }
     };
 
@@ -134,10 +161,10 @@ const Sandbox = ({ token, user }) => {
         const bucketName = localStorage.getItem("bucketName");
         const resultsPath = `${selectedBrain.path}`;
 
-        const response = await fetchPyNutilResults(
+        const response = await fetchnutilResults(
           token,
           bucketName,
-          resultsPath
+          resultsPath,
         );
 
         if (response && response.length > 0) {
@@ -252,6 +279,87 @@ const Sandbox = ({ token, user }) => {
     return fileName;
   };
 
+  const bucketName = localStorage.getItem("bucketName");
+  const hasProject = !!projectName;
+  const hasBucket = !!bucketName;
+
+  // Edge case: no project or bucket selected — prompt user to go to Projects first
+  if (!hasProject || !hasBucket) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "calc(100vh - 42px)",
+          gap: 2,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <FolderOpen sx={{ fontSize: 64, color: "text.disabled" }} />
+        <Typography variant="h6" color="text.secondary">
+          No project selected
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Select a project and brain series in the Projects tab first.
+        </Typography>
+        <Button variant="contained" onClick={goToProjects}>
+          Go to Projects
+        </Button>
+      </Box>
+    );
+  }
+
+  // Edge case: loading brains
+  if (isBrainLoading) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "calc(100vh - 42px)",
+          flexDirection: "column",
+          gap: 2,
+        }}
+      >
+        
+        <Typography variant="body2" color="text.secondary" className="loading-shine">
+          Loading brain data...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Edge case: project exists but no brains found
+  if (!isBrainLoading && brainEntries.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "calc(100vh - 42px)",
+          gap: 2,
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <BarChart sx={{ fontSize: 64, color: "text.disabled" }} />
+        <Typography variant="h6" color="text.secondary">
+          No brain series found
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Project &ldquo;{projectName}&rdquo; has no brain series yet.
+        </Typography>
+        <Button variant="outlined" onClick={goToProjects}>
+          Go to Projects
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -293,7 +401,7 @@ const Sandbox = ({ token, user }) => {
               label="Select Brain"
               onChange={(e) => {
                 const brain = brainEntries.find(
-                  (b) => b.name === e.target.value
+                  (b) => b.name === e.target.value,
                 );
                 setSelectedBrain(brain);
                 setSelectedResult(null);
@@ -472,7 +580,7 @@ const Sandbox = ({ token, user }) => {
                             {
                               x: csvData.rows.map((row) => row["name"]),
                               y: csvData.rows.map(
-                                (row) => parseFloat(row["area_fraction"]) || 0
+                                (row) => parseFloat(row["area_fraction"]) || 0,
                               ),
                               type: "bar",
                               name: "Area Fraction",
@@ -480,10 +588,10 @@ const Sandbox = ({ token, user }) => {
                                 color: csvData.rows.map(
                                   (row) =>
                                     `rgb(${Math.round(
-                                      row["r"] || 0
+                                      row["r"] || 0,
                                     )},${Math.round(
-                                      row["g"] || 0
-                                    )},${Math.round(row["b"] || 0)})`
+                                      row["g"] || 0,
+                                    )},${Math.round(row["b"] || 0)})`,
                                 ),
                               },
                             },
@@ -509,7 +617,7 @@ const Sandbox = ({ token, user }) => {
                               {
                                 x: csvData.rows.map((row) => row["name"]),
                                 y: csvData.rows.map(
-                                  (row) => parseFloat(row["object_count"]) || 0
+                                  (row) => parseFloat(row["object_count"]) || 0,
                                 ),
                                 type: "bar",
                                 name: "Object Count",
@@ -517,10 +625,10 @@ const Sandbox = ({ token, user }) => {
                                   color: csvData.rows.map(
                                     (row) =>
                                       `rgb(${Math.round(
-                                        row["r"] || 0
+                                        row["r"] || 0,
                                       )},${Math.round(
-                                        row["g"] || 0
-                                      )},${Math.round(row["b"] || 0)})`
+                                        row["g"] || 0,
+                                      )},${Math.round(row["b"] || 0)})`,
                                   ),
                                 },
                               },
@@ -550,7 +658,7 @@ const Sandbox = ({ token, user }) => {
                               ...processPieChartData(
                                 csvData.rows,
                                 "area_fraction",
-                                topNRegions
+                                topNRegions,
                               ),
                               type: "pie",
                               textinfo: "label+percent",
@@ -576,7 +684,7 @@ const Sandbox = ({ token, user }) => {
                                 ...processPieChartData(
                                   csvData.rows,
                                   "object_count",
-                                  topNRegions
+                                  topNRegions,
                                 ),
                                 type: "pie",
                                 textinfo: "label+percent",

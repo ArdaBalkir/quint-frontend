@@ -42,7 +42,7 @@ import mBrain from "../mBrain.ico";
 
 import {
   fetchBrainSegmentations,
-  fetchPyNutilResults,
+  fetchnutilResults,
   deleteItem, // Start implementing possibly click delete -> to delete all files in segmentations?
 } from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
@@ -122,11 +122,12 @@ const MeshviewButton = ({ atlas, clouds }) => {
   // Mesh View viewer route
   // Supports a single json for now,
   // TODO allow multiple jsons to be passed in the url after private bucket is resolved
+  const { navigateToMeshView } = useTabContext();
   const handleClick = () => {
     const urlPrefix = "https://data-proxy.ebrains.eu/api/v1/public/buckets/";
     const collabName = localStorage.getItem("bucketName");
     const url = `${MESH_URL}?atlas=${atlasLookup[atlas]}&cloud=${urlPrefix}${collabName}/${clouds}whole_series_meshview/objects_meshview.json`;
-    window.open(url, "_blank");
+    navigateToMeshView(url);
   };
   return (
     <Button
@@ -171,40 +172,67 @@ const Nutil = ({ token }) => {
   const [createVisualizations, setCreateVisualizations] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const bucketName = localStorage.getItem("bucketName");
+      if (!bucketName) return [];
+      const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
+      if (!stored) return [];
+      return JSON.parse(stored)
+        .filter((t) => t.status !== "completed" && t.status !== "failed")
+        .map((task) => ({
+          ...task,
+          createdAt: task.createdAt ? new Date(task.createdAt) : null,
+          completedAt: task.completedAt ? new Date(task.completedAt) : null,
+        }));
+    } catch {
+      return [];
+    }
+  });
   const [completedResults, setCompletedResults] = useState([]);
-  const [isPolling, setIsPolling] = useState(false);
+  const [isPolling, setIsPolling] = useState(() => {
+    try {
+      const bucketName = localStorage.getItem("bucketName");
+      if (!bucketName) return false;
+      const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
+      if (!stored) return false;
+      const tasks = JSON.parse(stored);
+      return tasks.some((t) => t.status !== "completed" && t.status !== "failed");
+    } catch {
+      return false;
+    }
+  });
 
   const getStatusInfo = (status) => {
     switch (status) {
       case "completed":
         return {
           color: "success.light",
-          icon: <CheckCircle fontSize="small" />,
+          icon: <CheckCircle fontSize="small" sx={{ color: "white" }} />,
         };
       case "failed":
-        return { color: "error.light", icon: <Error fontSize="small" /> };
+        return { color: "error.light", icon: <Error fontSize="small" sx={{ color: "white" }} /> };
       case "pending":
         return {
           color: "warning.light",
-          icon: <HourglassEmpty fontSize="small" />,
+          icon: <HourglassEmpty fontSize="small" sx={{ color: "white" }} />,
         };
       case "downloading json":
         return {
           color: "info.light",
-          icon: <CloudDownload fontSize="small" />,
+          icon: <CloudDownload fontSize="small" sx={{ color: "white" }} />,
         };
       case "downloading segments":
         return {
           color: "info.light",
-          icon: <CloudDownload fontSize="small" />,
+          icon: <CloudDownload fontSize="small" sx={{ color: "white" }} />,
         };
       case "quantifying":
-        return { color: "info.light", icon: <BarChart fontSize="small" /> };
+        return { color: "info.light", icon: <BarChart fontSize="small" sx={{ color: "white" }} /> };
       case "uploading":
-        return { color: "info.light", icon: <CloudUpload fontSize="small" /> };
+        return { color: "info.light", icon: <CloudUpload fontSize="small" sx={{ color: "white" }} /> };
       default:
-        return { color: "warning.light", icon: <Help fontSize="small" /> };
+        return { color: "warning.light", icon: <Help fontSize="small" sx={{ color: "white" }} /> };
     }
   };
 
@@ -221,7 +249,7 @@ const Nutil = ({ token }) => {
         segmentations,
       });
       setError(
-        "Missing required data (brain, atlas, or segmentations) for Nutil analysis."
+        "Missing required data (brain, atlas, or segmentations) for Nutil analysis.",
       );
       return;
     }
@@ -244,14 +272,14 @@ const Nutil = ({ token }) => {
 
       const now = new Date();
       const dateStr = `${now.getFullYear()}_${String(
-        now.getMonth() + 1
+        now.getMonth() + 1,
       ).padStart(2, "0")}_${String(now.getDate()).padStart(2, "0")}_${String(
-        now.getHours()
+        now.getHours(),
       ).padStart(2, "0")}_${String(now.getMinutes()).padStart(2, "0")}_${String(
-        now.getSeconds()
+        now.getSeconds(),
       ).padStart(2, "0")}`;
       // output_path should be bucketName/path/to/output_folder
-      const outputPath = `${selectedBrain.path}pynutil_results/${dateStr}`; // Relative to bucket
+      const outputPath = `${selectedBrain.path}nutil_results/${dateStr}`; // Relative to bucket
 
       // Create the request payload
       const payload = {
@@ -279,7 +307,7 @@ const Nutil = ({ token }) => {
         throw new Error(
           `Error: ${response.status} - ${
             errorData.detail || response.statusText
-          }`
+          }`,
         );
       }
 
@@ -318,7 +346,7 @@ const Nutil = ({ token }) => {
   const pollTaskStatus = async (taskId) => {
     try {
       const baseUrl = import.meta.env.DEV
-        ? "/api/pynutil"
+        ? "/api/nutil"
         : "https://webnutil.apps.ebrains.eu";
       const response = await fetch(`${baseUrl}/task-status/${taskId}`, {
         method: "GET",
@@ -332,7 +360,7 @@ const Nutil = ({ token }) => {
         throw new Error(
           `Error fetching task status: ${response.status} - ${
             errorData.detail || response.statusText
-          }`
+          }`,
         );
       }
 
@@ -356,11 +384,7 @@ const Nutil = ({ token }) => {
 
       logger.info("Fetching completed results", { resultsPath });
 
-      const response = await fetchPyNutilResults(
-        token,
-        collabName,
-        resultsPath
-      );
+      const response = await fetchnutilResults(token, collabName, resultsPath);
 
       logger.debug("Raw response structure", { response });
 
@@ -402,7 +426,7 @@ const Nutil = ({ token }) => {
     // Build the zipper URL
     const baseUrl = "https://data-proxy-zipper.ebrains.eu/zip?container=";
     const containerUrl = `https%3A%2F%2Fdata-proxy.ebrains.eu%2Fapi%2Fv1%2Fbuckets%2F${encodeURIComponent(
-      bucketName
+      bucketName,
     )}%3Fprefix%3D${encodeURIComponent(resultPath)}`;
     const zipperUrl = baseUrl + containerUrl;
 
@@ -419,7 +443,7 @@ const Nutil = ({ token }) => {
 
       if (!response.ok) {
         throw new Error(
-          `Download failed: ${response.status} ${response.statusText}`
+          `Download failed: ${response.status} ${response.statusText}`,
         );
       }
 
@@ -482,8 +506,8 @@ const Nutil = ({ token }) => {
     try {
       await Promise.all(
         segmentations.map((seg) =>
-          deleteItem(`${bucketName}/${seg.name}`, token)
-        )
+          deleteItem(`${bucketName}/${seg.name}`, token),
+        ),
       );
       showSuccess(`Deleted ${segmentations.length} segmentation(s)`);
       await getSegmentations(selectedBrain);
@@ -568,14 +592,14 @@ const Nutil = ({ token }) => {
                 // or if the API returns an unexpected format.
                 logger.warn(
                   `Unexpected statusResult for task ${task.id}:`,
-                  statusResult
+                  statusResult,
                 );
                 shouldContinuePolling = true; // Continue polling for this task for now
                 return task; // Return unmodified task
               }
             }
             return task; // Return task if already completed or failed
-          })
+          }),
         );
 
         setTasks(updatedTasks);
@@ -590,7 +614,7 @@ const Nutil = ({ token }) => {
 
         // If no tasks are still in progress (pending, quantifying etc.), stop polling
         const anyTaskInProgress = updatedTasks.some(
-          (t) => t.status !== "completed" && t.status !== "failed"
+          (t) => t.status !== "completed" && t.status !== "failed",
         );
         if (!anyTaskInProgress) {
           setIsPolling(false);
@@ -602,6 +626,16 @@ const Nutil = ({ token }) => {
       if (pollingInterval) clearInterval(pollingInterval);
     };
   }, [tasks, isPolling, token]); // Added token to dependencies as it's used in pollTaskStatus
+
+  // Persist tasks to localStorage whenever they change
+  useEffect(() => {
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+    const activeTasks = tasks.filter(
+      (t) => t.status !== "completed" && t.status !== "failed",
+    );
+    localStorage.setItem(`nutilTasks_${bucketName}`, JSON.stringify(activeTasks));
+  }, [tasks]);
 
   useEffect(() => {
     try {
@@ -623,6 +657,7 @@ const Nutil = ({ token }) => {
           });
         }
       }
+
     } catch (error) {
       logger.error("Error loading brain entries", error);
       setError("Failed to load brain entries");
@@ -641,7 +676,7 @@ const Nutil = ({ token }) => {
           const response = await fetchBrainSegmentations(
             token,
             collabName,
-            brain.path
+            brain.path,
           );
           if (response && response[0] && response[0].images) {
             counts[brain.name] = response[0].images.length;
@@ -655,7 +690,7 @@ const Nutil = ({ token }) => {
           });
           counts[brain.name] = 0;
         }
-      })
+      }),
     );
 
     setSegmentationCounts((prev) => ({ ...prev, ...counts }));
@@ -676,7 +711,7 @@ const Nutil = ({ token }) => {
       const response = await fetchBrainSegmentations(
         token,
         collabName,
-        brainPath
+        brainPath,
       );
       if (response && response[0] && response[0].images) {
         const imageData = response[0].images;
@@ -893,8 +928,8 @@ const Nutil = ({ token }) => {
               const overlayUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}segmentations`;
 
               const comparisonUrl = `https://serieszoom.apps.ebrains.eu/?dzip=${encodeURIComponent(
-                dzipUrl
-              )}&overlay=${encodeURIComponent(overlayUrl)}`;
+                dzipUrl,
+              )}&overlay=${encodeURIComponent(overlayUrl)}&token=${encodeURIComponent(token)}`;
 
               window.open(comparisonUrl, "_blank");
             }}
@@ -965,7 +1000,7 @@ const Nutil = ({ token }) => {
                               day: "numeric",
                               hour: "numeric",
                               minute: "numeric",
-                            }
+                            },
                           )}{" "}
                           • {(image.bytes / 1024 / 1024).toFixed(1)}MB
                         </Typography>
@@ -1063,7 +1098,7 @@ const Nutil = ({ token }) => {
                       {
                         dateStyle: "medium",
                         timeStyle: "short",
-                      }
+                      },
                     )
                   : "Never"}
               </Typography>
@@ -1266,7 +1301,7 @@ const Nutil = ({ token }) => {
               )}
 
               {/* Completed Results Section
-              -> Listing all the directories within pynutils_results
+              -> Listing all the directories within nutils_results
               
               */}
               <Typography
@@ -1322,7 +1357,7 @@ const Nutil = ({ token }) => {
                               day,
                               hour,
                               minute,
-                              second
+                              second,
                             );
                             return `Quantification - ${date.toLocaleDateString(
                               "en-US",
@@ -1330,7 +1365,7 @@ const Nutil = ({ token }) => {
                                 month: "short",
                                 day: "numeric",
                                 year: "numeric",
-                              }
+                              },
                             )} at ${date.toLocaleTimeString("en-US", {
                               hour: "2-digit",
                               minute: "2-digit",
