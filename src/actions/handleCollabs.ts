@@ -44,12 +44,18 @@ export interface AvailableBucket {
   is_public: boolean;
 }
 
+const canEditBucket = (bucket: AvailableBucket): boolean => {
+  const role = bucket.role?.toLowerCase();
+  return !bucket.is_public && (role === "administrator" || role === "editor");
+};
+
 export async function fetchAvailableBuckets(
   token: string,
   search: string = "rwb",
 ): Promise<AvailableBucket[]> {
   const url = `${BUCKET_URL.slice(0, -1)}?search=${encodeURIComponent(search)}`;
-  return fetchWithAuth<AvailableBucket[]>(url, token);
+  const buckets = await fetchWithAuth<AvailableBucket[]>(url, token);
+  return buckets.filter(canEditBucket);
 }
 
 export const fetchCollab = (token: string, collabName: string): Promise<any> =>

@@ -14,6 +14,7 @@ import {
   Select,
   MenuItem,
   Menu,
+  Chip,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
@@ -59,7 +60,9 @@ export default function QuintTable({ token, user }) {
 
   // Query helpers
   // null until resolved so 'no-workspace' state can be meaningful
-  const [bucketName, setBucketName] = useState(null);
+  const [bucketName, setBucketName] = useState(
+    () => localStorage.getItem("bucketName") || null,
+  );
   const [availableBuckets, setAvailableBuckets] = useState([]);
   const [projects, setProjects] = useState([]);
   const [projectSeriesCounts, setProjectSeriesCounts] = useState({});
@@ -258,7 +261,8 @@ export default function QuintTable({ token, user }) {
       if (!userName) return; // wait until user available
       logger.info("User info received by table", { user: user?.username });
       const collabName = `rwb-${userName}`;
-      setBucketName(collabName);
+      const storedBucketName = localStorage.getItem("bucketName");
+      setBucketName(storedBucketName || collabName);
 
       // Initialize the collab/bucket if it doesn't exist
       const initializeWorkspace = async () => {
@@ -266,7 +270,6 @@ export default function QuintTable({ token, user }) {
           const resp = await checkBucketExists(token, collabName);
           if (resp) {
             logger.debug("Bucket already exists (workspace init)");
-            setBucketName(collabName);
           } else {
             try {
               const response = await fetch(
@@ -285,9 +288,7 @@ export default function QuintTable({ token, user }) {
 
               const data = await response.json();
 
-              if (data.success || response.status === 409) {
-                setBucketName(collabName);
-              } else {
+              if (!(data.success || response.status === 409)) {
                 throw new Error("Failed to initialize collab");
               }
             } catch (error) {
@@ -349,31 +350,48 @@ export default function QuintTable({ token, user }) {
     localStorage.removeItem("selectedProject");
     localStorage.removeItem("selectedBrain");
     localStorage.removeItem("projectBrainEntries");
+    localStorage.setItem("bucketName", newBucketName);
     setBucketName(newBucketName);
   };
 
   // Third effect: Restore project/brain selection on mount
   useEffect(() => {
     if (token && bucketName && selectedProject && selectedBrain) {
-      // Restore the brain list for the selected project
-      handleProjectSelect(selectedProject).then(() => {
-        // Then refresh the selected brain's data
-        handleBrainSelect({ row: selectedBrain });
+      const projectBucketMismatch =
+        selectedProject.bucketName && selectedProject.bucketName !== bucketName;
+      const brainBucketMismatch =
+        selectedBrain.bucketName && selectedBrain.bucketName !== bucketName;
+      if (projectBucketMismatch || brainBucketMismatch) {
+        setSelectedProject(null);
+        setSelectedBrain(null);
+        localStorage.removeItem("selectedProject");
+        localStorage.removeItem("selectedBrain");
+        return;
+      }
+      Promise.all([
+        handleProjectSelect(selectedProject),
+        handleBrainSelect({ row: selectedBrain }),
+      ]).catch((error) => {
+        logger.error("Error restoring selected workspace state", error);
       });
     }
   }, [token, bucketName]); // Only run once when token and bucket are ready
 
   const brainsControllerRef = useRef(null);
   const handleProjectSelect = async (project) => {
-    setSelectedProject(project);
-    localStorage.setItem("selectedProject", JSON.stringify(project));
     setUpdatingBrains(true);
 
     if (project === null) {
       setSelectedBrain(null);
       setRows([]);
+      localStorage.removeItem("selectedProject");
+      setUpdatingBrains(false);
       return;
     }
+
+    const projectWithBucket = { ...project, bucketName };
+    setSelectedProject(projectWithBucket);
+    localStorage.setItem("selectedProject", JSON.stringify(projectWithBucket));
 
     try {
       if (brainsControllerRef.current) brainsControllerRef.current.abort();
@@ -452,7 +470,11 @@ export default function QuintTable({ token, user }) {
       setSelectedBrainStats(normalized);
       localStorage.setItem(
         "selectedBrain",
-        JSON.stringify({ ...params.row, project: selectedProject.name }),
+        JSON.stringify({
+          ...params.row,
+          project: selectedProject.name,
+          bucketName,
+        }),
       );
       logger.debug("Selected brain stats", normalized);
 
@@ -682,31 +704,54 @@ export default function QuintTable({ token, user }) {
                       const bucket = availableBuckets.find(
                         (b) => b.name === selected,
                       );
+                      const role = bucket?.role || "administrator";
                       return (
-                        <Typography
-                          noWrap
+                        <Box
                           sx={{
-                            fontWeight: 400,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            minWidth: 0,
                           }}
                         >
-                          {selected}
-                        </Typography>
+                          <Typography
+                            noWrap
+                            sx={{
+                              fontWeight: 400,
+                            }}
+                          >
+                            {selected}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={getRoleLabel(role)}
+                            sx={{
+                              height: 20,
+                              color: getRoleColor(role),
+                              borderColor: getRoleColor(role),
+                            }}
+                            variant="outlined"
+                          />
+                        </Box>
                       );
                     }}
                   >
-                    {availableBuckets.length === 0 && bucketName && (
-                      <MenuItem value={bucketName}>
-                        <ListItemText
-                          primary={bucketName}
-                          sx={{
-                            "& .MuiListItemText-primary": {
-                              color: getRoleColor("administrator"),
-                              fontWeight: 400,
-                            },
-                          }}
-                        />
-                      </MenuItem>
-                    )}
+                    {bucketName &&
+                      !availableBuckets.some(
+                        (bucket) => bucket.name === bucketName,
+                      ) && (
+                        <MenuItem value={bucketName}>
+                          <ListItemText
+                            primary={bucketName}
+                            sx={{
+                              "& .MuiListItemText-primary": {
+                                color: getRoleColor("administrator"),
+                                fontWeight: 400,
+                              },
+                            }}
+                          />
+                        </MenuItem>
+                      )}
                     {availableBuckets.map((bucket) => (
                       <MenuItem
                         key={bucket.name}

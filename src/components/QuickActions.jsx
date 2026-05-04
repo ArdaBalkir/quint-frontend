@@ -17,6 +17,7 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Chip,
 } from "@mui/material";
 
 // Icons
@@ -75,6 +76,8 @@ const QuickActions = ({
   const unifiedFiles = useMemo(() => {
     const rawImages = rawStats?.tiffs || [];
     const zippedImages = pyramidStats?.zips || [];
+    const registrationSections =
+      walnContent?.sections || walnContent?.slices || [];
     if (!rawImages.length && !zippedImages.length) return [];
 
     const zippedMap = new Map();
@@ -87,12 +90,23 @@ const QuickActions = ({
       zippedMap.set(baseName, zip);
     });
 
+    const registrationMap = new Map();
+    registrationSections.forEach((section) => {
+      const baseName = section.filename?.split("/").pop()?.replace(".dzip", "");
+      if (baseName) registrationMap.set(baseName, section);
+    });
+
     logger.debug("Zipped images map", { count: zippedMap.size });
 
     // Create unified records
     return rawImages.map((raw) => {
       const rawBaseName = raw.name.split("/").pop();
       const matchingZip = zippedMap.get(rawBaseName);
+      const registrationSection = matchingZip
+        ? registrationMap.get(
+            matchingZip.name.split("/").pop().replace(".dzip", ""),
+          )
+        : null;
 
       // TODO Add processed size to the table
       return {
@@ -106,9 +120,14 @@ const QuickActions = ({
         processedPath: matchingZip?.name || null,
         processedSize: matchingZip?.bytes || null,
         processedLastModified: matchingZip?.last_modified || null,
+        registrationSection,
+        hasOuv: Boolean(
+          registrationSection?.ouv || registrationSection?.anchoring,
+        ),
+        hasMarkers: Boolean(registrationSection?.markers?.length),
       };
     });
-  }, [rawStats, pyramidStats]);
+  }, [rawStats, pyramidStats, walnContent]);
 
   let pyramidCount = pyramidStats?.zips?.length ?? 0;
   const [user, setUser] = useState(null);
@@ -668,6 +687,8 @@ const QuickActions = ({
                       <TableCell>Raw Image Size</TableCell>
                       <TableCell>Uploaded at</TableCell>
                       <TableCell>Status</TableCell>
+                      <TableCell>Registration</TableCell>
+                      <TableCell>Registered size</TableCell>
                       <TableCell>Created at</TableCell>
                       <TableCell>DZIP Size</TableCell>
                     </TableRow>
@@ -826,6 +847,49 @@ const QuickActions = ({
                               )}
                             </TableCell>
                             <TableCell>
+                              {file.registrationSection ? (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    gap: 0.5,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <Chip
+                                    size="small"
+                                    label={
+                                      file.hasOuv ? "Aligned" : "Not aligned"
+                                    }
+                                    color={file.hasOuv ? "primary" : "default"}
+                                    variant={
+                                      file.hasOuv ? "filled" : "outlined"
+                                    }
+                                  />
+                                  <Chip
+                                    size="small"
+                                    label={
+                                      file.hasMarkers ? "Warped" : "No markers"
+                                    }
+                                    color={
+                                      file.hasMarkers ? "success" : "default"
+                                    }
+                                    variant={
+                                      file.hasMarkers ? "filled" : "outlined"
+                                    }
+                                  />
+                                </Box>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {file.registrationSection
+                                ? `${file.registrationSection.width || "?"} x ${
+                                    file.registrationSection.height || "?"
+                                  }`
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
                               {file.isProcessed
                                 ? new Date(file.zipLastModified).toLocaleString(
                                     "en-GB",
@@ -844,7 +908,7 @@ const QuickActions = ({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} align="center">
+                        <TableCell colSpan={8} align="center">
                           <Box
                             sx={{
                               p: 4,
