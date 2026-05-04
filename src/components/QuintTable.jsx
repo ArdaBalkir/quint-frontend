@@ -14,7 +14,6 @@ import {
   Select,
   MenuItem,
   Menu,
-  Chip,
 } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import FolderRoundedIcon from "@mui/icons-material/FolderRounded";
@@ -722,16 +721,16 @@ export default function QuintTable({ token, user }) {
                           >
                             {selected}
                           </Typography>
-                          <Chip
-                            size="small"
-                            label={getRoleLabel(role)}
+                          <Typography
+                            variant="caption"
                             sx={{
-                              height: 20,
                               color: getRoleColor(role),
-                              borderColor: getRoleColor(role),
+                              fontWeight: 500,
+                              opacity: 0.85,
                             }}
-                            variant="outlined"
-                          />
+                          >
+                            {getRoleLabel(role)}
+                          </Typography>
                         </Box>
                       );
                     }}

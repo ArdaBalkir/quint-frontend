@@ -17,7 +17,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
 } from "@mui/material";
 
 // Icons
@@ -705,28 +704,35 @@ const QuickActions = ({
                               "&:last-child td, &:last-child th": {
                                 border: 0,
                               },
-                              bgcolor: file.isProcessed
-                                ? "rgba(76, 175, 80, 0.08)"
-                                : "inherit",
+                              "&:hover": {
+                                bgcolor: "rgba(0,0,0,0.02)",
+                              },
                             }}
                           >
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1,
-                                }}
-                              >
-                                {file.isProcessed ? (
-                                  <AutoAwesomeMotionSharp fontSize="small" />
-                                ) : (
-                                  <ImageSharp fontSize="small" />
-                                )}
-                                <Typography variant="body2">
-                                  {file.fileName}
-                                </Typography>
-                              </Box>
+                            <TableCell sx={{ maxWidth: 200 }}>
+                              <Tooltip title={file.fileName} placement="top">
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {file.isProcessed ? (
+                                    <AutoAwesomeMotionSharp fontSize="small" sx={{ flexShrink: 0 }} />
+                                  ) : (
+                                    <ImageSharp fontSize="small" sx={{ flexShrink: 0 }} />
+                                  )}
+                                  <Typography
+                                    variant="body2"
+                                    noWrap
+                                    sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
+                                  >
+                                    {file.fileName}
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
                             </TableCell>
                             <TableCell>
                               {formatFileSize(file.rawSize)}
@@ -851,32 +857,36 @@ const QuickActions = ({
                                 <Box
                                   sx={{
                                     display: "flex",
-                                    gap: 0.5,
-                                    flexWrap: "wrap",
+                                    flexDirection: "row",
+                                    gap: 1,
                                   }}
                                 >
-                                  <Chip
-                                    size="small"
-                                    label={
-                                      file.hasOuv ? "Aligned" : "Not aligned"
-                                    }
-                                    color={file.hasOuv ? "primary" : "default"}
-                                    variant={
-                                      file.hasOuv ? "filled" : "outlined"
-                                    }
-                                  />
-                                  <Chip
-                                    size="small"
-                                    label={
-                                      file.hasMarkers ? "Warped" : "No markers"
-                                    }
-                                    color={
-                                      file.hasMarkers ? "success" : "default"
-                                    }
-                                    variant={
-                                      file.hasMarkers ? "filled" : "outlined"
-                                    }
-                                  />
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                                    {file.hasOuv ? (
+                                      <CheckCircleOutline sx={{ fontSize: 13 }} color="primary" />
+                                    ) : (
+                                      <PendingOutlined sx={{ fontSize: 13 }} color="disabled" />
+                                    )}
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ color: file.hasOuv ? "primary.main" : "text.disabled" }}
+                                    >
+                                      {file.hasOuv ? "Aligned" : "Not aligned"}
+                                    </Typography>
+                                  </Box>
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                                    {file.hasMarkers ? (
+                                      <CheckCircleOutline sx={{ fontSize: 13 }} color="success" />
+                                    ) : (
+                                      <PendingOutlined sx={{ fontSize: 13 }} color="disabled" />
+                                    )}
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ color: file.hasMarkers ? "success.main" : "text.disabled" }}
+                                    >
+                                      {file.hasMarkers ? "Warped" : "No markers"}
+                                    </Typography>
+                                  </Box>
                                 </Box>
                               ) : (
                                 "-"

@@ -4,7 +4,6 @@ import {
   Box,
   Paper,
   Typography,
-  Chip,
   Stack,
   Tooltip,
   Button,
@@ -19,6 +18,10 @@ import ImageIcon from "@mui/icons-material/Image";
 import MapIcon from "@mui/icons-material/Map";
 import ArrowOutward from "@mui/icons-material/ArrowOutward";
 import Delete from "@mui/icons-material/Delete";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
+import TuneIcon from "@mui/icons-material/Tune";
+import BrushIcon from "@mui/icons-material/Brush";
+import BarChartIcon from "@mui/icons-material/BarChart";
 
 // This is the main atlas name dispalyed on top of the panel as waln containts the abbrev.
 const atlasNames = {
@@ -118,13 +121,12 @@ export default function ProgressPanel({
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Tooltip title="Total brain sections">
-              <Chip
-                size="small"
-                icon={<ImageIcon sx={{ fontSize: 14 }} />}
-                label={totalImages}
-                variant="filled"
-                sx={{ height: 24, p: 1 }}
-              />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ImageIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                <Typography variant="caption" color="text.secondary">
+                  {totalImages}
+                </Typography>
+              </Box>
             </Tooltip>
             <Tooltip title="Delete registration">
               <IconButton
@@ -164,26 +166,22 @@ export default function ProgressPanel({
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <MyLocationIcon sx={{ fontSize: 15, color: "primary.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
-                      sx={{ ml: 0.8 }}
                       color="primary.main"
                     >
                       Register to Atlas
                     </Typography>
                   </Box>
                   <Tooltip
-                    title={`${sectionsWithOUVorAnchoring} sections with OUV data`}
+                    title={`${sectionsWithOUVorAnchoring} of ${totalImages} sections aligned`}
                   >
-                    <Chip
-                      label={`${sectionsWithOUVorAnchoring}/${totalImages}`}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ height: 22 }}
-                    />
+                    <Typography variant="caption" color="primary.main" fontWeight={500}>
+                      {sectionsWithOUVorAnchoring}/{totalImages}
+                    </Typography>
                   </Tooltip>
                 </Stack>
 
@@ -264,26 +262,22 @@ export default function ProgressPanel({
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <TuneIcon sx={{ fontSize: 15, color: "success.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
-                      sx={{ ml: 0.8 }}
                       color="success.main"
                     >
                       Refine Registration
                     </Typography>
                   </Box>
                   <Tooltip
-                    title={`${sectionsWithMarkers} sections with markers`}
+                    title={`${sectionsWithMarkers} of ${totalImages} sections warped`}
                   >
-                    <Chip
-                      label={`${sectionsWithMarkers}/${totalImages}`}
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                      sx={{ height: 22 }}
-                    />
+                    <Typography variant="caption" color="success.main" fontWeight={500}>
+                      {sectionsWithMarkers}/{totalImages}
+                    </Typography>
                   </Tooltip>
                 </Stack>
 
@@ -362,24 +356,20 @@ export default function ProgressPanel({
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <BrushIcon sx={{ fontSize: 15, color: "warning.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
-                      sx={{ ml: 0.8 }}
                       color="warning.main"
                     >
                       Extract Labelling
                     </Typography>
                   </Box>
-                  <Tooltip title={`WebIlastik tooltip`}>
-                    <Chip
-                      label={`${segmented}/${totalImages}`}
-                      size="small"
-                      color="warning"
-                      variant="outlined"
-                      sx={{ height: 22 }}
-                    />
+                  <Tooltip title={`${segmented} of ${totalImages} sections labelled`}>
+                    <Typography variant="caption" color="warning.main" fontWeight={500}>
+                      {segmented}/{totalImages}
+                    </Typography>
                   </Tooltip>
                 </Stack>
 
@@ -464,11 +454,11 @@ export default function ProgressPanel({
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <BarChartIcon sx={{ fontSize: 15, color: "secondary.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
-                      sx={{ ml: 0.8 }}
                       color="secondary.main"
                     >
                       Quantify
