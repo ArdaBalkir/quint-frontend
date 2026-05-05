@@ -79,7 +79,11 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
       dzipCount: dzips?.length,
     });
 
-    const sortedDzips = [...dzips].sort((a, b) => a.name.localeCompare(b.name));
+    const sNum = (name) => {
+      const m = name.match(/_s(\d+)[a-zA-Z]?/);
+      return m ? parseInt(m[1], 10) : Infinity;
+    };
+    const sortedDzips = [...dzips].sort((a, b) => sNum(a.name) - sNum(b.name));
     const split = dzips[0].name.split("/");
     const uploadObj = {
       token: token,
@@ -223,14 +227,14 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             <MenuItem value="">
               <em>None</em>
             </MenuItem>
-            <ListSubheader>Rat Brain Atlases</ListSubheader>
+            <ListSubheader>🐀 Rat Brain Atlases</ListSubheader>
             <MenuItem value={2}>
               Waxholm Space Atlas of the Sprague Dawley rat v3
             </MenuItem>
             <MenuItem value={3}>
               Waxholm Space Atlas of the Sprague Dawley rat v4
             </MenuItem>
-            <ListSubheader>Mouse Brain Atlases</ListSubheader>
+            <ListSubheader>🐁 Mouse Brain Atlases</ListSubheader>
             <MenuItem value={5}>
               Allen Mouse Brain Atlas version 3 2017
             </MenuItem>

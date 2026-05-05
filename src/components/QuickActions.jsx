@@ -21,12 +21,7 @@ import {
 
 // Icons
 import {
-  AutoAwesomeMotionSharp,
-  ImageSharp,
   FolderOff,
-  CheckCircleOutline,
-  Error,
-  PendingOutlined,
   Delete,
   Info,
   FiberManualRecord,
@@ -125,6 +120,12 @@ const QuickActions = ({
         ),
         hasMarkers: Boolean(registrationSection?.markers?.length),
       };
+    }).sort((a, b) => {
+      const sNum = (name) => {
+        const m = name.match(/_s(\d+)[a-zA-Z]?/);
+        return m ? parseInt(m[1], 10) : Infinity;
+      };
+      return sNum(a.fileName) - sNum(b.fileName);
     });
   }, [rawStats, pyramidStats, walnContent]);
 
@@ -683,13 +684,10 @@ const QuickActions = ({
                   <TableHead>
                     <TableRow>
                       <TableCell>File Name</TableCell>
-                      <TableCell>Raw Image Size</TableCell>
-                      <TableCell>Uploaded at</TableCell>
+                      <TableCell>Size</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registration</TableCell>
                       <TableCell>Dimensions</TableCell>
-                      <TableCell>Created at</TableCell>
-                      <TableCell>DZIP Size</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -709,39 +707,25 @@ const QuickActions = ({
                               },
                             }}
                           >
-                            <TableCell sx={{ maxWidth: 200 }}>
-                              <Tooltip title={file.fileName} placement="top">
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                    minWidth: 0,
-                                  }}
-                                >
-                                  {file.isProcessed ? (
-                                    <AutoAwesomeMotionSharp fontSize="small" sx={{ flexShrink: 0 }} />
-                                  ) : (
-                                    <ImageSharp fontSize="small" sx={{ flexShrink: 0 }} />
-                                  )}
-                                  <Typography
-                                    variant="body2"
-                                    noWrap
-                                    sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
-                                  >
-                                    {file.fileName}
-                                  </Typography>
-                                </Box>
-                              </Tooltip>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {file.fileName}
+                              </Typography>
                             </TableCell>
                             <TableCell>
-                              {formatFileSize(file.rawSize)}
-                            </TableCell>
-                            <TableCell>
-                              {new Date(file.rawLastModified).toLocaleString(
-                                "en-GB",
-                                dateOptions,
-                              )}
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                <Typography variant="body2">
+                                  {formatFileSize(file.rawSize)}
+                                </Typography>
+                                {file.processedSize && (
+                                  <>
+                                    <Typography variant="caption" color="text.disabled">→</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {formatFileSize(file.processedSize)}
+                                    </Typography>
+                                  </>
+                                )}
+                              </Box>
                             </TableCell>
                             <TableCell>
                               {isProcessing && fileStatus ? (
@@ -750,106 +734,38 @@ const QuickActions = ({
                                     "Waiting..."}
                                   {(fileStatus.status === "accepted" ||
                                     fileStatus.status === "processing") && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      <PendingOutlined
-                                        fontSize="small"
-                                        color="primary"
+                                    <Box sx={{ width: "100%" }}>
+                                      <Typography variant="caption">
+                                        {fileStatus.progress || 0}%
+                                      </Typography>
+                                      <LinearProgress
+                                        variant="determinate"
+                                        value={fileStatus.progress || 0}
+                                        sx={{
+                                          height: 3,
+                                          borderRadius: 1,
+                                        }}
                                       />
-                                      <Box sx={{ width: "100%" }}>
-                                        <Typography variant="caption">
-                                          {fileStatus.progress || 0}%
-                                        </Typography>
-                                        <LinearProgress
-                                          variant="determinate"
-                                          value={fileStatus.progress || 0}
-                                          sx={{
-                                            height: 3,
-                                            borderRadius: 1,
-                                          }}
-                                        />
-                                      </Box>
                                     </Box>
                                   )}
                                   {fileStatus.status === "completed" && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      <CheckCircleOutline
-                                        fontSize="small"
-                                        color="success"
-                                      />
-                                      <Typography
-                                        variant="caption"
-                                        color="success.main"
-                                      >
-                                        Complete
-                                      </Typography>
-                                    </Box>
+                                    <Typography variant="caption" color="success.main">
+                                      Complete
+                                    </Typography>
                                   )}
                                   {fileStatus.status === "error" && (
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 1,
-                                      }}
-                                    >
-                                      <Error fontSize="small" color="error" />
-                                      <Typography
-                                        variant="caption"
-                                        color="error"
-                                      >
-                                        Error
-                                      </Typography>
-                                    </Box>
+                                    <Typography variant="caption" color="error">
+                                      Error
+                                    </Typography>
                                   )}
                                 </Box>
                               ) : (
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1,
-                                  }}
+                                <Typography
+                                  variant="caption"
+                                  color={file.isProcessed ? "success.main" : "text.secondary"}
                                 >
-                                  {file.isProcessed ? (
-                                    <>
-                                      <CheckCircleOutline
-                                        fontSize="small"
-                                        color="success"
-                                      />
-                                      <Typography
-                                        variant="caption"
-                                        color="success.main"
-                                      >
-                                        Processed
-                                      </Typography>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <PendingOutlined
-                                        fontSize="small"
-                                        color="action"
-                                      />
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                      >
-                                        Not processed
-                                      </Typography>
-                                    </>
-                                  )}
-                                </Box>
+                                  {file.isProcessed ? "Processed" : "Not processed"}
+                                </Typography>
                               )}
                             </TableCell>
                             <TableCell>
@@ -861,32 +777,12 @@ const QuickActions = ({
                                     gap: 1,
                                   }}
                                 >
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-                                    {file.hasOuv ? (
-                                      <CheckCircleOutline sx={{ fontSize: 13 }} color="primary" />
-                                    ) : (
-                                      <PendingOutlined sx={{ fontSize: 13 }} color="disabled" />
-                                    )}
-                                    <Typography
-                                      variant="caption"
-                                      sx={{ color: file.hasOuv ? "primary.main" : "text.disabled" }}
-                                    >
-                                      {file.hasOuv ? "Aligned" : "Not aligned"}
-                                    </Typography>
-                                  </Box>
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-                                    {file.hasMarkers ? (
-                                      <CheckCircleOutline sx={{ fontSize: 13 }} color="success" />
-                                    ) : (
-                                      <PendingOutlined sx={{ fontSize: 13 }} color="disabled" />
-                                    )}
-                                    <Typography
-                                      variant="caption"
-                                      sx={{ color: file.hasMarkers ? "success.main" : "text.disabled" }}
-                                    >
-                                      {file.hasMarkers ? "Warped" : "No markers"}
-                                    </Typography>
-                                  </Box>
+                                  <Typography variant="caption" sx={{ color: file.hasOuv ? "primary.main" : "text.disabled" }}>
+                                    {file.hasOuv ? "Aligned" : "Not aligned"}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: file.hasMarkers ? "success.main" : "text.disabled" }}>
+                                    {file.hasMarkers ? "Warped" : "No markers"}
+                                  </Typography>
                                 </Box>
                               ) : (
                                 <Typography variant="body2" color="text.disabled">—</Typography>
@@ -904,26 +800,12 @@ const QuickActions = ({
                                   : "—"}
                               </Typography>
                             </TableCell>
-                            <TableCell>
-                              {file.isProcessed
-                                ? new Date(file.zipLastModified).toLocaleString(
-                                    "en-GB",
-                                    dateOptions,
-                                  )
-                                : "-"}
-                            </TableCell>
-
-                            <TableCell>
-                              {file.processedSize
-                                ? formatFileSize(file.processedSize)
-                                : "-"}
-                            </TableCell>
                           </TableRow>
                         );
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8} align="center">
+                        <TableCell colSpan={5} align="center">
                           <Box
                             sx={{
                               p: 4,

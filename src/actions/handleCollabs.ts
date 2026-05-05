@@ -46,7 +46,7 @@ export interface AvailableBucket {
 
 const canEditBucket = (bucket: AvailableBucket): boolean => {
   const role = bucket.role?.toLowerCase();
-  return !bucket.is_public && (role === "administrator" || role === "editor");
+  return role === "administrator" || role === "editor";
 };
 
 export async function fetchAvailableBuckets(

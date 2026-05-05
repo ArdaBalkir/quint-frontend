@@ -14,14 +14,9 @@ import {
 import { useTabContext } from "../contexts/TabContext";
 
 // Icons
-import ImageIcon from "@mui/icons-material/Image";
-import MapIcon from "@mui/icons-material/Map";
 import ArrowOutward from "@mui/icons-material/ArrowOutward";
 import Delete from "@mui/icons-material/Delete";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
-import TuneIcon from "@mui/icons-material/Tune";
-import BrushIcon from "@mui/icons-material/Brush";
-import BarChartIcon from "@mui/icons-material/BarChart";
+import ImageIcon from "@mui/icons-material/Image";
 
 // This is the main atlas name dispalyed on top of the panel as waln containts the abbrev.
 const atlasNames = {
@@ -114,7 +109,6 @@ export default function ProgressPanel({
           justifyContent="space-between"
         >
           <Stack direction="row" spacing={1} alignItems="center">
-            <MapIcon color="primary" sx={{ fontSize: 18 }} />
             <Typography variant="subtitle2" color="primary" noWrap>
               {atlasNames[walnContent.atlas]}
             </Typography>
@@ -167,7 +161,6 @@ export default function ProgressPanel({
                   alignItems="center"
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <MyLocationIcon sx={{ fontSize: 15, color: "primary.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
@@ -263,7 +256,6 @@ export default function ProgressPanel({
                   alignItems="center"
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <TuneIcon sx={{ fontSize: 15, color: "success.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
@@ -357,7 +349,6 @@ export default function ProgressPanel({
                   alignItems="center"
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <BrushIcon sx={{ fontSize: 15, color: "warning.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
@@ -455,7 +446,6 @@ export default function ProgressPanel({
                   alignItems="center"
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <BarChartIcon sx={{ fontSize: 15, color: "secondary.main" }} />
                     <Typography
                       variant="body2"
                       fontWeight="medium"
