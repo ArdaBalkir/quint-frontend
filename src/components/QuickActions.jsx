@@ -687,7 +687,7 @@ const QuickActions = ({
                       <TableCell>Uploaded at</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registration</TableCell>
-                      <TableCell>Registered size</TableCell>
+                      <TableCell>Dimensions</TableCell>
                       <TableCell>Created at</TableCell>
                       <TableCell>DZIP Size</TableCell>
                     </TableRow>
@@ -889,15 +889,20 @@ const QuickActions = ({
                                   </Box>
                                 </Box>
                               ) : (
-                                "-"
+                                <Typography variant="body2" color="text.disabled">—</Typography>
                               )}
                             </TableCell>
                             <TableCell>
-                              {file.registrationSection
-                                ? `${file.registrationSection.width || "?"} x ${
-                                    file.registrationSection.height || "?"
-                                  }`
-                                : "-"}
+                              <Typography
+                                variant="body2"
+                                color={file.registrationSection ? "text.primary" : "text.disabled"}
+                              >
+                                {file.registrationSection
+                                  ? `${file.registrationSection.width || "?"} × ${
+                                      file.registrationSection.height || "?"
+                                    }`
+                                  : "—"}
+                              </Typography>
                             </TableCell>
                             <TableCell>
                               {file.isProcessed
