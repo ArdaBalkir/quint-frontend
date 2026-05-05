@@ -726,9 +726,12 @@ export default function QuintTable({ token, user }) {
                             size="small"
                             label={getRoleLabel(role)}
                             sx={{
-                              height: 20,
+                              height: 18,
+                              fontSize: "0.65rem",
+                              fontWeight: 500,
                               color: getRoleColor(role),
                               borderColor: getRoleColor(role),
+                              flexShrink: 0,
                             }}
                             variant="outlined"
                           />

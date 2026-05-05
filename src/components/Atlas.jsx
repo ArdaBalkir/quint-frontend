@@ -201,53 +201,51 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             Generate registration file
           </Typography>
         </Box>
+        {/* Row 1: Atlas selector */}
+        <FormControl
+          fullWidth
+          variant="standard"
+          sx={{ mb: 1.5 }}
+        >
+          <InputLabel htmlFor="grouped-select">
+            Select the reference atlas
+          </InputLabel>
+          <Select
+            defaultValue=""
+            id="grouped-select"
+            label="Select the reference atlas"
+            dense="true"
+            onChange={(event) => {
+              const value = event.target.value;
+              setAtlasName(value ? atlasValueToName[value] : null);
+            }}
+          >
+            <MenuItem value="">
+              <em>None</em>
+            </MenuItem>
+            <ListSubheader>Rat Brain Atlases</ListSubheader>
+            <MenuItem value={2}>
+              Waxholm Space Atlas of the Sprague Dawley rat v3
+            </MenuItem>
+            <MenuItem value={3}>
+              Waxholm Space Atlas of the Sprague Dawley rat v4
+            </MenuItem>
+            <ListSubheader>Mouse Brain Atlases</ListSubheader>
+            <MenuItem value={5}>
+              Allen Mouse Brain Atlas version 3 2017
+            </MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Row 2: Registration + Generate */}
         <Box
           sx={{
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
             gap: 1,
-            justifyContent: "space-between",
           }}
         >
-          <FormControl
-            fullWidth
-            variant="standard"
-            sx={{
-              margin: "1px",
-              flex: 1,
-              minWidth: 220,
-            }}
-          >
-            <InputLabel htmlFor="grouped-select">
-              Select the reference atlas
-            </InputLabel>
-            <Select
-              defaultValue=""
-              id="grouped-select"
-              label="Select the reference atlas"
-              dense="true"
-              onChange={(event) => {
-                const value = event.target.value;
-                setAtlasName(value ? atlasValueToName[value] : null);
-              }}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              <ListSubheader>Rat Brain Atlases</ListSubheader>
-              <MenuItem value={2}>
-                Waxholm Space Atlas of the Sprague Dawley rat v3
-              </MenuItem>
-              <MenuItem value={3}>
-                Waxholm Space Atlas of the Sprague Dawley rat v4
-              </MenuItem>
-              <ListSubheader>Mouse Brain Atlases</ListSubheader>
-              <MenuItem value={5}>
-                Allen Mouse Brain Atlas version 3 2017
-              </MenuItem>
-            </Select>
-          </FormControl>
           <input
             ref={fileInputRef}
             type="file"
@@ -288,19 +286,15 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
               reader.readAsText(file);
             }}
           />
-          <Button
-            variant="outlined"
+          <Chip
             size="small"
-            sx={{
-              borderColor: desktopFile ? "success.main" : "grey.500",
-              color: desktopFile ? "success.main" : "grey.600",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              "&:hover": {
-                borderColor: desktopFile ? "success.dark" : "grey.700",
-                backgroundColor: "rgba(0,0,0,0.04)",
-              },
-            }}
+            label={
+              desktopFile
+                ? `${desktopFile.slices.length} slices`
+                : "No prior registration"
+            }
+            color={desktopFile ? "success" : "default"}
+            variant={desktopFile ? "filled" : "outlined"}
             onClick={() => {
               if (desktopFile) {
                 setDesktopFile(null);
@@ -309,25 +303,20 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
                 fileInputRef.current?.click();
               }
             }}
-          >
-            {desktopFile
-              ? "Clear existing registration"
-              : "Upload existing registration"}
-          </Button>
-          <Chip
-            size="small"
-            label={
-              desktopFile
-                ? `${desktopFile.slices.length} slices loaded`
-                : "No existing registration"
-            }
-            color={desktopFile ? "success" : "default"}
-            variant={desktopFile ? "filled" : "outlined"}
-            sx={{ flexShrink: 0 }}
+            onDelete={desktopFile ? () => {
+              setDesktopFile(null);
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            } : undefined}
+            sx={{
+              cursor: "pointer",
+              flexShrink: 0,
+              "& .MuiChip-label": { px: 1.5 },
+            }}
           />
+          <Box sx={{ flex: 1 }} />
           {creating && (
-            <Typography sx={{ fontSize: 13, whiteSpace: "nowrap" }}>
-              {processedImages} / {imageCount} images
+            <Typography sx={{ fontSize: 12, color: "text.secondary", whiteSpace: "nowrap" }}>
+              {processedImages} / {imageCount}
             </Typography>
           )}
           {!creating && (
@@ -343,11 +332,11 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
               <span>
                 <Button
                   variant="outlined"
+                  size="small"
                   disabled={!canGenerate}
                   sx={{
-                    borderColor: "black",
-                    color: "black",
-
+                    borderColor: canGenerate ? "black" : undefined,
+                    color: canGenerate ? "black" : undefined,
                     "&:hover": {
                       borderColor: "black",
                       backgroundColor: "rgba(0, 0, 0, 0.04)",
@@ -414,15 +403,13 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             </Tooltip>
           )}
         </Box>
-        <Box sx={{ width: "100%", height: 10 }}>
-          {creating && (
-            <LinearProgress
-              variant="determinate"
-              value={atlasProgress * 100}
-              sx={{ height: 8, borderRadius: 1, mt: 1 }}
-            />
-          )}
-        </Box>
+        {creating && (
+          <LinearProgress
+            variant="determinate"
+            value={atlasProgress * 100}
+            sx={{ height: 6, borderRadius: 1, mt: 1 }}
+          />
+        )}
       </CardContent>
     </Card>
   );

@@ -1232,8 +1232,8 @@ const Nutil = ({ token }) => {
                         <Box
                           sx={{
                             px: 1,
-                            py: 0.5,
-                            borderRadius: 1,
+                            py: 0.25,
+                            borderRadius: 5,
                             backgroundColor: statusInfo.color,
                             display: "flex",
                             alignItems: "center",
@@ -1243,7 +1243,7 @@ const Nutil = ({ token }) => {
                           {statusInfo.icon}
                           <Typography
                             variant="caption"
-                            sx={{ fontWeight: "medium" }}
+                            sx={{ fontWeight: 600, fontSize: "0.68rem", letterSpacing: 0.3 }}
                             color="white"
                           >
                             {task.status.toUpperCase()}

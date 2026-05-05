@@ -688,7 +688,7 @@ const QuickActions = ({
                       <TableCell>Uploaded at</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registration</TableCell>
-                      <TableCell>Registered size</TableCell>
+                      <TableCell>Dimensions</TableCell>
                       <TableCell>Created at</TableCell>
                       <TableCell>DZIP Size</TableCell>
                     </TableRow>
@@ -861,33 +861,44 @@ const QuickActions = ({
                                       file.hasOuv ? "Aligned" : "Not aligned"
                                     }
                                     color={file.hasOuv ? "primary" : "default"}
-                                    variant={
-                                      file.hasOuv ? "filled" : "outlined"
-                                    }
+                                    variant={file.hasOuv ? "filled" : "outlined"}
+                                    sx={{
+                                      fontWeight: file.hasOuv ? 500 : 400,
+                                      opacity: file.hasOuv ? 1 : 0.65,
+                                      "& .MuiChip-label": { px: 1 },
+                                    }}
                                   />
                                   <Chip
                                     size="small"
                                     label={
-                                      file.hasMarkers ? "Warped" : "No markers"
+                                      file.hasMarkers ? "Warped" : "Not warped"
                                     }
                                     color={
                                       file.hasMarkers ? "success" : "default"
                                     }
-                                    variant={
-                                      file.hasMarkers ? "filled" : "outlined"
-                                    }
+                                    variant={file.hasMarkers ? "filled" : "outlined"}
+                                    sx={{
+                                      fontWeight: file.hasMarkers ? 500 : 400,
+                                      opacity: file.hasMarkers ? 1 : 0.55,
+                                      "& .MuiChip-label": { px: 1 },
+                                    }}
                                   />
                                 </Box>
                               ) : (
-                                "-"
+                                <Typography variant="body2" color="text.disabled">—</Typography>
                               )}
                             </TableCell>
                             <TableCell>
-                              {file.registrationSection
-                                ? `${file.registrationSection.width || "?"} x ${
-                                    file.registrationSection.height || "?"
-                                  }`
-                                : "-"}
+                              <Typography
+                                variant="body2"
+                                color={file.registrationSection ? "text.primary" : "text.disabled"}
+                              >
+                                {file.registrationSection
+                                  ? `${file.registrationSection.width || "?"} × ${
+                                      file.registrationSection.height || "?"
+                                    }`
+                                  : "—"}
+                              </Typography>
                             </TableCell>
                             <TableCell>
                               {file.isProcessed
