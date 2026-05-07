@@ -912,29 +912,25 @@ const Nutil = ({ token }) => {
                 showWarning("Please select a brain first");
                 return;
               }
-              if (segmentations.length === 0) {
-                showWarning("No segmentations available for comparison");
-                return;
-              }
 
               const bucketName = localStorage.getItem("bucketName");
               const brainPath = selectedBrain.path;
-              const firstSegmentationName = segmentations[0].name
-                .split("/")
-                .pop();
+              const workdir = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}`;
 
-              // construct the urls for serieszoom
-              const dzipUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}zipped_images/${firstSegmentationName}`;
-              const overlayUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}segmentations`;
+              const params = new URLSearchParams({
+                mode: "viewer",
+                workdir,
+                token,
+                server: "https://app.ilastik.org/api/",
+              });
 
-              const comparisonUrl = `https://serieszoom.apps.ebrains.eu/?dzip=${encodeURIComponent(
-                dzipUrl,
-              )}&overlay=${encodeURIComponent(overlayUrl)}&token=${encodeURIComponent(token)}`;
-
-              window.open(comparisonUrl, "_blank");
+              window.open(
+                `https://app.ilastik.org/app/?${params.toString()}`,
+                "_blank",
+              );
             }}
           >
-            Compare
+            Compare Overlayed Segmentations
           </Button>
         </Stack>
 
