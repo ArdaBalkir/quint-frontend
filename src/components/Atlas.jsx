@@ -295,7 +295,7 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
             label={
               desktopFile
                 ? `${desktopFile.slices.length} slices`
-                : "No prior registration"
+                : "Load existing registration"
             }
             color={desktopFile ? "success" : "default"}
             variant={desktopFile ? "filled" : "outlined"}
