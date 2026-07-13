@@ -17,6 +17,9 @@ import {
   TableHead,
   TableRow,
   Paper,
+  FormControl,
+  Select,
+  MenuItem,
 } from "@mui/material";
 
 // Icons
@@ -34,9 +37,16 @@ import { deleteItem } from "../actions/handleCollabs";
 import { formatFileSize } from "../utils/fileUtils";
 import ProgressPanel from "./ProgressPanel";
 import Atlas from "./Atlas";
+import RunningRatLoader from "./RunningRatLoader";
 
 // Importing deepzoom here
 const DEEPZOOM_URL = import.meta.env.VITE_APP_DEEPZOOM_URL;
+const INGESTION_URL = import.meta.env.VITE_APP_INGESTION_URL;
+
+const URL_OPTIONS = [
+  { value: DEEPZOOM_URL, label: "CreateZoom", experimental: false },
+  { value: INGESTION_URL, label: "CreateZoom", experimental: true },
+];
 
 // To fit some of the dates in case of long names
 const dateOptions = {
@@ -147,6 +157,8 @@ const QuickActions = ({
     lastChecked: null,
   });
 
+  const [selectedUrl, setSelectedUrl] = useState(DEEPZOOM_URL);
+
   useEffect(() => {
     try {
       const userInfo = JSON.parse(localStorage.getItem("userInfo"));
@@ -168,7 +180,7 @@ const QuickActions = ({
   // Health check function
   const checkDeepzoomHealth = async () => {
     try {
-      const healthUrl = DEEPZOOM_URL.replace(/\/$/, "") + "/health";
+      const healthUrl = selectedUrl.replace(/\/$/, "") + "/health";
       const response = await fetch(healthUrl, {
         method: "GET",
         timeout: 5000, // 5 second timeout
@@ -202,15 +214,16 @@ const QuickActions = ({
     }
   };
 
-  // Check health on component mount and every 30 seconds
+  // Check health on component mount, when URL changes, and every 30 seconds
   useEffect(() => {
+    setDeepzoomHealth({ status: "checking", lastChecked: null });
     checkDeepzoomHealth();
     const healthInterval = setInterval(checkDeepzoomHealth, 30000);
 
     return () => {
       clearInterval(healthInterval);
     };
-  }, []);
+  }, [selectedUrl]);
 
   const getHealthIndicator = () => {
     switch (deepzoomHealth.status) {
@@ -244,7 +257,7 @@ const QuickActions = ({
 
   const processImage = async (imageFile, bucket, targetPath, token) => {
     try {
-      const response = await fetch(DEEPZOOM_URL, {
+      const response = await fetch(selectedUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -396,8 +409,9 @@ const QuickActions = ({
 
   const pollTaskStatus = async (statusEndpoint, filePath) => {
     try {
+      const baseUrl = new URL(selectedUrl).origin;
       const response = await fetch(
-        `https://createzoom.apps.ebrains.eu${statusEndpoint}`,
+        `${baseUrl}${statusEndpoint}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -485,6 +499,7 @@ const QuickActions = ({
           width: "100%",
         }}
       >
+        <RunningRatLoader height={32} />
         <Typography
           variant="body2"
           className="loading-shine"
@@ -616,6 +631,43 @@ const QuickActions = ({
                       sx={{ cursor: "help" }}
                     />
                   </Tooltip>
+                  <FormControl
+                    size="small"
+                    sx={{
+                      minWidth: 140,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      px: 1,
+                    }}
+                  >
+                    <Select
+                      value={selectedUrl}
+                      onChange={(e) => setSelectedUrl(e.target.value)}
+                      variant="standard"
+                      disableUnderline
+                      sx={{ fontSize: "0.7rem" }}
+                    >
+                      {URL_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: "0.7rem" }}>
+                          {opt.label}
+                          <Box
+                            component="span"
+                            sx={{
+                              ml: 0.75,
+                              fontSize: "0.6rem",
+                              fontWeight: 600,
+                              color: opt.experimental
+                                ? "warning.dark"
+                                : "success.dark",
+                            }}
+                          >
+                            {opt.experimental ? "Exp" : "Def"}
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                   <Tooltip
                     title={`Deepzoom service: ${getHealthIndicator().text}${
                       deepzoomHealth.lastChecked

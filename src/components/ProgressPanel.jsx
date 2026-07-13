@@ -7,7 +7,7 @@ import {
   Stack,
   Tooltip,
   Button,
-  CircularProgress,
+  LinearProgress,
   IconButton,
 } from "@mui/material";
 
@@ -25,6 +25,106 @@ const atlasNames = {
   ABA_Mouse_CCFv3_2017_25um: "Allen Mouse Brain Atlas CCFv3 2017 25um",
   // More atlases later on maybe
 };
+
+// Single progress card used for each pipeline step (Align, Warp, Ilastik, Nutil)
+function ProgressCard({
+  title,
+  color,
+  bgcolor,
+  value,
+  total,
+  progressLabel,
+  buttonText,
+  onClick,
+  disabled,
+  countOnly,
+}) {
+  const percent = total > 0 ? Math.min((value / total) * 100, 100) : 0;
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        flex: 1,
+        p: 1.5,
+        borderRadius: 2,
+        bgcolor,
+      }}
+    >
+      <Stack spacing={1.25}>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Typography variant="body2" fontWeight="medium" color={`${color}.main`}>
+            {title}
+          </Typography>
+          {!countOnly && (
+            <Tooltip title={progressLabel}>
+              <Typography variant="caption" color={`${color}.main`} fontWeight={500}>
+                {`${value}/${total}`}
+              </Typography>
+            </Tooltip>
+          )}
+        </Stack>
+
+        {countOnly ? (
+          <Typography
+            variant="caption"
+            color={`${color}.main`}
+            fontWeight="bold"
+            sx={{ minHeight: 22, display: "flex", alignItems: "center" }}
+          >
+            {progressLabel}
+          </Typography>
+        ) : (
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={1}
+          >
+            <LinearProgress
+              variant="determinate"
+              value={percent}
+              color={color}
+              sx={{
+                flex: 1,
+                height: 6,
+                borderRadius: 3,
+              }}
+            />
+            <Typography
+              variant="caption"
+              fontWeight="bold"
+              color={`${color}.main`}
+              sx={{ minWidth: 32, textAlign: "right" }}
+            >
+              {Math.round(percent)}%
+            </Typography>
+          </Stack>
+        )}
+
+        <Button
+          size="small"
+          variant="contained"
+          endIcon={<ArrowOutward />}
+          disableElevation
+          onClick={onClick}
+          color={color}
+          disabled={disabled}
+          className="glass-button"
+          sx={{ fontSize: "0.8rem", mt: 0.5, textTransform: "none" }}
+          fullWidth
+        >
+          {buttonText}
+        </Button>
+      </Stack>
+    </Paper>
+  );
+}
 
 // TODO - Get the vanilla atlas screen from QuickActions to here
 
@@ -105,15 +205,26 @@ export default function ProgressPanel({
         <Stack
           direction="row"
           spacing={1}
-          alignItems="center"
+          alignItems="flex-start"
           justifyContent="space-between"
         >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="subtitle2" color="primary" noWrap>
-              {atlasNames[walnContent.atlas]}
-            </Typography>
+          <Stack direction="row" spacing={1} alignItems="flex-start">
+            <Stack spacing={0} sx={{ textAlign: "left" }}>
+              <Typography variant="subtitle2" color="primary" noWrap>
+                {atlasNames[walnContent.atlas]}
+              </Typography>
+              {currentRegistration && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ wordBreak: "break-all" }}
+                >
+                  {currentRegistration}
+                </Typography>
+              )}
+            </Stack>
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 0.25 }}>
             <Tooltip title="Total brain sections">
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <ImageIcon sx={{ fontSize: 14, color: "text.secondary" }} />
@@ -143,389 +254,50 @@ export default function ProgressPanel({
 
         <Stack spacing={1} sx={{ pt: 0.5 }}>
           <Stack direction="row" spacing={2} sx={{ width: "100%" }}>
-            {/* WebAlign Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                flex: 1,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: "rgba(25, 118, 210, 0.05)",
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      color="primary.main"
-                    >
-                      Register to Atlas
-                    </Typography>
-                  </Box>
-                  <Tooltip
-                    title={`${sectionsWithOUVorAnchoring} of ${totalImages} sections aligned`}
-                  >
-                    <Typography variant="caption" color="primary.main" fontWeight={500}>
-                      {sectionsWithOUVorAnchoring}/{totalImages}
-                    </Typography>
-                  </Tooltip>
-                </Stack>
+            <ProgressCard
+              title="Register to Atlas"
+              color="primary"
+              bgcolor="rgba(25, 118, 210, 0.05)"
+              value={sectionsWithOUVorAnchoring}
+              total={totalImages}
+              progressLabel={`${sectionsWithOUVorAnchoring} of ${totalImages} sections aligned`}
+              buttonText="Continue in WebAlign"
+              onClick={() => navigateToWebAlign(currentRegistration)}
+              disabled={!walnContent}
+            />
 
-                <Box
-                  sx={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    my: 1,
-                  }}
-                >
-                  <Box sx={{ position: "relative", display: "inline-flex" }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={(sectionsWithOUVorAnchoring / totalImages) * 100}
-                      size={60}
-                      thickness={2.5}
-                      sx={{ color: "primary.main" }}
-                    />
-                    <Box
-                      sx={{
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        position: "absolute",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        component="div"
-                        color="primary.main"
-                        fontWeight="bold"
-                      >
-                        {Math.round(
-                          (sectionsWithOUVorAnchoring / totalImages) * 100,
-                        )}
-                        %
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
+            <ProgressCard
+              title="Refine Registration"
+              color="success"
+              bgcolor="rgba(46, 125, 50, 0.05)"
+              value={sectionsWithMarkers}
+              total={totalImages}
+              progressLabel={`${sectionsWithMarkers} of ${totalImages} sections warped`}
+              buttonText="Continue in WebWarp"
+              onClick={() => navigateToWebWarp(currentRegistration)}
+            />
 
-                <Button
-                  size="small"
-                  variant="contained"
-                  endIcon={<ArrowOutward />}
-                  disableElevation
-                  onClick={() => navigateToWebAlign(currentRegistration)}
-                  disabled={!walnContent}
-                  sx={{ fontSize: "0.8rem", mt: 0.5, textTransform: "none" }}
-                  fullWidth
-                  className="glass-button"
-                >
-                  Continue in WebAlign
-                </Button>
-              </Stack>
-            </Paper>
+            <ProgressCard
+              title="Extract Labelling"
+              color="warning"
+              bgcolor="rgba(184, 110, 20, 0.05)"
+              value={segmented}
+              total={totalImages}
+              progressLabel={`${segmented} of ${totalImages} sections labelled`}
+              buttonText="Continue in WebIlastik"
+              onClick={navigateToWebIlastik}
+            />
 
-            {/* WebWarp Card */}
-            <Paper
-              elevation={0}
-              sx={{
-                flex: 1,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: "rgba(46, 125, 50, 0.05)",
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      color="success.main"
-                    >
-                      Refine Registration
-                    </Typography>
-                  </Box>
-                  <Tooltip
-                    title={`${sectionsWithMarkers} of ${totalImages} sections warped`}
-                  >
-                    <Typography variant="caption" color="success.main" fontWeight={500}>
-                      {sectionsWithMarkers}/{totalImages}
-                    </Typography>
-                  </Tooltip>
-                </Stack>
-
-                <Box
-                  sx={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    my: 1,
-                  }}
-                >
-                  <Box sx={{ position: "relative", display: "inline-flex" }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={(sectionsWithMarkers / totalImages) * 100}
-                      size={60}
-                      thickness={2.5}
-                      sx={{ color: "success.main" }}
-                    />
-                    <Box
-                      sx={{
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        position: "absolute",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        component="div"
-                        color="success.main"
-                        fontWeight="bold"
-                      >
-                        {Math.round((sectionsWithMarkers / totalImages) * 100)}%
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Button
-                  size="small"
-                  variant="contained"
-                  endIcon={<ArrowOutward />}
-                  disableElevation
-                  onClick={() => navigateToWebWarp(currentRegistration)}
-                  color="success"
-                  className="glass-button"
-                  sx={{ fontSize: "0.8rem", mt: 0.5, textTransform: "none" }}
-                  fullWidth
-                >
-                  Continue in WebWarp
-                </Button>
-              </Stack>
-            </Paper>
-            {/* WebIlastik Card
-            The info for this section is available via the segments function
-            */}
-            <Paper
-              elevation={0}
-              sx={{
-                flex: 1,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: "rgba(184, 110, 20, 0.05)",
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      color="warning.main"
-                    >
-                      Extract Labelling
-                    </Typography>
-                  </Box>
-                  <Tooltip title={`${segmented} of ${totalImages} sections labelled`}>
-                    <Typography variant="caption" color="warning.main" fontWeight={500}>
-                      {segmented}/{totalImages}
-                    </Typography>
-                  </Tooltip>
-                </Stack>
-
-                <Box
-                  sx={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    my: 1,
-                  }}
-                >
-                  <Box sx={{ position: "relative", display: "inline-flex" }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={Math.min((segmented / totalImages) * 100, 100)}
-                      size={60}
-                      thickness={2.5}
-                      color="warning"
-                    />
-                    <Box
-                      sx={{
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        position: "absolute",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        component="div"
-                        color="warning"
-                        fontWeight="bold"
-                      >
-                        {Math.min((segmented / totalImages) * 100, 100).toFixed(
-                          2,
-                        )}
-                        %
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Button
-                  size="small"
-                  variant="contained"
-                  endIcon={<ArrowOutward />}
-                  className="glass-button"
-                  disableElevation
-                  onClick={navigateToWebIlastik}
-                  color="warning"
-                  sx={{
-                    fontSize: "0.8rem",
-                    mt: 0.5,
-                    textTransform: "none",
-                  }}
-                  fullWidth
-                >
-                  Continue in WebIlastik
-                </Button>
-              </Stack>
-            </Paper>
-            {/* WebNutil 
-            integrity is verified via the csv/other type of result presence WIP */}
-            <Paper
-              elevation={0}
-              sx={{
-                flex: 1,
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor: "rgba(25, 118, 210, 0.05)",
-              }}
-            >
-              <Stack spacing={1.5}>
-                <Stack
-                  direction="row"
-                  spacing={0.5}
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Typography
-                      variant="body2"
-                      fontWeight="medium"
-                      color="secondary.main"
-                    >
-                      Quantify
-                    </Typography>
-                  </Box>
-                  {/*<Tooltip title={`nutil tooltip`}>
-                    <Chip
-                      label={`?`}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                      sx={{ height: 22 }}
-                    />
-                  </Tooltip>
-                  */}
-                </Stack>
-
-                <Box
-                  sx={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    my: 1,
-                  }}
-                >
-                  <Box sx={{ position: "relative", display: "inline-flex" }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={0}
-                      size={60}
-                      thickness={2.5}
-                      sx={{ color: "warning" }}
-                    />
-                    <Box
-                      sx={{
-                        top: 0,
-                        left: 0,
-                        bottom: 0,
-                        right: 0,
-                        position: "absolute",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        component="div"
-                        color="secondary"
-                        fontWeight="bold"
-                      >
-                        {nutilResults?.length} results ready
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Button
-                  size="small"
-                  variant="contained"
-                  endIcon={<ArrowOutward />}
-                  disableElevation
-                  onClick={navigateToWebNutil}
-                  color="secondary"
-                  sx={{
-                    fontSize: "0.8rem",
-                    mt: 0.5,
-                    textTransform: "none",
-                  }}
-                  className="glass-button"
-                  fullWidth
-                >
-                  Continue in WebNutil
-                </Button>
-              </Stack>
-            </Paper>
+            <ProgressCard
+              title="Quantify"
+              color="secondary"
+              bgcolor="rgba(25, 118, 210, 0.05)"
+              value={nutilResults?.length || 0}
+              progressLabel={`${nutilResults?.length || 0} results ready`}
+              buttonText="Continue in WebNutil"
+              onClick={navigateToWebNutil}
+              countOnly
+            />
           </Stack>
         </Stack>
       </Stack>

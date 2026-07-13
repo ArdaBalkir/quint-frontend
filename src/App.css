@@ -40,6 +40,22 @@ className="loading-shine"
   animation: shine 2s infinite;
 }
 
+/* Running rat sprite animation for loading states
+className="rat-run-sprite" (used by RunningRatLoader component)
+*/
+@keyframes rat-run {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: calc(var(--rat-frame-width) * -4);
+  }
+}
+
+.rat-run-sprite {
+  animation: rat-run 0.6s steps(4) infinite;
+}
+
 /* Tilt shake animation for hover effects
 className="tilt-shake" or use on :hover
 */

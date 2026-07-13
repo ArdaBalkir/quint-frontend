@@ -1,9 +1,10 @@
-import logger from "../utils/logger.js";
-import { useState, useEffect } from "react";
+﻿import logger from "../utils/logger.js";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Button,
   CircularProgress,
+  IconButton,
   Typography,
   FormControl,
   InputLabel,
@@ -14,8 +15,19 @@ import {
   ListItemText,
   ListItemIcon,
   Paper,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
-import { BarChart, FolderOpen } from "@mui/icons-material";
+import {
+  BarChart as BarChartIcon,
+  BubbleChart,
+  DonutLarge,
+  FolderOpen,
+  GridView,
+  ArrowUpward,
+  ArrowDownward,
+  Remove,
+} from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import Papa from "papaparse";
 import { fetchnutilResults } from "../actions/handleCollabs";
@@ -29,8 +41,10 @@ const Sandbox = ({ token, user }) => {
   const [selectedBrain, setSelectedBrain] = useState(null);
   const [brainEntries, setBrainEntries] = useState([]);
   const [projectName, setProjectName] = useState("");
-  const [chartType, setChartType] = useState("bar"); // 'bar' or 'pie'
-  const [topNRegions, setTopNRegions] = useState(10); // Number of top regions to show in pie chart
+  const [chartType, setChartType] = useState("bar");
+  const [topNRegions, setTopNRegions] = useState(10);
+  const [sortBy, setSortBy] = useState("area_fraction");
+  const [sortDir, setSortDir] = useState("desc");
 
   // csv data state
   const [csvData, setCsvData] = useState(null);
@@ -45,44 +59,38 @@ const Sandbox = ({ token, user }) => {
     setNativeSelection({ native: true, app: "workspace" });
   };
 
-  /**
-   * Process data for pie chart - show top N regions, group rest into "Other"
-   */
-  const processPieChartData = (rows, valueKey, topN = 10) => {
-    // Sort rows by value descending
-    const sortedRows = [...rows].sort(
-      (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0),
+  const regionColor = (row) =>
+    `rgb(${Math.round(row.r || 0)},${Math.round(row.g || 0)},${Math.round(row.b || 0)})`;
+
+  const processedRows = useMemo(() => {
+    if (!csvData?.rows) return [];
+    if (sortDir === "none") return [...csvData.rows];
+    return [...csvData.rows].sort((a, b) => {
+      if (sortBy === "name") {
+        const aVal = a.name || "";
+        const bVal = b.name || "";
+        return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      const aVal = parseFloat(a[sortBy]) || 0;
+      const bVal = parseFloat(b[sortBy]) || 0;
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+  }, [csvData, sortBy, sortDir]);
+
+  const summaryStats = useMemo(() => {
+    if (!csvData?.rows?.length) return null;
+    const rows = csvData.rows;
+    const totalObjects = rows.reduce((s, r) => s + (parseFloat(r.object_count) || 0), 0);
+    const topByArea = rows.reduce(
+      (max, r) => (parseFloat(r.area_fraction) || 0) > (parseFloat(max.area_fraction) || 0) ? r : max,
+      rows[0],
     );
-
-    // Take top N
-    const topRows = sortedRows.slice(0, topN);
-    const restRows = sortedRows.slice(topN);
-
-    // Calculate sum of rest
-    const restSum = restRows.reduce(
-      (sum, row) => sum + (parseFloat(row[valueKey]) || 0),
-      0,
+    const topByCount = rows.reduce(
+      (max, r) => (parseFloat(r.object_count) || 0) > (parseFloat(max.object_count) || 0) ? r : max,
+      rows[0],
     );
-
-    // Prepare data
-    const labels = topRows.map((row) => row["name"]);
-    const values = topRows.map((row) => parseFloat(row[valueKey]) || 0);
-    const colors = topRows.map(
-      (row) =>
-        `rgb(${Math.round(row["r"] || 0)},${Math.round(
-          row["g"] || 0,
-        )},${Math.round(row["b"] || 0)})`,
-    );
-
-    // Add "Other" if there are rest rows
-    if (restRows.length > 0 && restSum > 0) {
-      labels.push(`Other (${restRows.length} regions)`);
-      values.push(restSum);
-      colors.push("rgb(200, 200, 200)"); // Gray color for "Other"
-    }
-
-    return { labels, values, colors };
-  };
+    return { totalObjects, topByArea, topByCount, regionCount: rows.length };
+  }, [csvData]);
 
   // load saved data from localStorage on mount
   useEffect(() => {
@@ -279,117 +287,226 @@ const Sandbox = ({ token, user }) => {
     return fileName;
   };
 
+  // ── Chart renderers ────────────────────────────────────────────────────────
+
+  const renderBarCharts = () => {
+    const rows = processedRows;
+    const areaRows = rows.filter((r) => (parseFloat(r.area_fraction) || 0) > 0);
+    const countRows = rows.filter((r) => (parseFloat(r.object_count) || 0) > 0);
+    const sizeFor = (n) => {
+      const width = Math.min(Math.max(700, n * 40 + 160), 2200);
+      const height = Math.min(Math.max(Math.round(width * 0.55), 500), 750);
+      return { width, height };
+    };
+    const areaSize = sizeFor(areaRows.length);
+    const countSize = sizeFor(countRows.length);
+    const makeLayout = (title, yTitle) => ({
+      title: { text: title, automargin: true },
+      xaxis: { automargin: true, tickangle: -45 },
+      yaxis: { automargin: true, title: yTitle },
+      margin: { l: 70, r: 20, t: 60, b: 160 },
+      showlegend: false,
+      plot_bgcolor: "#fafafa",
+    });
+    return (
+      <>
+        <Box sx={{ width: "100%", overflowX: "auto" }}>
+          <Plot
+            data={[{
+              x: areaRows.map((r) => r.name),
+              y: areaRows.map((r) => parseFloat(r.area_fraction) || 0),
+              type: "bar",
+              marker: { color: areaRows.map(regionColor) },
+              hovertemplate: "<b>%{x}</b><br>Area Fraction: %{y:.4f}<extra></extra>",
+            }]}
+            layout={makeLayout("Area Fraction by Region", "Area Fraction")}
+            style={{ width: `${areaSize.width}px`, height: `${areaSize.height}px` }}
+            useResizeHandler
+            config={{ responsive: true }}
+          />
+        </Box>
+        <Box sx={{ mt: 3, width: "100%", overflowX: "auto" }}>
+          <Plot
+            data={[{
+              x: countRows.map((r) => r.name),
+              y: countRows.map((r) => parseFloat(r.object_count) || 0),
+              type: "bar",
+              marker: { color: countRows.map(regionColor) },
+              hovertemplate: "<b>%{x}</b><br>Object Count: %{y:,}<extra></extra>",
+            }]}
+            layout={makeLayout("Object Count by Region", "Object Count")}
+            style={{ width: `${countSize.width}px`, height: `${countSize.height}px` }}
+            useResizeHandler
+            config={{ responsive: true }}
+          />
+        </Box>
+      </>
+    );
+  };
+
+  const renderScatterChart = () => {
+    const rows = processedRows;
+    const maxArea = Math.max(...rows.map((r) => parseFloat(r.area_fraction) || 0), 1);
+    return (
+      <Plot
+        data={[{
+          x: rows.map((r) => parseFloat(r.area_fraction) || 0),
+          y: rows.map((r) => parseFloat(r.object_count) || 0),
+          mode: "markers",
+          type: "scatter",
+          marker: {
+            size: rows.map((r) =>
+              Math.max(6, Math.sqrt((parseFloat(r.area_fraction) || 0) / maxArea) * 44),
+            ),
+            color: rows.map(regionColor),
+            opacity: 0.82,
+            line: { width: 1, color: "rgba(255,255,255,0.7)" },
+          },
+          text: rows.map((r) => r.name),
+          hovertemplate:
+            "<b>%{text}</b><br>Area Fraction: %{x:.4f}<br>Object Count: %{y:,}<extra></extra>",
+        }]}
+        layout={{
+          title: { text: "Area Fraction vs Object Count", automargin: true },
+          xaxis: { title: "Area Fraction", automargin: true, zeroline: true },
+          yaxis: { title: "Object Count", automargin: true, zeroline: true },
+          showlegend: false,
+          hovermode: "closest",
+          plot_bgcolor: "#fafafa",
+          autosize: true,
+        }}
+        style={{ width: "100%", height: "700px" }}
+        useResizeHandler
+        config={{ responsive: true }}
+      />
+    );
+  };
+
+  const renderTreemap = () => {
+    const rows = processedRows;
+    const valueKey = sortBy === "name" ? "area_fraction" : sortBy;
+    const valueLabel = valueKey === "area_fraction" ? "Area Fraction" : "Object Count";
+    return (
+      <Plot
+        data={[{
+          type: "treemap",
+          labels: rows.map((r) => r.name),
+          parents: rows.map(() => ""),
+          values: rows.map((r) => parseFloat(r[valueKey]) || 0),
+          marker: {
+            colors: rows.map(regionColor),
+            line: { width: 1.5, color: "white" },
+          },
+          textinfo: "label+percent root",
+          hovertemplate: `<b>%{label}</b><br>${valueLabel}: %{value:.4f}<br>%{percentRoot:.1%} of total<extra></extra>`,
+          tiling: { packing: "squarify" },
+        }]}
+        layout={{
+          title: { text: `Region Map — ${valueLabel}`, automargin: true },
+          margin: { l: 10, r: 10, t: 60, b: 10 },
+          autosize: true,
+        }}
+        style={{ width: "100%", height: "700px" }}
+        useResizeHandler
+        config={{ responsive: true }}
+      />
+    );
+  };
+
+  const renderPieCharts = () => {
+    const processPieData = (valueKey) => {
+      const sorted = [...csvData.rows].sort(
+        (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0),
+      );
+      const top = sorted.slice(0, topNRegions);
+      const rest = sorted.slice(topNRegions);
+      const restSum = rest.reduce((s, r) => s + (parseFloat(r[valueKey]) || 0), 0);
+      const labels = top.map((r) => r.name);
+      const values = top.map((r) => parseFloat(r[valueKey]) || 0);
+      const colors = top.map(regionColor);
+      if (rest.length > 0 && restSum > 0) {
+        labels.push(`Other (${rest.length} regions)`);
+        values.push(restSum);
+        colors.push("rgb(200,200,200)");
+      }
+      return { labels, values, colors };
+    };
+    return (
+      <>
+        <Plot
+          data={[{ ...processPieData("area_fraction"), type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true }]}
+          layout={{ title: { text: `Area Fraction — Top ${topNRegions} Regions`, automargin: true }, showlegend: true, legend: { orientation: "v", x: 1, y: 0.5 }, autosize: true, margin: { l: 20, r: 20, t: 60, b: 20 } }}
+          style={{ width: "100%", height: "700px" }}
+          useResizeHandler
+          config={{ responsive: true }}
+        />
+        <Box sx={{ mt: 4 }}>
+          <Plot
+            data={[{ ...processPieData("object_count"), type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true }]}
+            layout={{ title: { text: `Object Count — Top ${topNRegions} Regions`, automargin: true }, showlegend: true, legend: { orientation: "v", x: 1, y: 0.5 }, autosize: true, margin: { l: 20, r: 20, t: 60, b: 20 } }}
+            style={{ width: "100%", height: "700px" }}
+            useResizeHandler
+            config={{ responsive: true }}
+          />
+        </Box>
+      </>
+    );
+  };
+
+  // ── Guards ──────────────────────────────────────────────────────────────────
+
   const bucketName = localStorage.getItem("bucketName");
   const hasProject = !!projectName;
   const hasBucket = !!bucketName;
 
-  // Edge case: no project or bucket selected — prompt user to go to Projects first
   if (!hasProject || !hasBucket) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "calc(100vh - 42px)",
-          gap: 2,
-          backgroundColor: "#f5f5f5",
-        }}
-      >
+      <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "calc(100vh - 42px)", gap: 2, backgroundColor: "#f5f5f5" }}>
         <FolderOpen sx={{ fontSize: 64, color: "text.disabled" }} />
-        <Typography variant="h6" color="text.secondary">
-          No project selected
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Select a project and brain series in the Projects tab first.
-        </Typography>
-        <Button variant="contained" onClick={goToProjects}>
-          Go to Projects
-        </Button>
+        <Typography variant="h6" color="text.secondary">No project selected</Typography>
+        <Typography variant="body2" color="text.secondary">Select a project and brain series in the Projects tab first.</Typography>
+        <Button variant="contained" onClick={goToProjects}>Go to Projects</Button>
       </Box>
     );
   }
 
-  // Edge case: loading brains
   if (isBrainLoading) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "calc(100vh - 42px)",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        
-        <Typography variant="body2" color="text.secondary" className="loading-shine">
-          Loading brain data...
-        </Typography>
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "calc(100vh - 42px)", flexDirection: "column", gap: 2 }}>
+        <Typography variant="body2" color="text.secondary" className="loading-shine">Loading brain data...</Typography>
       </Box>
     );
   }
 
-  // Edge case: project exists but no brains found
   if (!isBrainLoading && brainEntries.length === 0) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "calc(100vh - 42px)",
-          gap: 2,
-          backgroundColor: "#f5f5f5",
-        }}
-      >
-        <BarChart sx={{ fontSize: 64, color: "text.disabled" }} />
-        <Typography variant="h6" color="text.secondary">
-          No brain series found
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Project &ldquo;{projectName}&rdquo; has no brain series yet.
-        </Typography>
-        <Button variant="outlined" onClick={goToProjects}>
-          Go to Projects
-        </Button>
+      <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "calc(100vh - 42px)", gap: 2, backgroundColor: "#f5f5f5" }}>
+        <BarChartIcon sx={{ fontSize: 64, color: "text.disabled" }} />
+        <Typography variant="h6" color="text.secondary">No brain series found</Typography>
+        <Typography variant="body2" color="text.secondary">Project &ldquo;{projectName}&rdquo; has no brain series yet.</Typography>
+        <Button variant="outlined" onClick={goToProjects}>Go to Projects</Button>
       </Box>
     );
   }
 
+  const dataValid =
+    csvData &&
+    ["name", "object_count", "area_fraction", "r", "g", "b"].every((c) =>
+      csvData.headers.includes(c),
+    ) &&
+    Array.isArray(csvData.rows) &&
+    csvData.rows.length > 0;
+
+  // ── Main render ─────────────────────────────────────────────────────────────
+
   return (
-    <Box
-      sx={{
-        display: "flex",
-        height: "calc(100vh - 42px)",
-        backgroundColor: "#f5f5f5",
-      }}
-    >
-      {/* Left sidebar - Results list */}
-      <Box
-        sx={{
-          width: 320,
-          borderRight: "1px solid #e0e0e0",
-          backgroundColor: "white",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <Box
-          sx={{ p: 2, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}
-        >
-          <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>
-            Quantification Results
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block">
-            {projectName || "No project selected"}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {selectedBrain ? selectedBrain.name : "No brain selected"}
-          </Typography>
+    <Box sx={{ display: "flex", height: "calc(100vh - 42px)", backgroundColor: "#f5f5f5" }}>
+      {/* Left sidebar */}
+      <Box sx={{ width: 320, borderRight: "1px solid #e0e0e0", backgroundColor: "white", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}>
+          <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>Quantification Results</Typography>
+          <Typography variant="caption" color="text.secondary" display="block">{projectName || "No project selected"}</Typography>
+          <Typography variant="caption" color="text.secondary">{selectedBrain ? selectedBrain.name : "No brain selected"}</Typography>
         </Box>
 
         {/* Brain selector */}
@@ -400,9 +517,7 @@ const Sandbox = ({ token, user }) => {
               value={selectedBrain?.name || ""}
               label="Select Brain"
               onChange={(e) => {
-                const brain = brainEntries.find(
-                  (b) => b.name === e.target.value,
-                );
+                const brain = brainEntries.find((b) => b.name === e.target.value);
                 setSelectedBrain(brain);
                 setSelectedResult(null);
                 setCsvData(null);
@@ -410,9 +525,7 @@ const Sandbox = ({ token, user }) => {
             >
               {Array.isArray(brainEntries) &&
                 brainEntries.map((brain) => (
-                  <MenuItem key={brain.name} value={brain.name}>
-                    {brain.name}
-                  </MenuItem>
+                  <MenuItem key={brain.name} value={brain.name}>{brain.name}</MenuItem>
                 ))}
             </Select>
           </FormControl>
@@ -430,298 +543,182 @@ const Sandbox = ({ token, user }) => {
                 sx={{
                   borderRadius: 1,
                   mb: 0.5,
-                  "&:hover": {
-                    backgroundColor: "#f5f5f5",
-                  },
+                  "&:hover": { backgroundColor: "#f5f5f5" },
                   "&.Mui-selected": {
                     backgroundColor: "primary.light",
-                    "&:hover": {
-                      backgroundColor: "primary.light",
-                    },
+                    "&:hover": { backgroundColor: "primary.light" },
                   },
                 }}
               >
-                <ListItemIcon>
-                  <BarChart />
-                </ListItemIcon>
+                <ListItemIcon><BarChartIcon /></ListItemIcon>
                 <ListItemText
                   primary={formatResultName(result.name)}
-                  primaryTypographyProps={{
-                    variant: "body2",
-                    sx: { fontSize: "0.875rem" },
-                  }}
+                  primaryTypographyProps={{ variant: "body2", sx: { fontSize: "0.875rem" } }}
                 />
               </ListItem>
             ))
           ) : (
             <Box sx={{ p: 2, textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
-                No results available
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Run quantification in WebNutil to see results here
-              </Typography>
+              <Typography variant="body2" color="text.secondary">No results available</Typography>
+              <Typography variant="caption" color="text.secondary">Run quantification in WebNutil to see results here</Typography>
             </Box>
           )}
         </List>
       </Box>
 
-      {/* Main content area */}
-      <Box sx={{ flexGrow: 1, p: 3, overflow: "auto" }}>
+      {/* Main content */}
+      <Box sx={{ flexGrow: 1, minWidth: 0, p: 3, overflow: "auto" }}>
         {isLoading && (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
-            }}
-          >
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
             <CircularProgress />
           </Box>
         )}
 
         {error && (
           <Box sx={{ p: 2 }}>
-            <Typography color="error" variant="body2">
-              Error: {error}
-            </Typography>
+            <Typography color="error" variant="body2">Error: {error}</Typography>
           </Box>
         )}
 
         {!isLoading && !error && !csvData && !selectedResult && (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
-              border: "2px dashed #ccc",
-              borderRadius: 2,
-            }}
-          >
-            <BarChart sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-            <Typography variant="h6" color="text.secondary">
-              Select a quantification result
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Click on a result from the left to view and analyze the data
-            </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100%", border: "2px dashed #ccc", borderRadius: 2 }}>
+            <BarChartIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
+            <Typography variant="h6" color="text.secondary">Select a quantification result</Typography>
+            <Typography variant="body2" color="text.secondary">Click on a result from the left to view and analyze the data</Typography>
           </Box>
         )}
 
-        {!isLoading && !error && csvData && (
+        {!isLoading && !error && csvData && !dataValid && (
+          <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+            {!Array.isArray(csvData.rows) || csvData.rows.length === 0
+              ? "No data rows found in CSV file"
+              : 'Required columns "name", "object_count", "area_fraction", "r", "g", "b" not found in CSV data'}
+          </Typography>
+        )}
+
+        {!isLoading && !error && dataValid && (
           <Box>
-            <Paper elevation={0} sx={{ p: 3, border: "1px solid #e0e0e0" }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
+            {/* Summary stats */}
+            {summaryStats && (
+              <Box sx={{ display: "flex", gap: 2, mb: 2.5, flexWrap: "wrap" }}>
+                {[
+                  { label: "Regions", value: summaryStats.regionCount, accent: "#1976d2" },
+                  { label: "Total Objects", value: summaryStats.totalObjects.toLocaleString(), accent: "#2e7d32" },
+                  {
+                    label: "Top by Area",
+                    value: summaryStats.topByArea?.name,
+                    accent: regionColor(summaryStats.topByArea || {}),
+                  },
+                  {
+                    label: "Most Objects",
+                    value: summaryStats.topByCount?.name,
+                    accent: regionColor(summaryStats.topByCount || {}),
+                  },
+                ].map(({ label, value, accent }) => (
+                  <Paper
+                    key={label}
+                    elevation={0}
+                    sx={{ px: 2, py: 1.5, border: "1px solid #e0e0e0", borderLeft: `4px solid ${accent}`, minWidth: 130, maxWidth: 260 }}
+                  >
+                    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</Typography>
+                  </Paper>
+                ))}
+              </Box>
+            )}
+
+            {/* Controls bar */}
+            <Paper
+              elevation={0}
+              sx={{ p: 1.5, mb: 2, border: "1px solid #e0e0e0", display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}
+            >
+              <ToggleButtonGroup
+                value={chartType}
+                exclusive
+                onChange={(_, val) => val && setChartType(val)}
+                size="small"
               >
-                <Box>
-                  <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
-                    {selectedResult
-                      ? formatResultName(selectedResult.name)
-                      : "Quantification Data"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {csvData.rows.length} regions analyzed
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Chart Type</InputLabel>
-                    <Select
-                      value={chartType}
-                      label="Chart Type"
-                      onChange={(e) => setChartType(e.target.value)}
-                    >
-                      <MenuItem value="bar">Bar Chart</MenuItem>
-                      <MenuItem value="pie">Pie Chart</MenuItem>
+                <ToggleButton value="bar" aria-label="horizontal bar">
+                  <BarChartIcon fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">Bar</Typography>
+                </ToggleButton>
+                <ToggleButton value="scatter" aria-label="scatter">
+                  <BubbleChart fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">Scatter</Typography>
+                </ToggleButton>
+                <ToggleButton value="treemap" aria-label="treemap">
+                  <GridView fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">Map</Typography>
+                </ToggleButton>
+                <ToggleButton value="pie" aria-label="pie">
+                  <DonutLarge fontSize="small" sx={{ mr: 0.5 }} />
+                  <Typography variant="caption">Pie</Typography>
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {chartType !== "pie" && (
+                <>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Sort By</InputLabel>
+                    <Select value={sortBy} label="Sort By" onChange={(e) => setSortBy(e.target.value)}>
+                      <MenuItem value="area_fraction">Area Fraction</MenuItem>
+                      <MenuItem value="object_count">Object Count</MenuItem>
+                      <MenuItem value="name">Name</MenuItem>
                     </Select>
                   </FormControl>
-                  {chartType === "pie" && (
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
-                      <InputLabel>Top Regions</InputLabel>
-                      <Select
-                        value={topNRegions}
-                        label="Top Regions"
-                        onChange={(e) => setTopNRegions(e.target.value)}
-                      >
-                        <MenuItem value={5}>Top 5</MenuItem>
-                        <MenuItem value={10}>Top 10</MenuItem>
-                        <MenuItem value={15}>Top 15</MenuItem>
-                        <MenuItem value={20}>Top 20</MenuItem>
-                        <MenuItem value={csvData.rows.length}>
-                          All ({csvData.rows.length})
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                  )}
-                </Box>
-              </Box>
-              {csvData.headers.includes("name") &&
-                csvData.headers.includes("object_count") &&
-                csvData.headers.includes("area_fraction") &&
-                csvData.headers.includes("r") &&
-                csvData.headers.includes("g") &&
-                csvData.headers.includes("b") &&
-                Array.isArray(csvData.rows) &&
-                csvData.rows.length > 0 && (
-                  <>
-                    {chartType === "bar" ? (
-                      <>
-                        <Plot
-                          data={[
-                            {
-                              x: csvData.rows.map((row) => row["name"]),
-                              y: csvData.rows.map(
-                                (row) => parseFloat(row["area_fraction"]) || 0,
-                              ),
-                              type: "bar",
-                              name: "Area Fraction",
-                              marker: {
-                                color: csvData.rows.map(
-                                  (row) =>
-                                    `rgb(${Math.round(
-                                      row["r"] || 0,
-                                    )},${Math.round(
-                                      row["g"] || 0,
-                                    )},${Math.round(row["b"] || 0)})`,
-                                ),
-                              },
-                            },
-                          ]}
-                          layout={{
-                            title: {
-                              text: "Area Fraction by Region",
-                              automargin: true,
-                            },
-                            xaxis: {
-                              tickangle: -45,
-                              automargin: true,
-                            },
-                            yaxis: { automargin: true },
-                            showlegend: false,
-                          }}
-                          style={{ width: "100%", height: "900px" }}
-                          config={{ responsive: true }}
-                        />
-                        <Box sx={{ mt: 4 }}>
-                          <Plot
-                            data={[
-                              {
-                                x: csvData.rows.map((row) => row["name"]),
-                                y: csvData.rows.map(
-                                  (row) => parseFloat(row["object_count"]) || 0,
-                                ),
-                                type: "bar",
-                                name: "Object Count",
-                                marker: {
-                                  color: csvData.rows.map(
-                                    (row) =>
-                                      `rgb(${Math.round(
-                                        row["r"] || 0,
-                                      )},${Math.round(
-                                        row["g"] || 0,
-                                      )},${Math.round(row["b"] || 0)})`,
-                                  ),
-                                },
-                              },
-                            ]}
-                            layout={{
-                              title: {
-                                text: "Object Count by Region",
-                                automargin: true,
-                              },
-                              xaxis: {
-                                tickangle: -45,
-                                automargin: true,
-                              },
-                              yaxis: { automargin: true },
-                              showlegend: false,
-                            }}
-                            style={{ width: "100%", height: "700px" }}
-                            config={{ responsive: true }}
-                          />
-                        </Box>
-                      </>
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      setSortDir((d) =>
+                        d === "desc" ? "asc" : d === "asc" ? "none" : "desc",
+                      )
+                    }
+                    title={
+                      sortDir === "desc"
+                        ? "Descending"
+                        : sortDir === "asc"
+                          ? "Ascending"
+                          : "Unsorted (CSV order)"
+                    }
+                    sx={{ border: "1px solid #e0e0e0" }}
+                  >
+                    {sortDir === "desc" ? (
+                      <ArrowDownward fontSize="small" />
+                    ) : sortDir === "asc" ? (
+                      <ArrowUpward fontSize="small" />
                     ) : (
-                      <>
-                        <Plot
-                          data={[
-                            {
-                              ...processPieChartData(
-                                csvData.rows,
-                                "area_fraction",
-                                topNRegions,
-                              ),
-                              type: "pie",
-                              textinfo: "label+percent",
-                              textposition: "outside",
-                              automargin: true,
-                            },
-                          ]}
-                          layout={{
-                            title: {
-                              text: `Area Fraction Distribution (Top ${topNRegions} Regions)`,
-                              automargin: true,
-                            },
-                            showlegend: true,
-                            legend: { orientation: "v", x: 1, y: 0.5 },
-                          }}
-                          style={{ width: "100%", height: "700px" }}
-                          config={{ responsive: true }}
-                        />
-                        <Box sx={{ mt: 4 }}>
-                          <Plot
-                            data={[
-                              {
-                                ...processPieChartData(
-                                  csvData.rows,
-                                  "object_count",
-                                  topNRegions,
-                                ),
-                                type: "pie",
-                                textinfo: "label+percent",
-                                textposition: "outside",
-                                automargin: true,
-                              },
-                            ]}
-                            layout={{
-                              title: {
-                                text: `Object Count Distribution (Top ${topNRegions} Regions)`,
-                                automargin: true,
-                              },
-                              showlegend: true,
-                              legend: { orientation: "v", x: 1, y: 0.5 },
-                            }}
-                            style={{ width: "100%", height: "700px" }}
-                            config={{ responsive: true }}
-                          />
-                        </Box>
-                      </>
+                      <Remove fontSize="small" />
                     )}
-                  </>
-                )}
-              {(!csvData.headers.includes("name") ||
-                !csvData.headers.includes("object_count") ||
-                !csvData.headers.includes("area_fraction") ||
-                !csvData.headers.includes("r") ||
-                !csvData.headers.includes("g") ||
-                !csvData.headers.includes("b") ||
-                !Array.isArray(csvData.rows) ||
-                csvData.rows.length === 0) && (
-                <Typography variant="body2" color="text.secondary">
-                  {!Array.isArray(csvData.rows) || csvData.rows.length === 0
-                    ? "No data rows found in CSV file"
-                    : 'Required columns "name", "object_count", "area_fraction", "r", "g", "b" not found in CSV data'}
-                </Typography>
+                  </IconButton>
+                </>
               )}
+
+              {chartType === "pie" && (
+                <FormControl size="small" sx={{ minWidth: 130 }}>
+                  <InputLabel>Top Regions</InputLabel>
+                  <Select value={topNRegions} label="Top Regions" onChange={(e) => setTopNRegions(e.target.value)}>
+                    <MenuItem value={5}>Top 5</MenuItem>
+                    <MenuItem value={10}>Top 10</MenuItem>
+                    <MenuItem value={15}>Top 15</MenuItem>
+                    <MenuItem value={20}>Top 20</MenuItem>
+                    <MenuItem value={csvData.rows.length}>All ({csvData.rows.length})</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+
+              <Box sx={{ ml: "auto" }}>
+                <Typography variant="caption" color="text.secondary">
+                  {selectedResult ? formatResultName(selectedResult.name) : ""}
+                </Typography>
+              </Box>
+            </Paper>
+
+            {/* Chart */}
+            <Paper elevation={0} sx={{ p: 3, border: "1px solid #e0e0e0", width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+              {chartType === "bar" && renderBarCharts()}
+              {chartType === "scatter" && renderScatterChart()}
+              {chartType === "treemap" && renderTreemap()}
+              {chartType === "pie" && renderPieCharts()}
             </Paper>
           </Box>
         )}
