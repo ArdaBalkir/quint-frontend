@@ -5,6 +5,7 @@ import {
   Button,
   CircularProgress,
   IconButton,
+  Tooltip,
   Typography,
   FormControl,
   InputLabel,
@@ -42,7 +43,8 @@ const Sandbox = ({ token, user }) => {
   const [brainEntries, setBrainEntries] = useState([]);
   const [projectName, setProjectName] = useState("");
   const [chartType, setChartType] = useState("bar");
-  const [topNRegions, setTopNRegions] = useState(10);
+  const [metric, setMetric] = useState("area_fraction");
+  const [topNRegions, setTopNRegions] = useState(0);
   const [sortBy, setSortBy] = useState("area_fraction");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -77,18 +79,24 @@ const Sandbox = ({ token, user }) => {
     });
   }, [csvData, sortBy, sortDir]);
 
+  const visibleRows = useMemo(() => {
+    if (chartType === "scatter") return processedRows;
+    const rows = processedRows.filter(
+      (row) => (parseFloat(row[metric]) || 0) > 0,
+    );
+    return topNRegions > 0 ? rows.slice(0, topNRegions) : rows;
+  }, [chartType, metric, processedRows, topNRegions]);
+
   const summaryStats = useMemo(() => {
     if (!csvData?.rows?.length) return null;
     const rows = csvData.rows;
     const totalObjects = rows.reduce((s, r) => s + (parseFloat(r.object_count) || 0), 0);
-    const topByArea = rows.reduce(
-      (max, r) => (parseFloat(r.area_fraction) || 0) > (parseFloat(max.area_fraction) || 0) ? r : max,
-      rows[0],
-    );
-    const topByCount = rows.reduce(
-      (max, r) => (parseFloat(r.object_count) || 0) > (parseFloat(max.object_count) || 0) ? r : max,
-      rows[0],
-    );
+    const topByArea = [...rows]
+      .sort((a, b) => (parseFloat(b.area_fraction) || 0) - (parseFloat(a.area_fraction) || 0))
+      .slice(0, 3);
+    const topByCount = [...rows]
+      .sort((a, b) => (parseFloat(b.object_count) || 0) - (parseFloat(a.object_count) || 0))
+      .slice(0, 3);
     return { totalObjects, topByArea, topByCount, regionCount: rows.length };
   }, [csvData]);
 
@@ -290,57 +298,29 @@ const Sandbox = ({ token, user }) => {
   // ── Chart renderers ────────────────────────────────────────────────────────
 
   const renderBarCharts = () => {
-    const rows = processedRows;
-    const areaRows = rows.filter((r) => (parseFloat(r.area_fraction) || 0) > 0);
-    const countRows = rows.filter((r) => (parseFloat(r.object_count) || 0) > 0);
-    const sizeFor = (n) => {
-      const width = Math.min(Math.max(700, n * 40 + 160), 2200);
-      const height = Math.min(Math.max(Math.round(width * 0.55), 500), 750);
-      return { width, height };
-    };
-    const areaSize = sizeFor(areaRows.length);
-    const countSize = sizeFor(countRows.length);
-    const makeLayout = (title, yTitle) => ({
-      title: { text: title, automargin: true },
-      xaxis: { automargin: true, tickangle: -45 },
-      yaxis: { automargin: true, title: yTitle },
-      margin: { l: 70, r: 20, t: 60, b: 160 },
-      showlegend: false,
-      plot_bgcolor: "#fafafa",
-    });
+    const metricLabel = metric === "area_fraction" ? "Area Fraction" : "Object Count";
     return (
-      <>
-        <Box sx={{ width: "100%", overflowX: "auto" }}>
-          <Plot
-            data={[{
-              x: areaRows.map((r) => r.name),
-              y: areaRows.map((r) => parseFloat(r.area_fraction) || 0),
-              type: "bar",
-              marker: { color: areaRows.map(regionColor) },
-              hovertemplate: "<b>%{x}</b><br>Area Fraction: %{y:.4f}<extra></extra>",
-            }]}
-            layout={makeLayout("Area Fraction by Region", "Area Fraction")}
-            style={{ width: `${areaSize.width}px`, height: `${areaSize.height}px` }}
-            useResizeHandler
-            config={{ responsive: true }}
-          />
-        </Box>
-        <Box sx={{ mt: 3, width: "100%", overflowX: "auto" }}>
-          <Plot
-            data={[{
-              x: countRows.map((r) => r.name),
-              y: countRows.map((r) => parseFloat(r.object_count) || 0),
-              type: "bar",
-              marker: { color: countRows.map(regionColor) },
-              hovertemplate: "<b>%{x}</b><br>Object Count: %{y:,}<extra></extra>",
-            }]}
-            layout={makeLayout("Object Count by Region", "Object Count")}
-            style={{ width: `${countSize.width}px`, height: `${countSize.height}px` }}
-            useResizeHandler
-            config={{ responsive: true }}
-          />
-        </Box>
-      </>
+      <Plot
+        data={[{
+          x: visibleRows.map((row) => row.name),
+          y: visibleRows.map((row) => parseFloat(row[metric]) || 0),
+          type: "bar",
+          marker: { color: visibleRows.map(regionColor) },
+          hovertemplate: `<b>%{x}</b><br>${metricLabel}: %{y}${metric === "area_fraction" ? ".4f" : ","}<extra></extra>`,
+        }]}
+        layout={{
+          xaxis: { automargin: true, tickangle: -45 },
+          yaxis: { automargin: true, title: metricLabel },
+          margin: { l: 70, r: 28, t: 20, b: 150 },
+          showlegend: false,
+          plot_bgcolor: "#ffffff",
+          paper_bgcolor: "#ffffff",
+          autosize: true,
+        }}
+        style={{ width: "100%", height: `${Math.max(360, Math.min(680, visibleRows.length * 34 + 100))}px` }}
+        useResizeHandler
+        config={{ responsive: true, displaylogo: false }}
+      />
     );
   };
 
@@ -367,34 +347,32 @@ const Sandbox = ({ token, user }) => {
             "<b>%{text}</b><br>Area Fraction: %{x:.4f}<br>Object Count: %{y:,}<extra></extra>",
         }]}
         layout={{
-          title: { text: "Area Fraction vs Object Count", automargin: true },
           xaxis: { title: "Area Fraction", automargin: true, zeroline: true },
           yaxis: { title: "Object Count", automargin: true, zeroline: true },
           showlegend: false,
           hovermode: "closest",
-          plot_bgcolor: "#fafafa",
+          plot_bgcolor: "#ffffff",
+          paper_bgcolor: "#ffffff",
           autosize: true,
         }}
-        style={{ width: "100%", height: "700px" }}
+        style={{ width: "100%", height: "min(62vh, 620px)" }}
         useResizeHandler
-        config={{ responsive: true }}
+        config={{ responsive: true, displaylogo: false }}
       />
     );
   };
 
   const renderTreemap = () => {
-    const rows = processedRows;
-    const valueKey = sortBy === "name" ? "area_fraction" : sortBy;
-    const valueLabel = valueKey === "area_fraction" ? "Area Fraction" : "Object Count";
+    const valueLabel = metric === "area_fraction" ? "Area Fraction" : "Object Count";
     return (
       <Plot
         data={[{
           type: "treemap",
-          labels: rows.map((r) => r.name),
-          parents: rows.map(() => ""),
-          values: rows.map((r) => parseFloat(r[valueKey]) || 0),
+          labels: visibleRows.map((r) => r.name),
+          parents: visibleRows.map(() => ""),
+          values: visibleRows.map((r) => parseFloat(r[metric]) || 0),
           marker: {
-            colors: rows.map(regionColor),
+            colors: visibleRows.map(regionColor),
             line: { width: 1.5, color: "white" },
           },
           textinfo: "label+percent root",
@@ -402,54 +380,40 @@ const Sandbox = ({ token, user }) => {
           tiling: { packing: "squarify" },
         }]}
         layout={{
-          title: { text: `Region Map — ${valueLabel}`, automargin: true },
-          margin: { l: 10, r: 10, t: 60, b: 10 },
+          margin: { l: 8, r: 8, t: 8, b: 8 },
           autosize: true,
+          paper_bgcolor: "#ffffff",
         }}
-        style={{ width: "100%", height: "700px" }}
+        style={{ width: "100%", height: "min(62vh, 620px)" }}
         useResizeHandler
-        config={{ responsive: true }}
+        config={{ responsive: true, displaylogo: false }}
       />
     );
   };
 
   const renderPieCharts = () => {
-    const processPieData = (valueKey) => {
-      const sorted = [...csvData.rows].sort(
-        (a, b) => (parseFloat(b[valueKey]) || 0) - (parseFloat(a[valueKey]) || 0),
-      );
-      const top = sorted.slice(0, topNRegions);
-      const rest = sorted.slice(topNRegions);
-      const restSum = rest.reduce((s, r) => s + (parseFloat(r[valueKey]) || 0), 0);
-      const labels = top.map((r) => r.name);
-      const values = top.map((r) => parseFloat(r[valueKey]) || 0);
-      const colors = top.map(regionColor);
-      if (rest.length > 0 && restSum > 0) {
-        labels.push(`Other (${rest.length} regions)`);
-        values.push(restSum);
-        colors.push("rgb(200,200,200)");
-      }
-      return { labels, values, colors };
-    };
+    const rows = [...csvData.rows].filter((row) => (parseFloat(row[metric]) || 0) > 0).sort((a, b) => (parseFloat(b[metric]) || 0) - (parseFloat(a[metric]) || 0));
+    const regionLimit = topNRegions > 0 ? topNRegions : rows.length;
+    const top = rows.slice(0, regionLimit);
+    const rest = rows.slice(regionLimit);
+    const labels = top.map((row) => row.name);
+    const values = top.map((row) => parseFloat(row[metric]) || 0);
+    const colors = top.map(regionColor);
+    const restSum = rest.reduce((sum, row) => sum + (parseFloat(row[metric]) || 0), 0);
+    const metricLabel = metric === "area_fraction" ? "Area Fraction" : "Object Count";
+    if (restSum > 0) {
+      labels.push(`Other (${rest.length} regions)`);
+      values.push(restSum);
+      colors.push("#cbd5e1");
+    }
     return (
-      <>
-        <Plot
-          data={[{ ...processPieData("area_fraction"), type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true }]}
-          layout={{ title: { text: `Area Fraction — Top ${topNRegions} Regions`, automargin: true }, showlegend: true, legend: { orientation: "v", x: 1, y: 0.5 }, autosize: true, margin: { l: 20, r: 20, t: 60, b: 20 } }}
-          style={{ width: "100%", height: "700px" }}
-          useResizeHandler
-          config={{ responsive: true }}
-        />
-        <Box sx={{ mt: 4 }}>
-          <Plot
-            data={[{ ...processPieData("object_count"), type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true }]}
-            layout={{ title: { text: `Object Count — Top ${topNRegions} Regions`, automargin: true }, showlegend: true, legend: { orientation: "v", x: 1, y: 0.5 }, autosize: true, margin: { l: 20, r: 20, t: 60, b: 20 } }}
-            style={{ width: "100%", height: "700px" }}
-            useResizeHandler
-            config={{ responsive: true }}
-          />
-        </Box>
-      </>
+      <Plot
+        data={[{ labels, values, marker: { colors }, type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true, hovertemplate: `<b>%{label}</b><br>${metricLabel}: %{value}${metric === "area_fraction" ? ".4f" : ","}<br>%{percent:.1%}<extra></extra>` }]}
+        layout={{ showlegend: false, autosize: true, margin: { l: 24, r: 24, t: 28, b: 28 }, paper_bgcolor: "#ffffff" }}
+        style={{ width: "100%", height: "min(62vh, 620px)" }}
+        useResizeHandler
+        config={{ responsive: true, displaylogo: false }}
+      />
     );
   };
 
@@ -600,64 +564,79 @@ const Sandbox = ({ token, user }) => {
           <Box>
             {/* Summary stats */}
             {summaryStats && (
-              <Box sx={{ display: "flex", gap: 2, mb: 2.5, flexWrap: "wrap" }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "minmax(210px, 0.7fr) repeat(2, minmax(0, 1fr))" },
+                  mb: 2.5,
+                  border: "1px solid #d9e2ec",
+                  borderRadius: 1,
+                  overflow: "hidden",
+                  backgroundColor: "#ffffff",
+                }}
+              >
+                <Box sx={{ display: "flex", gap: 3, alignItems: "center", px: { xs: 1.5, sm: 2 }, py: 1.5 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Regions</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{summaryStats.regionCount}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Total objects</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{summaryStats.totalObjects.toLocaleString()}</Typography>
+                  </Box>
+                </Box>
                 {[
-                  { label: "Regions", value: summaryStats.regionCount, accent: "#1976d2" },
-                  { label: "Total Objects", value: summaryStats.totalObjects.toLocaleString(), accent: "#2e7d32" },
-                  {
-                    label: "Top by Area",
-                    value: summaryStats.topByArea?.name,
-                    accent: regionColor(summaryStats.topByArea || {}),
-                  },
-                  {
-                    label: "Most Objects",
-                    value: summaryStats.topByCount?.name,
-                    accent: regionColor(summaryStats.topByCount || {}),
-                  },
-                ].map(({ label, value, accent }) => (
-                  <Paper
+                  { label: "Top area fraction", regions: summaryStats.topByArea },
+                  { label: "Top object count", regions: summaryStats.topByCount },
+                ].map(({ label, regions }) => (
+                  <Box
                     key={label}
-                    elevation={0}
-                    sx={{ px: 2, py: 1.5, border: "1px solid #e0e0e0", borderLeft: `4px solid ${accent}`, minWidth: 130, maxWidth: 260 }}
+                    sx={{
+                      minWidth: 0,
+                      px: { xs: 1.5, sm: 2 },
+                      py: 1.5,
+                      borderLeft: { md: "1px solid #e2e8f0" },
+                      borderTop: { xs: "1px solid #e2e8f0", md: "none" },
+                    }}
                   >
-                    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</Typography>
-                  </Paper>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{label}</Typography>
+                    <Box sx={{ display: "grid", gap: 0.5 }}>
+                      {regions.map((region, index) => (
+                        <Box key={`${label}-${region.name}`} sx={{ display: "grid", gridTemplateColumns: "16px minmax(0, 1fr)", gap: 0.75, alignItems: "start" }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ pt: "1px" }}>{index + 1}</Typography>
+                          <Box sx={{ display: "flex", gap: 0.75, alignItems: "start", minWidth: 0 }}>
+                            <Box sx={{ width: 8, height: 8, flex: "0 0 auto", mt: "5px", borderRadius: "50%", backgroundColor: regionColor(region) }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35, overflowWrap: "anywhere" }}>{region.name}</Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
                 ))}
-              </Box>
+              </Paper>
             )}
 
             {/* Controls bar */}
-            <Paper
-              elevation={0}
-              sx={{ p: 1.5, mb: 2, border: "1px solid #e0e0e0", display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}
-            >
+            <Paper elevation={0} sx={{ p: 1.5, mb: 2, border: "1px solid #d9e2ec", display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", borderRadius: 1, backgroundColor: "#f8fafc" }}>
               <ToggleButtonGroup
                 value={chartType}
                 exclusive
                 onChange={(_, val) => val && setChartType(val)}
                 size="small"
               >
-                <ToggleButton value="bar" aria-label="horizontal bar">
-                  <BarChartIcon fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="caption">Bar</Typography>
-                </ToggleButton>
-                <ToggleButton value="scatter" aria-label="scatter">
-                  <BubbleChart fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="caption">Scatter</Typography>
-                </ToggleButton>
-                <ToggleButton value="treemap" aria-label="treemap">
-                  <GridView fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="caption">Map</Typography>
-                </ToggleButton>
-                <ToggleButton value="pie" aria-label="pie">
-                  <DonutLarge fontSize="small" sx={{ mr: 0.5 }} />
-                  <Typography variant="caption">Pie</Typography>
-                </ToggleButton>
+                <Tooltip title="Bar chart"><ToggleButton value="bar" aria-label="Bar chart"><BarChartIcon fontSize="small" /></ToggleButton></Tooltip>
+                <Tooltip title="Scatter plot"><ToggleButton value="scatter" aria-label="Scatter plot"><BubbleChart fontSize="small" /></ToggleButton></Tooltip>
+                <Tooltip title="Treemap"><ToggleButton value="treemap" aria-label="Treemap"><GridView fontSize="small" /></ToggleButton></Tooltip>
+                <Tooltip title="Pie chart"><ToggleButton value="pie" aria-label="Pie chart"><DonutLarge fontSize="small" /></ToggleButton></Tooltip>
               </ToggleButtonGroup>
 
-              {chartType !== "pie" && (
+              {chartType !== "scatter" && (
                 <>
+                  <ToggleButtonGroup value={metric} exclusive size="small" onChange={(_, value) => value && setMetric(value)}>
+                    <ToggleButton value="area_fraction">Area fraction</ToggleButton>
+                    <ToggleButton value="object_count">Objects</ToggleButton>
+                  </ToggleButtonGroup>
                   <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>Sort By</InputLabel>
                     <Select value={sortBy} label="Sort By" onChange={(e) => setSortBy(e.target.value)}>
@@ -693,15 +672,15 @@ const Sandbox = ({ token, user }) => {
                 </>
               )}
 
-              {chartType === "pie" && (
+              {chartType !== "scatter" && (
                 <FormControl size="small" sx={{ minWidth: 130 }}>
-                  <InputLabel>Top Regions</InputLabel>
-                  <Select value={topNRegions} label="Top Regions" onChange={(e) => setTopNRegions(e.target.value)}>
+                  <InputLabel>Show regions</InputLabel>
+                  <Select value={topNRegions} label="Show regions" onChange={(e) => setTopNRegions(e.target.value)}>
+                    <MenuItem value={0}>All ({csvData.rows.length})</MenuItem>
                     <MenuItem value={5}>Top 5</MenuItem>
                     <MenuItem value={10}>Top 10</MenuItem>
                     <MenuItem value={15}>Top 15</MenuItem>
                     <MenuItem value={20}>Top 20</MenuItem>
-                    <MenuItem value={csvData.rows.length}>All ({csvData.rows.length})</MenuItem>
                   </Select>
                 </FormControl>
               )}
@@ -714,7 +693,13 @@ const Sandbox = ({ token, user }) => {
             </Paper>
 
             {/* Chart */}
-            <Paper elevation={0} sx={{ p: 3, border: "1px solid #e0e0e0", width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box" }}>
+            <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2.5 }, border: "1px solid #d9e2ec", width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box", borderRadius: 1, backgroundColor: "#ffffff" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", px: 0.5, pb: 1.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {chartType === "scatter" ? "Area fraction vs object count" : `${metric === "area_fraction" ? "Area fraction" : "Object count"} by region`}
+                </Typography>
+                {chartType !== "scatter" && <Typography variant="caption" color="text.secondary">Showing {visibleRows.length} regions</Typography>}
+              </Box>
               {chartType === "bar" && renderBarCharts()}
               {chartType === "scatter" && renderScatterChart()}
               {chartType === "treemap" && renderTreemap()}
