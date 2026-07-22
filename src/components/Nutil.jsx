@@ -15,9 +15,11 @@ import {
   Tooltip,
   Snackbar,
   Alert,
+  Autocomplete,
   FormControlLabel,
   Switch,
   IconButton,
+  ButtonBase,
 } from "@mui/material";
 import {
   Delete,
@@ -38,7 +40,11 @@ import {
   ThreeDRotationOutlined,
 } from "@mui/icons-material";
 import { useState, useEffect } from "react";
+import Papa from "papaparse";
 import mBrain from "../mBrain.ico";
+import allen2017RegionsCsv from "../assets/atlasregions/allen2017_colours.csv?raw";
+import waxholmV3RegionsCsv from "../assets/atlasregions/waxholm_v3_label.csv?raw";
+import waxholmV4RegionsCsv from "../assets/atlasregions/waxholm_v4_label.csv?raw";
 
 import {
   fetchBrainSegmentations,
@@ -118,6 +124,110 @@ const atlasLookup = {
   whs_sd_rat_v4_39um: "WHS_SD_Rat_v4_39um",
 };
 
+const parseAtlasRegions = (csv) =>
+  Papa.parse(csv, { header: true, skipEmptyLines: true })
+    .data.filter((row) => row.idx && row.idx !== "0" && row.name)
+    .map((row) => ({
+      id: String(row.idx),
+      name: row.name.trim(),
+      color: `rgb(${row.r}, ${row.g}, ${row.b})`,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+const regionsByAtlas = {
+  aba_mouse_ccfv3_2017_25um: parseAtlasRegions(allen2017RegionsCsv),
+  whs_sd_rat_v3_39um: parseAtlasRegions(waxholmV3RegionsCsv),
+  whs_sd_rat_v4_39um: parseAtlasRegions(waxholmV4RegionsCsv),
+};
+
+const hemisphereLabels = {
+  both: "Both hemispheres",
+  right: "Right hemisphere",
+  left: "Left hemisphere",
+};
+
+const nextHemisphere = {
+  both: "right",
+  right: "left",
+  left: "both",
+};
+
+const hemisphereHighlight = {
+  both: "linear-gradient(90deg, #1c9456 0 100%)",
+  right: "linear-gradient(90deg, transparent 0 50%, #1c9456 50% 100%)",
+  left: "linear-gradient(90deg, #1c9456 0 50%, transparent 50% 100%)",
+};
+
+const HemisphereSelector = ({ value, onChange, disabled }) => (
+  <ButtonBase
+    disableRipple
+    disabled={disabled}
+    onClick={() => onChange(nextHemisphere[value])}
+    aria-label={`${hemisphereLabels[value]}. Click to change hemisphere.`}
+    sx={{
+      width: "100%",
+      height: "100%",
+      py: 0,
+      borderRadius: 1,
+      display: "flex",
+      flexDirection: "column",
+      "&.Mui-disabled": { opacity: 0.45 },
+    }}
+  >
+    <Box sx={{ position: "relative", width: "100%", height: 92 }}>
+      <Box
+        component="img"
+        src={mBrain}
+        alt=""
+        sx={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.28 }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          background: hemisphereHighlight[value],
+          WebkitMaskImage: `url(${mBrain})`,
+          maskImage: `url(${mBrain})`,
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.9) 48%, transparent 66%)",
+          backgroundSize: "220% 100%",
+          WebkitMaskImage: `url(${mBrain})`,
+          maskImage: `url(${mBrain})`,
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          animation: "brain-shine 2.8s ease-in-out infinite",
+          "@keyframes brain-shine": {
+            "0%, 35%": { backgroundPosition: "180% 0" },
+            "75%, 100%": { backgroundPosition: "-80% 0" },
+          },
+        }}
+      />
+    </Box>
+    <Typography variant="caption" sx={{ fontWeight: 600, mt: 0.25 }}>
+      {hemisphereLabels[value]}
+    </Typography>
+    <Typography variant="caption" color="text.secondary">
+      Click to change
+    </Typography>
+  </ButtonBase>
+);
+
 const MeshviewButton = ({ atlas, clouds }) => {
   // Mesh View viewer route
   // Supports a single json for now,
@@ -167,6 +277,8 @@ const Nutil = ({ token }) => {
     alignment_json_path: null,
   });
   const [objectColor, setObjectColor] = useState("#ff0000");
+  const [selectedRegions, setSelectedRegions] = useState([]);
+  const [hemisphere, setHemisphere] = useState("both");
   // TODO implement in the backend nutil bit
   const [extractCoordinates, setExtractCoordinates] = useState(true);
   const [createVisualizations, setCreateVisualizations] = useState(false);
@@ -289,6 +401,10 @@ const Nutil = ({ token }) => {
         atlas_name: atlasLookup[registration.atlas], // Use looked-up atlas name
         output_path: `${collabName}/${outputPath}`, // Full path including bucket name
         token: token,
+        ...(hemisphere !== "both" && { hemisphere }),
+        ...(selectedRegions.length > 0 && {
+          custom_mask: selectedRegions.map((region) => Number(region.id)),
+        }),
       };
 
       logger.debug("Nutil analysis request payload", { payload });
@@ -741,6 +857,8 @@ const Nutil = ({ token }) => {
         last_modified: null,
         alignment_json_path: null,
       });
+      setSelectedRegions([]);
+      setHemisphere("both");
       setSegmentations([]);
       localStorage.setItem("selectedBrain", JSON.stringify(brain));
       await getSegmentations(brain);
@@ -772,6 +890,8 @@ const Nutil = ({ token }) => {
       setError("Failed to select brain");
     }
   };
+
+  const regionOptions = regionsByAtlas[registration.atlas] || [];
 
   return (
     <Box
@@ -1103,68 +1223,150 @@ const Nutil = ({ token }) => {
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 2,
+                gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+                gap: 1.5,
                 mb: 1.5,
-                pl: 2.5,
+                alignItems: "stretch",
               }}
             >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  position: "relative",
-                }}
-              >
-                <Typography variant="caption">
-                  Select colour to quantify:
-                </Typography>
-                <Box
-                  component="label"
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    backgroundColor: objectColor,
-                    border: "2px solid #e0e0e0",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    "&:hover": {
-                      transform: "scale(1.1)",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                    },
-                  }}
+              <Box>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mb: 0.75 }}
                 >
-                  <input
-                    type="color"
-                    value={objectColor}
-                    onChange={(e) => setObjectColor(e.target.value)}
-                    style={{
-                      opacity: 0,
-                      position: "absolute",
-                      width: 0,
-                      height: 0,
-                    }}
-                  />
-                </Box>
+                  Brain hemisphere
+                </Typography>
+                <HemisphereSelector
+                  value={hemisphere}
+                  onChange={setHemisphere}
+                  disabled={!registration.atlas || regionOptions.length === 0}
+                />
               </Box>
 
-              <Button
-                variant="contained"
-                disableElevation
-                size="small"
-                startIcon={<Analytics />}
-                disabled={
-                  !registration.atlas ||
-                  isProcessing ||
-                  segmentations.length === 0
-                }
-                onClick={requestNutil}
-                fullWidth
-              >
-                {isProcessing ? "Processing..." : "Run analysis"}
-              </Button>
+              <Stack spacing={1}>
+                <Autocomplete
+                  multiple
+                  size="small"
+                  options={regionOptions}
+                  value={selectedRegions}
+                  disabled={regionOptions.length === 0}
+                  onChange={(_, regions) => setSelectedRegions(regions)}
+                  getOptionLabel={(option) => option.name}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  limitTags={1}
+                  renderOption={(props, option) => {
+                    const { key, ...optionProps } = props;
+                    return (
+                      <Box
+                        component="li"
+                        key={key}
+                        {...optionProps}
+                        sx={{ display: "flex", gap: 1 }}
+                      >
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            flex: "0 0 auto",
+                            borderRadius: "50%",
+                            backgroundColor: option.color,
+                            border: "1px solid rgba(0,0,0,0.2)",
+                          }}
+                        />
+                        <Typography variant="body2" noWrap>
+                          {option.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ ml: "auto" }}
+                        >
+                          {option.id}
+                        </Typography>
+                      </Box>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Atlas regions"
+                      placeholder="All regions"
+                      helperText={
+                        regionOptions.length === 0
+                          ? "Select a brain with a registered atlas"
+                          : selectedRegions.length === 0
+                            ? "Default: all regions selected"
+                            : `${selectedRegions.length} region${selectedRegions.length === 1 ? "" : "s"} selected`
+                      }
+                    />
+                  )}
+                />
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    minHeight: 40,
+                    px: 0.5,
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    Colour to quantify
+                  </Typography>
+                  <Box
+                    component="label"
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      position: "relative",
+                      flex: "0 0 auto",
+                      borderRadius: "50%",
+                      backgroundColor: objectColor,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                      "&:hover": {
+                        transform: "scale(1.08)",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      },
+                    }}
+                  >
+                    <input
+                      type="color"
+                      aria-label="Colour to quantify"
+                      value={objectColor}
+                      onChange={(e) => setObjectColor(e.target.value)}
+                      style={{
+                        opacity: 0,
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        cursor: "pointer",
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                <Button
+                  variant="contained"
+                  disableElevation
+                  size="small"
+                  startIcon={<Analytics />}
+                  disabled={
+                    !registration.atlas ||
+                    isProcessing ||
+                    segmentations.length === 0
+                  }
+                  onClick={requestNutil}
+                  fullWidth
+                  sx={{ height: 40, minHeight: 40, flex: "0 0 40px" }}
+                >
+                  {isProcessing ? "Processing..." : "Run analysis"}
+                </Button>
+              </Stack>
             </Box>
           </Box>
           <Box
