@@ -18,6 +18,7 @@ import {
   Autocomplete,
   FormControlLabel,
   Switch,
+  Slider,
   IconButton,
   ButtonBase,
 } from "@mui/material";
@@ -124,6 +125,26 @@ const atlasLookup = {
   whs_sd_rat_v4_39um: "WHS_SD_Rat_v4_39um",
 };
 
+const fallbackAtlasShapes = {
+  ABA_Mouse_CCFv3_2017_25um: [456, 528, 320],
+  WHS_SD_Rat_v3_39um: [512, 1024, 512],
+  WHS_SD_Rat_v4_39um: [512, 1024, 512],
+};
+
+const atlasAxisLabels = [
+  "Mediolateral (left–right)",
+  "Anteroposterior (front–back)",
+  "Superior–inferior (top–bottom)",
+];
+
+const formatAtlasRange = ([start, stop], axisSize) => {
+  if (start === 0 && stop === axisSize) return ":";
+  return `${start === 0 ? "" : start}:${stop === axisSize ? "" : stop}`;
+};
+
+const buildAtlasSlice = (ranges, shape) =>
+  ranges.map((range, axis) => formatAtlasRange(range, shape[axis]));
+
 const parseAtlasRegions = (csv) =>
   Papa.parse(csv, { header: true, skipEmptyLines: true })
     .data.filter((row) => row.idx && row.idx !== "0" && row.name)
@@ -228,6 +249,109 @@ const HemisphereSelector = ({ value, onChange, disabled }) => (
   </ButtonBase>
 );
 
+const AtlasSliceSelector = ({
+  enabled,
+  onEnabledChange,
+  shape,
+  ranges,
+  onRangeChange,
+  disabled,
+}) => (
+  <Box
+    sx={{
+      border: "1px solid #e0e0e0",
+      borderRadius: 1,
+      px: 1.25,
+      py: 0.75,
+      backgroundColor: "grey.50",
+      textAlign: "left",
+    }}
+  >
+    <FormControlLabel
+      sx={{ m: 0, width: "100%", justifyContent: "space-between" }}
+      labelPlacement="start"
+      control={
+        <Switch
+          size="small"
+          checked={enabled}
+          disabled={disabled}
+          onChange={(event) => onEnabledChange(event.target.checked)}
+          inputProps={{ "aria-label": "Limit atlas volume" }}
+        />
+      }
+      label={
+        <Box>
+          <Typography variant="caption" sx={{ display: "block", fontWeight: 600 }}>
+          Create custom atlas volume
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {shape ? `Voxel size ${shape.join(" × ")}` : "Atlas dimensions unavailable"}
+          </Typography>
+        </Box>
+      }
+    />
+
+    {enabled && shape && ranges.length === 3 && (
+      <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+        {shape.map((axisSize, axis) => {
+          const range = ranges[axis] || [0, axisSize];
+          return (
+            <Box key={axis}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  {atlasAxisLabels[axis]}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{ fontFamily: "monospace", fontWeight: 600 }}
+                >
+                  {formatAtlasRange(range, axisSize)}
+                </Typography>
+              </Box>
+              <Slider
+                size="small"
+                min={0}
+                max={axisSize}
+                step={1}
+                value={range}
+                disableSwap
+                valueLabelDisplay="auto"
+                getAriaLabel={(thumb) =>
+                  `${atlasAxisLabels[axis]} ${
+                    thumb === 0 ? "start" : "stop"
+                  }`
+                }
+                onChange={(_, nextRange, activeThumb) => {
+                  if (!Array.isArray(nextRange)) return;
+                  const adjustedRange = [...nextRange];
+                  if (adjustedRange[1] - adjustedRange[0] < 1) {
+                    if (activeThumb === 0) {
+                      adjustedRange[0] = Math.max(0, adjustedRange[1] - 1);
+                    } else {
+                      adjustedRange[1] = Math.min(
+                        axisSize,
+                        adjustedRange[0] + 1,
+                      );
+                    }
+                  }
+                  onRangeChange(axis, adjustedRange);
+                }}
+                sx={{ py: 0, mt: -0.25 }}
+              />
+            </Box>
+          );
+        })}
+      </Stack>
+    )}
+  </Box>
+);
+
 const MeshviewButton = ({ atlas, clouds }) => {
   // Mesh View viewer route
   // Supports a single json for now,
@@ -279,6 +403,9 @@ const Nutil = ({ token }) => {
   const [objectColor, setObjectColor] = useState("#ff0000");
   const [selectedRegions, setSelectedRegions] = useState([]);
   const [hemisphere, setHemisphere] = useState("both");
+  const [atlasMetadata, setAtlasMetadata] = useState({});
+  const [limitAtlasVolume, setLimitAtlasVolume] = useState(false);
+  const [atlasRanges, setAtlasRanges] = useState([]);
   // TODO implement in the backend nutil bit
   const [extractCoordinates, setExtractCoordinates] = useState(true);
   const [createVisualizations, setCreateVisualizations] = useState(false);
@@ -314,6 +441,42 @@ const Nutil = ({ token }) => {
       return false;
     }
   });
+
+  const selectedAtlasId = atlasLookup[registration.atlas];
+  const atlasShape =
+    atlasMetadata[selectedAtlasId]?.shape || fallbackAtlasShapes[selectedAtlasId] || null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchAtlasMetadata = async () => {
+      try {
+        const response = await fetch(`${NUTIL_URL}/atlases`);
+        if (!response.ok) {
+          throw new Error(`Atlas metadata request failed with ${response.status}`);
+        }
+        const metadata = await response.json();
+        if (!cancelled) setAtlasMetadata(metadata);
+      } catch (metadataError) {
+        logger.warn("Using bundled atlas dimensions", metadataError);
+      }
+    };
+
+    fetchAtlasMetadata();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const shape =
+      atlasMetadata[selectedAtlasId]?.shape ||
+      fallbackAtlasShapes[selectedAtlasId] ||
+      null;
+
+    setLimitAtlasVolume(false);
+    setAtlasRanges(shape ? shape.map((axisSize) => [0, axisSize]) : []);
+  }, [selectedAtlasId, atlasMetadata]);
 
   const getStatusInfo = (status) => {
     switch (status) {
@@ -366,6 +529,23 @@ const Nutil = ({ token }) => {
       return;
     }
 
+    if (
+      limitAtlasVolume &&
+      (!atlasShape ||
+        atlasRanges.length !== 3 ||
+        atlasRanges.some(
+          ([start, stop], axis) =>
+            start < 0 ||
+            stop > atlasShape[axis] ||
+            !Number.isInteger(start) ||
+            !Number.isInteger(stop) ||
+            start >= stop,
+        ))
+    ) {
+      setError("Choose a valid non-empty range for all three atlas axes.");
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const collabName = localStorage.getItem("bucketName");
@@ -404,6 +584,9 @@ const Nutil = ({ token }) => {
         ...(hemisphere !== "both" && { hemisphere }),
         ...(selectedRegions.length > 0 && {
           custom_mask: selectedRegions.map((region) => Number(region.id)),
+        }),
+        ...(limitAtlasVolume && {
+          atlas_slice: buildAtlasSlice(atlasRanges, atlasShape),
         }),
       };
 
@@ -859,6 +1042,7 @@ const Nutil = ({ token }) => {
       });
       setSelectedRegions([]);
       setHemisphere("both");
+      setLimitAtlasVolume(false);
       setSegmentations([]);
       localStorage.setItem("selectedBrain", JSON.stringify(brain));
       await getSegmentations(brain);
@@ -1190,24 +1374,30 @@ const Nutil = ({ token }) => {
               sx={{
                 border: "1px solid #e0e0e0",
                 borderRadius: 1,
-                p: 1.5,
-                mb: 1.5,
+                px: 1.5,
+                py: 1,
+                mb: 1,
                 backgroundColor: "grey.50",
                 textAlign: "left",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1.5,
               }}
             >
-              <Typography variant="caption" color="text.secondary">
-                Reference Atlas
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5 }}>
-                {atlasLookup[registration.atlas] || "No atlas selected"}
-              </Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Reference Atlas
+                </Typography>
+                <Typography variant="body2" noWrap>
+                  {atlasLookup[registration.atlas] || "No atlas selected"}
+                </Typography>
+              </Box>
               <Typography
                 variant="caption"
                 color="text.secondary"
-                sx={{ display: "block", mt: 0.5 }}
+                sx={{ flex: "0 0 auto", textAlign: "right" }}
               >
-                Last modified:{" "}
                 {registration.last_modified
                   ? new Date(registration.last_modified).toLocaleString(
                       "no-NO",
@@ -1229,20 +1419,29 @@ const Nutil = ({ token }) => {
                 alignItems: "stretch",
               }}
             >
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mb: 0.75 }}
-                >
-                  Brain hemisphere
-                </Typography>
-                <HemisphereSelector
-                  value={hemisphere}
-                  onChange={setHemisphere}
-                  disabled={!registration.atlas || regionOptions.length === 0}
+              <Stack spacing={1}>
+                <Box>
+                  <HemisphereSelector
+                    value={hemisphere}
+                    onChange={setHemisphere}
+                    disabled={!registration.atlas || regionOptions.length === 0}
+                  />
+                </Box>
+                <AtlasSliceSelector
+                  enabled={limitAtlasVolume}
+                  onEnabledChange={setLimitAtlasVolume}
+                  shape={atlasShape}
+                  ranges={atlasRanges}
+                  disabled={!registration.atlas || !atlasShape}
+                  onRangeChange={(axis, nextRange) =>
+                    setAtlasRanges((currentRanges) =>
+                      currentRanges.map((range, index) =>
+                        index === axis ? nextRange : range,
+                      ),
+                    )
+                  }
                 />
-              </Box>
+              </Stack>
 
               <Stack spacing={1}>
                 <Autocomplete
