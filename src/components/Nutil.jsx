@@ -48,11 +48,13 @@ import waxholmV3RegionsCsv from "../assets/atlasregions/waxholm_v3_label.csv?raw
 import waxholmV4RegionsCsv from "../assets/atlasregions/waxholm_v4_label.csv?raw";
 
 import {
+  downloadWalnJson,
   fetchBrainSegmentations,
   fetchnutilResults,
   deleteItem, // Start implementing possibly click delete -> to delete all files in segmentations?
 } from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
+import { getRegistrationQuantificationSummary } from "../utils/registrationQuantification.js";
 import UploadSegments from "./UploadSegments";
 
 // Nutil endpoint, one for submitting and one for polling the status
@@ -190,12 +192,21 @@ const HemisphereSelector = ({ value, onChange, disabled }) => (
       height: "100%",
       py: 0,
       borderRadius: 1,
-      display: "flex",
-      flexDirection: "column",
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+      alignItems: "center",
+      px: 0.5,
       "&.Mui-disabled": { opacity: 0.45 },
     }}
   >
-    <Box sx={{ position: "relative", width: "100%", height: 92 }}>
+    <Box
+      sx={{
+        position: "relative",
+        justifySelf: "center",
+        width: 92,
+        height: 92,
+      }}
+    >
       <Box
         component="img"
         src={mBrain}
@@ -240,12 +251,14 @@ const HemisphereSelector = ({ value, onChange, disabled }) => (
         }}
       />
     </Box>
-    <Typography variant="caption" sx={{ fontWeight: 600, mt: 0.25 }}>
-      {hemisphereLabels[value]}
-    </Typography>
-    <Typography variant="caption" color="text.secondary">
-      Click to change
-    </Typography>
+    <Box sx={{ minWidth: 0, textAlign: "left", justifySelf: "start" }}>
+      <Typography variant="caption" sx={{ display: "block", fontWeight: 600 }}>
+        {hemisphereLabels[value]}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Click to change
+      </Typography>
+    </Box>
   </ButtonBase>
 );
 
@@ -400,6 +413,8 @@ const Nutil = ({ token }) => {
     last_modified: null,
     alignment_json_path: null,
   });
+  const [registrationQuantification, setRegistrationQuantification] =
+    useState(null);
   const [objectColor, setObjectColor] = useState("#ff0000");
   const [selectedRegions, setSelectedRegions] = useState([]);
   const [hemisphere, setHemisphere] = useState("both");
@@ -1040,6 +1055,7 @@ const Nutil = ({ token }) => {
         last_modified: null,
         alignment_json_path: null,
       });
+      setRegistrationQuantification(null);
       setSelectedRegions([]);
       setHemisphere("both");
       setLimitAtlasVolume(false);
@@ -1062,6 +1078,23 @@ const Nutil = ({ token }) => {
           alignment_json_path: filePath,
         });
         logger.info("Atlas registration found", { filePath });
+
+        try {
+          const registrationContent = await downloadWalnJson(
+            token,
+            bucketName,
+            filePath,
+          );
+          setRegistrationQuantification(
+            getRegistrationQuantificationSummary(registrationContent),
+          );
+        } catch (registrationError) {
+          logger.error("Failed to inspect registration content", {
+            filePath,
+            error: registrationError,
+          });
+          setRegistrationQuantification(null);
+        }
       } else {
         logger.info("No atlas registration found");
         await setRegistration({
@@ -1409,6 +1442,19 @@ const Nutil = ({ token }) => {
                   : "Never"}
               </Typography>
             </Box>
+
+            {registrationQuantification?.missingRegistrationImages > 0 && (
+              <Alert severity="warning" sx={{ mb: 1.5, textAlign: "left" }}>
+                Only {registrationQuantification.quantifiableImages} of{" "}
+                {registrationQuantification.totalImages} images will be
+                quantified. {registrationQuantification.missingRegistrationImages}{" "}
+                {registrationQuantification.missingRegistrationImages === 1
+                  ? "image has"
+                  : "images have"}{" "}
+                no marker or OUV registration data and cannot be quantified.
+                Return to WebAlign and WebWarp to finish registration.
+              </Alert>
+            )}
 
             <Box
               sx={{

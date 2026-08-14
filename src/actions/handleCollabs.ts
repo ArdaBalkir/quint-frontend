@@ -148,7 +148,7 @@ const fetchSingleBrainSubdir = async (
   } else if (subdir === "zipped_images") {
     base.zips = data.objects.filter((o: any) => o.name.endsWith(".dzip"));
   } else if (subdir === "jsons") {
-    base.jsons = data.objects.filter((o: any) => o.name.endsWith(".waln"));
+    base.jsons = data.objects.filter((o: any) => /\.(json|waln)$/i.test(o.name));
   }
   return base;
 };
