@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   List,
@@ -20,7 +20,10 @@ import {
   OpenInNew,
   Refresh,
 } from "@mui/icons-material";
-import { fetchnutilResults } from "../actions/handleCollabs";
+import {
+  downloadBucketJson,
+  fetchnutilResults,
+} from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
 import mBrain from "../mBrain.ico";
 import logger from "../utils/logger.js";
@@ -56,6 +59,12 @@ const formatResultName = (name) => {
   return fileName;
 };
 
+const getResultAtlasId = (settings) =>
+  settings?.atlas?.id || settings?.atlas_name || null;
+
+const formatHemisphere = (value) =>
+  value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "Both";
+
 const Meshview = ({ token }) => {
   const [brainEntries, setBrainEntries] = useState([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -65,6 +74,8 @@ const Meshview = ({ token }) => {
   const [loadingBrains, setLoadingBrains] = useState({});
   const [activeMeshUrl, setActiveMeshUrl] = useState(null);
   const [activeResultLabel, setActiveResultLabel] = useState(null);
+  const [activeResultDetails, setActiveResultDetails] = useState(null);
+  const resultSettingsCache = useRef({});
 
   useEffect(() => {
     try {
@@ -93,7 +104,39 @@ const Meshview = ({ token }) => {
               name: item.subdir || item.name || "Unknown",
               path: item.name || item.subdir,
             }));
-            setBrainResults((prev) => ({ ...prev, [brain.name]: results }));
+            const resultsWithSettings = await Promise.all(
+              results.map(async (result) => {
+                if (resultSettingsCache.current[result.path]) {
+                  return {
+                    ...result,
+                    settings: resultSettingsCache.current[result.path],
+                  };
+                }
+
+                try {
+                  const normalizedPath = result.path.endsWith("/")
+                    ? result.path
+                    : `${result.path}/`;
+                  const settings = await downloadBucketJson(
+                    token,
+                    collabName,
+                    `${normalizedPath}webnutil_settings.json`,
+                  );
+                  resultSettingsCache.current[result.path] = settings;
+                  return { ...result, settings };
+                } catch (settingsError) {
+                  logger.warn("WebNutil settings unavailable in Meshview", {
+                    resultPath: result.path,
+                    error: settingsError,
+                  });
+                  return result;
+                }
+              }),
+            );
+            setBrainResults((prev) => ({
+              ...prev,
+              [brain.name]: resultsWithSettings,
+            }));
           } else {
             setBrainResults((prev) => ({ ...prev, [brain.name]: [] }));
           }
@@ -173,8 +216,9 @@ const Meshview = ({ token }) => {
   }, [expandedBrains, brainEntries, fetchResultsForBrain, token]);
 
   const handleResultClick = (brain, result) => {
-    const atlas = brainAtlas[brain.name];
-    if (!atlas || !atlasLookup[atlas]) {
+    const atlas =
+      getResultAtlasId(result.settings) || atlasLookup[brainAtlas[brain.name]];
+    if (!atlas) {
       logger.warn("No atlas found for brain, cannot generate Meshview URL", {
         brain: brain.name,
       });
@@ -182,11 +226,13 @@ const Meshview = ({ token }) => {
     }
     const collabName = localStorage.getItem("bucketName");
     const path = result.path;
-    const url = `${MESH_URL}?atlas=${atlasLookup[atlas]}&cloud=${DATA_PROXY}${collabName}/${path}whole_series_meshview/objects_meshview.json`;
+    const normalizedPath = path.endsWith("/") ? path : `${path}/`;
+    const url = `${MESH_URL}?atlas=${atlas}&cloud=${DATA_PROXY}${collabName}/${normalizedPath}whole_series_meshview/objects_meshview.json`;
     setActiveMeshUrl(url);
     setActiveResultLabel(
       `${brain.name.split("/").pop()} — ${formatResultName(result.name)}`,
     );
+    setActiveResultDetails(result.settings || null);
   };
 
   return (
@@ -194,8 +240,8 @@ const Meshview = ({ token }) => {
       {/* Collapsible sidebar */}
       <Box
         sx={{
-          width: sidebarCollapsed ? 36 : 280,
-          minWidth: sidebarCollapsed ? 36 : 280,
+          width: sidebarCollapsed ? 36 : 340,
+          minWidth: sidebarCollapsed ? 36 : 340,
           transition: "width 0.25s ease, min-width 0.25s ease",
           overflow: "hidden",
           borderRight: "1px solid #e0e0e0",
@@ -331,14 +377,17 @@ const Meshview = ({ token }) => {
                           </Box>
                         ) : (
                           results.map((result, j) => {
+                            const settings = result.settings;
+                            const settingsAtlas = getResultAtlasId(settings);
                             const isActive =
                               activeMeshUrl &&
                               activeMeshUrl.includes(
                                 encodeURIComponent ? result.path : result.path,
                               );
                             const noAtlas =
-                              !brainAtlas[brain.name] ||
-                              !atlasLookup[brainAtlas[brain.name]];
+                              !settingsAtlas &&
+                              (!brainAtlas[brain.name] ||
+                                !atlasLookup[brainAtlas[brain.name]]);
                             return (
                               <Tooltip
                                 key={j}
@@ -397,6 +446,32 @@ const Meshview = ({ token }) => {
                                       >
                                         {formatResultName(result.name)}
                                       </Typography>
+                                    }
+                                    secondary={
+                                      settings ? (
+                                        <Box sx={{ mt: 0.25 }}>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ display: "block", fontSize: "0.68rem", lineHeight: 1.25 }}
+                                          >
+                                            {settings.atlas?.name || settingsAtlas}
+                                          </Typography>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ display: "block", fontSize: "0.68rem", lineHeight: 1.25 }}
+                                          >
+                                            {formatHemisphere(settings.atlas?.hemisphere || settings.hemisphere)}
+                                            {settings.results?.section_count != null
+                                              ? ` · ${settings.results.section_count} sections`
+                                              : ""}
+                                            {settings.results?.reported_object_count != null
+                                              ? ` · ${settings.results.reported_object_count.toLocaleString()} objects`
+                                              : ""}
+                                          </Typography>
+                                        </Box>
+                                      ) : null
                                     }
                                   />
                                 </ListItem>
@@ -490,9 +565,23 @@ const Meshview = ({ token }) => {
                 minHeight: 40,
               }}
             >
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {activeResultLabel}
-              </Typography>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
+                  {activeResultLabel}
+                </Typography>
+                {activeResultDetails && (
+                  <Typography variant="caption" color="text.disabled" noWrap sx={{ display: "block", fontSize: "0.68rem" }}>
+                    {activeResultDetails.atlas?.name || getResultAtlasId(activeResultDetails)}
+                    {` · ${formatHemisphere(activeResultDetails.atlas?.hemisphere || activeResultDetails.hemisphere)}`}
+                    {activeResultDetails.results?.section_count != null
+                      ? ` · ${activeResultDetails.results.section_count} sections`
+                      : ""}
+                    {activeResultDetails.results?.reported_object_count != null
+                      ? ` · ${activeResultDetails.results.reported_object_count.toLocaleString()} quantified objects`
+                      : ""}
+                  </Typography>
+                )}
+              </Box>
               <Tooltip title="Open in new tab">
                 <IconButton
                   size="small"

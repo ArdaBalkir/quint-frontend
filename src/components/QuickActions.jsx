@@ -631,6 +631,7 @@ const QuickActions = ({
                       sx={{ cursor: "help" }}
                     />
                   </Tooltip>
+                  {/* CreateZoom source selection temporarily hidden.
                   <FormControl
                     size="small"
                     sx={{
@@ -668,6 +669,7 @@ const QuickActions = ({
                       ))}
                     </Select>
                   </FormControl>
+                  */}
                   <Tooltip
                     title={`Deepzoom service: ${getHealthIndicator().text}${
                       deepzoomHealth.lastChecked

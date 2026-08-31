@@ -32,8 +32,11 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 import Mainframe from "./Mainframe";
 import UserAgreement from "./UserAgreement";
-import ebrainsLogo from "../assets/logo-color-white.svg";
-import ebrainsDark from "../assets/logo-color.svg";
+// Keep the two small brand marks in the application bundle. This avoids a
+// separate hashed SVG request, which can fail when a deployment base path or
+// an older cached HTML file points at a previous asset name.
+import ebrainsLogo from "../assets/logo-color-white.svg?inline";
+import ebrainsDark from "../assets/logo-color.svg?inline";
 import { useTabContext } from "../contexts/TabContext";
 import { useAuth } from "../hooks/useAuth.js";
 

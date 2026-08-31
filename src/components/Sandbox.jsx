@@ -1,5 +1,5 @@
 ﻿import logger from "../utils/logger.js";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Button,
@@ -31,7 +31,10 @@ import {
 } from "@mui/icons-material";
 import Plot from "react-plotly.js";
 import Papa from "papaparse";
-import { fetchnutilResults } from "../actions/handleCollabs";
+import {
+  downloadBucketJson,
+  fetchnutilResults,
+} from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
 import { useTabContext } from "../contexts/TabContext";
 
@@ -50,9 +53,11 @@ const Sandbox = ({ token, user }) => {
 
   // csv data state
   const [csvData, setCsvData] = useState(null);
+  const [selectedResultSettings, setSelectedResultSettings] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isBrainLoading, setIsBrainLoading] = useState(false);
   const [error, setError] = useState(null);
+  const activeResultRequest = useRef(null);
 
   const { switchToTab, setNativeSelection } = useTabContext();
 
@@ -211,16 +216,33 @@ const Sandbox = ({ token, user }) => {
 
   // fetch CSV data when a result is clicked
   const handleResultClick = async (result) => {
+    const requestPath = result.path;
+    activeResultRequest.current = requestPath;
     setSelectedResult(result);
     setIsLoading(true);
     setError(null);
     setCsvData(null);
+    setSelectedResultSettings(null);
 
     try {
       const bucketName = localStorage.getItem("bucketName");
+      const normalizedResultPath = result.path.endsWith("/")
+        ? result.path
+        : `${result.path}/`;
+      const settingsPromise = downloadBucketJson(
+        token,
+        bucketName,
+        `${normalizedResultPath}webnutil_settings.json`,
+      ).catch((settingsError) => {
+        logger.warn("WebNutil settings unavailable for plot result", {
+          resultPath: result.path,
+          error: settingsError,
+        });
+        return null;
+      });
 
       // construct the CSV file URL - assuming counts.csv is in the result folder
-      const csvPath = `${result.path}whole_series_report/counts.csv`;
+      const csvPath = `${normalizedResultPath}whole_series_report/counts.csv`;
       const csvUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${csvPath}?redirect=false`;
 
       const signedUrlResponse = await fetch(csvUrl, {
@@ -261,12 +283,18 @@ const Sandbox = ({ token, user }) => {
         logger.warn("CSV parsing returned no valid rows", { parsed });
       }
 
+      const settings = await settingsPromise;
+      if (activeResultRequest.current !== requestPath) return;
+      setSelectedResultSettings(settings);
       setCsvData({ headers, rows });
     } catch (err) {
+      if (activeResultRequest.current !== requestPath) return;
       logger.error("Failed to fetch CSV data", err);
       setError(err.message);
     } finally {
-      setIsLoading(false);
+      if (activeResultRequest.current === requestPath) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -317,7 +345,7 @@ const Sandbox = ({ token, user }) => {
           paper_bgcolor: "#ffffff",
           autosize: true,
         }}
-        style={{ width: "100%", height: `${Math.max(360, Math.min(680, visibleRows.length * 34 + 100))}px` }}
+        style={{ width: "100%", height: `${Math.max(320, Math.min(560, visibleRows.length * 28 + 90))}px` }}
         useResizeHandler
         config={{ responsive: true, displaylogo: false }}
       />
@@ -355,7 +383,7 @@ const Sandbox = ({ token, user }) => {
           paper_bgcolor: "#ffffff",
           autosize: true,
         }}
-        style={{ width: "100%", height: "min(62vh, 620px)" }}
+        style={{ width: "100%", height: "min(56vh, 540px)" }}
         useResizeHandler
         config={{ responsive: true, displaylogo: false }}
       />
@@ -384,7 +412,7 @@ const Sandbox = ({ token, user }) => {
           autosize: true,
           paper_bgcolor: "#ffffff",
         }}
-        style={{ width: "100%", height: "min(62vh, 620px)" }}
+        style={{ width: "100%", height: "min(56vh, 540px)" }}
         useResizeHandler
         config={{ responsive: true, displaylogo: false }}
       />
@@ -410,7 +438,7 @@ const Sandbox = ({ token, user }) => {
       <Plot
         data={[{ labels, values, marker: { colors }, type: "pie", textinfo: "label+percent", textposition: "outside", automargin: true, hovertemplate: `<b>%{label}</b><br>${metricLabel}: %{value}${metric === "area_fraction" ? ".4f" : ","}<br>%{percent:.1%}<extra></extra>` }]}
         layout={{ showlegend: false, autosize: true, margin: { l: 24, r: 24, t: 28, b: 28 }, paper_bgcolor: "#ffffff" }}
-        style={{ width: "100%", height: "min(62vh, 620px)" }}
+        style={{ width: "100%", height: "min(56vh, 540px)" }}
         useResizeHandler
         config={{ responsive: true, displaylogo: false }}
       />
@@ -461,20 +489,39 @@ const Sandbox = ({ token, user }) => {
     Array.isArray(csvData.rows) &&
     csvData.rows.length > 0;
 
+  const resultStats = selectedResultSettings?.results;
+  const resultAtlas =
+    selectedResultSettings?.atlas?.name ||
+    selectedResultSettings?.atlas?.id ||
+    selectedResultSettings?.atlas_name;
+  const resultHemisphere =
+    selectedResultSettings?.atlas?.hemisphere ||
+    selectedResultSettings?.hemisphere;
+  const resultCreatedAt =
+    selectedResultSettings?.analysis?.created_at ||
+    selectedResultSettings?.metadata?.scheduled_at;
+  const targetBgr =
+    selectedResultSettings?.parameters?.target_colour?.value ||
+    selectedResultSettings?.colour;
+  const targetRgb =
+    Array.isArray(targetBgr) && targetBgr.length === 3
+      ? [...targetBgr].reverse()
+      : null;
+
   // ── Main render ─────────────────────────────────────────────────────────────
 
   return (
     <Box sx={{ display: "flex", height: "calc(100vh - 42px)", backgroundColor: "#f5f5f5" }}>
       {/* Left sidebar */}
-      <Box sx={{ width: 320, borderRight: "1px solid #e0e0e0", backgroundColor: "white", display: "flex", flexDirection: "column" }}>
-        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}>
+      <Box sx={{ width: 280, borderRight: "1px solid #e0e0e0", backgroundColor: "white", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ px: 1.5, py: 1, borderBottom: "1px solid #e0e0e0", textAlign: "left" }}>
           <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600 }}>Quantification Results</Typography>
           <Typography variant="caption" color="text.secondary" display="block">{projectName || "No project selected"}</Typography>
           <Typography variant="caption" color="text.secondary">{selectedBrain ? selectedBrain.name : "No brain selected"}</Typography>
         </Box>
 
         {/* Brain selector */}
-        <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+        <Box sx={{ p: 1.25, borderBottom: "1px solid #e0e0e0" }}>
           <FormControl size="small" fullWidth>
             <InputLabel>Select Brain</InputLabel>
             <Select
@@ -483,8 +530,10 @@ const Sandbox = ({ token, user }) => {
               onChange={(e) => {
                 const brain = brainEntries.find((b) => b.name === e.target.value);
                 setSelectedBrain(brain);
+                activeResultRequest.current = null;
                 setSelectedResult(null);
                 setCsvData(null);
+                setSelectedResultSettings(null);
               }}
             >
               {Array.isArray(brainEntries) &&
@@ -496,7 +545,7 @@ const Sandbox = ({ token, user }) => {
         </Box>
 
         {/* Results list */}
-        <List sx={{ flexGrow: 1, overflow: "auto", p: 1 }}>
+        <List dense sx={{ flexGrow: 1, overflow: "auto", p: 0.75 }}>
           {nutilResults.length > 0 ? (
             nutilResults.map((result, index) => (
               <ListItem
@@ -505,7 +554,7 @@ const Sandbox = ({ token, user }) => {
                 selected={selectedResult?.name === result.name}
                 onClick={() => handleResultClick(result)}
                 sx={{
-                  borderRadius: 1,
+                  borderRadius: 2,
                   mb: 0.5,
                   "&:hover": { backgroundColor: "#f5f5f5" },
                   "&.Mui-selected": {
@@ -514,7 +563,7 @@ const Sandbox = ({ token, user }) => {
                   },
                 }}
               >
-                <ListItemIcon><BarChartIcon /></ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 34 }}><BarChartIcon fontSize="small" /></ListItemIcon>
                 <ListItemText
                   primary={formatResultName(result.name)}
                   primaryTypographyProps={{ variant: "body2", sx: { fontSize: "0.875rem" } }}
@@ -531,7 +580,7 @@ const Sandbox = ({ token, user }) => {
       </Box>
 
       {/* Main content */}
-      <Box sx={{ flexGrow: 1, minWidth: 0, p: 3, overflow: "auto" }}>
+      <Box sx={{ flexGrow: 1, minWidth: 0, p: { xs: 1, md: 1.5 }, overflow: "auto" }}>
         {isLoading && (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
             <CircularProgress />
@@ -561,29 +610,93 @@ const Sandbox = ({ token, user }) => {
         )}
 
         {!isLoading && !error && dataValid && (
-          <Box>
-            {/* Summary stats */}
-            {summaryStats && (
-              <Paper
-                elevation={0}
+          <Paper
+            elevation={0}
+            sx={{
+              border: "1px solid #d9e2ec",
+              borderRadius: 1,
+              overflow: "hidden",
+              backgroundColor: "#ffffff",
+              textAlign: "left",
+            }}
+          >
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: selectedResultSettings
+                  ? { xs: "1fr", lg: "minmax(330px, 0.7fr) minmax(0, 1.8fr)" }
+                  : "1fr",
+                borderBottom: "1px solid #e2e8f0",
+              }}
+            >
+              {selectedResultSettings && (
+              <Box
                 sx={{
                   display: "grid",
-                  gridTemplateColumns: { xs: "1fr", md: "minmax(210px, 0.7fr) repeat(2, minmax(0, 1fr))" },
-                  mb: 2.5,
-                  border: "1px solid #d9e2ec",
-                  borderRadius: 1,
-                  overflow: "hidden",
+                  gridTemplateColumns: "minmax(0, 1.25fr) minmax(0, 0.75fr)",
+                  alignItems: "stretch",
+                  px: 1.25,
+                  py: 0.625,
+                  borderBottom: { xs: "1px solid #e2e8f0", lg: "none" },
+                  borderRight: { lg: "1px solid #e2e8f0" },
+                  backgroundColor: "#f8fafc",
+                }}
+              >
+                <Box sx={{ display: "grid", alignContent: "start", gap: 0.5, pr: 1.25 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Atlas</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.25 }}>{resultAtlas || "Unavailable"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Run</Typography>
+                    <Typography variant="body2" sx={{ lineHeight: 1.25 }}>
+                      {resultCreatedAt ? new Date(resultCreatedAt).toLocaleString("no-NO", { dateStyle: "medium", timeStyle: "short" }) : "Unavailable"}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box sx={{ display: "grid", alignContent: "start", gap: 0.5, pl: 1.25, borderLeft: "1px solid #e2e8f0" }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Hemisphere</Typography>
+                    <Typography variant="body2" sx={{ textTransform: "capitalize", lineHeight: 1.25 }}>{resultHemisphere || "Both"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Target colour</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.625 }}>
+                      {targetRgb && (
+                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: `rgb(${targetRgb.join(",")})`, border: "1px solid #aaa" }} />
+                      )}
+                      <Typography variant="body2" sx={{ lineHeight: 1.25 }}>{targetRgb ? `RGB ${targetRgb.join(", ")}` : "Unavailable"}</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+              )}
+
+              {/* Summary stats */}
+              {summaryStats && (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "minmax(250px, 0.85fr) repeat(2, minmax(0, 1fr))" },
                   backgroundColor: "#ffffff",
                 }}
               >
-                <Box sx={{ display: "flex", gap: 3, alignItems: "center", px: { xs: 1.5, sm: 2 }, py: 1.5 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 0.625, px: 1, py: 0.75 }}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary" display="block">Regions</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{summaryStats.regionCount}</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">Sections</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{resultStats?.section_count ?? "—"}</Typography>
                   </Box>
                   <Box>
-                    <Typography variant="caption" color="text.secondary" display="block">Total objects</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>{summaryStats.totalObjects.toLocaleString()}</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">Quantified objects</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{(resultStats?.reported_object_count ?? summaryStats.totalObjects).toLocaleString()}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Quantified pixels</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{resultStats?.reported_pixel_count?.toLocaleString() ?? "—"}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Regions with objects</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{resultStats?.regions_with_objects ?? summaryStats.regionCount}</Typography>
                   </Box>
                 </Box>
                 {[
@@ -594,31 +707,32 @@ const Sandbox = ({ token, user }) => {
                     key={label}
                     sx={{
                       minWidth: 0,
-                      px: { xs: 1.5, sm: 2 },
-                      py: 1.5,
+                      px: 1,
+                      py: 0.75,
                       borderLeft: { md: "1px solid #e2e8f0" },
                       borderTop: { xs: "1px solid #e2e8f0", md: "none" },
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.75 }}>{label}</Typography>
-                    <Box sx={{ display: "grid", gap: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>{label}</Typography>
+                    <Box sx={{ display: "grid", gap: 0.25 }}>
                       {regions.map((region, index) => (
                         <Box key={`${label}-${region.name}`} sx={{ display: "grid", gridTemplateColumns: "16px minmax(0, 1fr)", gap: 0.75, alignItems: "start" }}>
                           <Typography variant="caption" color="text.secondary" sx={{ pt: "1px" }}>{index + 1}</Typography>
                           <Box sx={{ display: "flex", gap: 0.75, alignItems: "start", minWidth: 0 }}>
                             <Box sx={{ width: 8, height: 8, flex: "0 0 auto", mt: "5px", borderRadius: "50%", backgroundColor: regionColor(region) }} />
-                            <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.35, overflowWrap: "anywhere" }}>{region.name}</Typography>
+                            <Typography variant="body2" sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.3, overflowWrap: "anywhere" }}>{region.name}</Typography>
                           </Box>
                         </Box>
                       ))}
                     </Box>
                   </Box>
                 ))}
-              </Paper>
-            )}
+              </Box>
+              )}
+            </Box>
 
             {/* Controls bar */}
-            <Paper elevation={0} sx={{ p: 1.5, mb: 2, border: "1px solid #d9e2ec", display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap", borderRadius: 1, backgroundColor: "#f8fafc" }}>
+            <Box sx={{ px: 0.75, py: 0.625, borderBottom: "1px solid #e2e8f0", display: "flex", gap: 0.75, alignItems: "center", flexWrap: "wrap", backgroundColor: "#f8fafc" }}>
               <ToggleButtonGroup
                 value={chartType}
                 exclusive
@@ -690,11 +804,11 @@ const Sandbox = ({ token, user }) => {
                   {selectedResult ? formatResultName(selectedResult.name) : ""}
                 </Typography>
               </Box>
-            </Paper>
+            </Box>
 
             {/* Chart */}
-            <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 2.5 }, border: "1px solid #d9e2ec", width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box", borderRadius: 1, backgroundColor: "#ffffff" }}>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", px: 0.5, pb: 1.5 }}>
+            <Box sx={{ p: { xs: 1, sm: 1.5 }, width: "100%", maxWidth: "100%", overflow: "hidden", boxSizing: "border-box", backgroundColor: "#ffffff" }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", px: 0.25, pb: 0.5 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                   {chartType === "scatter" ? "Area fraction vs object count" : `${metric === "area_fraction" ? "Area fraction" : "Object count"} by region`}
                 </Typography>
@@ -704,8 +818,8 @@ const Sandbox = ({ token, user }) => {
               {chartType === "scatter" && renderScatterChart()}
               {chartType === "treemap" && renderTreemap()}
               {chartType === "pie" && renderPieCharts()}
-            </Paper>
-          </Box>
+            </Box>
+          </Paper>
         )}
       </Box>
     </Box>

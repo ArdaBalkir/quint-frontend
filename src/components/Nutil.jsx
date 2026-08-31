@@ -15,12 +15,18 @@ import {
   Tooltip,
   Snackbar,
   Alert,
-  Autocomplete,
   FormControlLabel,
   Switch,
   Slider,
   IconButton,
   ButtonBase,
+  Collapse,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  InputAdornment,
 } from "@mui/material";
 import {
   Delete,
@@ -39,16 +45,25 @@ import {
   Visibility,
   ImageOutlined,
   ThreeDRotationOutlined,
+  ExpandMore,
+  ExpandLess,
+  ChevronRight,
+  Search,
+  AccountTreeOutlined,
 } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
 import mBrain from "../mBrain.ico";
 import allen2017RegionsCsv from "../assets/atlasregions/allen2017_colours.csv?raw";
 import waxholmV3RegionsCsv from "../assets/atlasregions/waxholm_v3_label.csv?raw";
 import waxholmV4RegionsCsv from "../assets/atlasregions/waxholm_v4_label.csv?raw";
+import allen2017RegionTree from "../assets/atlasregions/trees/allen_2017_tree.json";
+import waxholmV3RegionTree from "../assets/atlasregions/trees/waxholm_v3_tree.json";
+import waxholmV4RegionTree from "../assets/atlasregions/trees/waxholm_v4_tree.json";
 
 import {
   downloadWalnJson,
+  downloadBucketJson,
   fetchBrainSegmentations,
   fetchnutilResults,
   deleteItem, // Start implementing possibly click delete -> to delete all files in segmentations?
@@ -60,6 +75,172 @@ import UploadSegments from "./UploadSegments";
 // Nutil endpoint, one for submitting and one for polling the status
 const NUTIL_URL = "https://webnutil.apps.ebrains.eu";
 const MESH_URL = "https://meshview.apps.ebrains.eu/collab.php";
+const TERMINAL_TASK_STATUSES = new Set([
+  "completed",
+  "failed",
+  "cancelled",
+  "canceled",
+  "aborted",
+]);
+
+const normalizeTaskStatus = (status) =>
+  typeof status === "string" ? status.trim().toLowerCase() : "";
+
+const isTerminalTaskStatus = (status) =>
+  TERMINAL_TASK_STATUSES.has(normalizeTaskStatus(status));
+
+const getTaskResponseMessage = (payload) => {
+  const message = payload?.detail || payload?.message || payload?.task?.message;
+  return typeof message === "string" ? message : "";
+};
+
+const isTaskNotFoundResponse = (payload) =>
+  /task.*not\s+found/i.test(
+    `${getTaskResponseMessage(payload)} ${payload?.task?.status || ""}`,
+  );
+
+const formatResultDate = (value) => {
+  if (!value) return "Unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("no-NO", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+};
+
+const formatDuration = (seconds) => {
+  if (!Number.isFinite(seconds)) return "Unavailable";
+  return seconds < 1 ? `${Math.round(seconds * 1000)} ms` : `${seconds.toFixed(1)} s`;
+};
+
+const DetailItem = ({ label, children }) => (
+  <Box sx={{ minWidth: 0 }}>
+    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+      {children ?? "Unavailable"}
+    </Typography>
+  </Box>
+);
+
+const ResultDetails = ({ settings }) => {
+  const stages = Object.entries(settings?.execution?.stages || {});
+  const bgr = settings?.parameters?.target_colour?.value || settings?.colour;
+  const rgb = Array.isArray(bgr) && bgr.length === 3 ? [...bgr].reverse() : null;
+  const colour = rgb ? `rgb(${rgb.join(", ")})` : null;
+  const regionIds =
+    settings?.atlas?.custom_mask_region_ids || settings?.custom_mask || null;
+  const atlasSlice = settings?.atlas?.slice || settings?.atlas_slice || null;
+  const createdAt = settings?.analysis?.created_at || settings?.metadata?.scheduled_at;
+  const completedAt = settings?.analysis?.saved_at;
+  const totalDuration =
+    createdAt && completedAt
+      ? (new Date(completedAt).getTime() - new Date(createdAt).getTime()) / 1000
+      : null;
+
+  return (
+    <Box
+      sx={{
+        mt: 1.25,
+        pt: 1.25,
+        borderTop: "1px solid #e0e0e0",
+        textAlign: "left",
+      }}
+    >
+      <Typography variant="caption" sx={{ fontWeight: 700 }}>
+        Configuration
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 1.25,
+          mt: 0.75,
+        }}
+      >
+        <DetailItem label="Atlas">{settings?.atlas?.name || settings?.atlas_name}</DetailItem>
+        <DetailItem label="Hemisphere">{settings?.atlas?.hemisphere || settings?.hemisphere || "Both"}</DetailItem>
+        <DetailItem label="Target colour">
+          <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+            {colour && (
+              <Box
+                component="span"
+                sx={{ width: 12, height: 12, borderRadius: "50%", bgcolor: colour, border: "1px solid #bbb" }}
+              />
+            )}
+            {rgb ? `RGB ${rgb.join(", ")}` : "Unavailable"}
+          </Box>
+        </DetailItem>
+        <DetailItem label="Regions">
+          {Array.isArray(regionIds) && regionIds.length > 0
+            ? `${regionIds.length} custom (${regionIds.join(", ")})`
+            : "All regions"}
+        </DetailItem>
+        <DetailItem label="Atlas volume">
+          {Array.isArray(atlasSlice) && atlasSlice.length > 0
+            ? atlasSlice.join(" × ")
+            : "Full atlas"}
+        </DetailItem>
+        <DetailItem label="Coordinate extraction">
+          {settings?.parameters?.coordinate_extraction?.non_linear === false
+            ? "Disabled"
+            : "Enabled"}
+        </DetailItem>
+      </Box>
+
+      <Typography variant="caption" sx={{ display: "block", fontWeight: 700, mt: 1.5 }}>
+        Result summary
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 1.25,
+          mt: 0.75,
+        }}
+      >
+        <DetailItem label="Sections">{settings?.results?.section_count}</DetailItem>
+        <DetailItem label="Objects">{settings?.results?.object_count?.toLocaleString()}</DetailItem>
+        <DetailItem label="Pixels">{settings?.results?.pixel_count?.toLocaleString()}</DetailItem>
+        <DetailItem label="Regions with objects">{settings?.results?.regions_with_objects}</DetailItem>
+        <DetailItem label="Artifacts">{settings?.outputs?.artifact_count}</DetailItem>
+        <DetailItem label="Total time">{formatDuration(totalDuration)}</DetailItem>
+      </Box>
+
+      <Typography variant="caption" sx={{ display: "block", fontWeight: 700, mt: 1.5 }}>
+        History
+      </Typography>
+      <Box sx={{ mt: 0.75 }}>
+        <DetailItem label="Created">{formatResultDate(createdAt)}</DetailItem>
+        <Box sx={{ mt: 0.75 }}>
+          <DetailItem label="Completed">{formatResultDate(completedAt)}</DetailItem>
+        </Box>
+        {stages.map(([name, stage]) => (
+          <Box
+            key={name}
+            sx={{ display: "flex", justifyContent: "space-between", gap: 1, mt: 0.75 }}
+          >
+            <Typography variant="caption" sx={{ textTransform: "capitalize" }}>
+              {name.replaceAll("_", " ")} · {stage.status}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {Number.isFinite(stage.duration_seconds)
+                ? formatDuration(stage.duration_seconds)
+                : stage.reason || "—"}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, overflowWrap: "anywhere" }}>
+        Task {settings?.analysis?.task_id || settings?.analysis?.id || "unknown"}
+        {settings?.software?.version ? ` · WebNutil ${settings.software.version}` : ""}
+      </Typography>
+    </Box>
+  );
+};
 
 // Shared styles object
 const styles = {
@@ -161,6 +342,255 @@ const regionsByAtlas = {
   aba_mouse_ccfv3_2017_25um: parseAtlasRegions(allen2017RegionsCsv),
   whs_sd_rat_v3_39um: parseAtlasRegions(waxholmV3RegionsCsv),
   whs_sd_rat_v4_39um: parseAtlasRegions(waxholmV4RegionsCsv),
+};
+
+const regionTreesByAtlas = {
+  aba_mouse_ccfv3_2017_25um: allen2017RegionTree,
+  whs_sd_rat_v3_39um: waxholmV3RegionTree,
+  whs_sd_rat_v4_39um: waxholmV4RegionTree,
+};
+
+const buildSelectableTree = (nodes, regionsById) =>
+  nodes.map((node) => {
+    const children = buildSelectableTree(node.children || [], regionsById);
+    const selectableIds = [
+      ...(regionsById.has(String(node.id)) ? [String(node.id)] : []),
+      ...children.flatMap((child) => child.selectableIds),
+    ];
+
+    return { ...node, children, selectableIds: [...new Set(selectableIds)] };
+  });
+
+const filterRegionTree = (nodes, query) => {
+  if (!query) return nodes;
+
+  return nodes.flatMap((node) => {
+    if (node.name.toLowerCase().includes(query)) return [node];
+    const children = filterRegionTree(node.children, query);
+    return children.length > 0 ? [{ ...node, children }] : [];
+  });
+};
+
+const RegionTreeRow = ({ node, depth, selectedIds, expandedIds, onToggle, onExpand, searching }) => {
+  const hasChildren = node.children.length > 0;
+  const selectedCount = node.selectableIds.reduce(
+    (count, id) => count + (selectedIds.has(id) ? 1 : 0),
+    0,
+  );
+  const checked = node.selectableIds.length > 0 && selectedCount === node.selectableIds.length;
+  const indeterminate = selectedCount > 0 && !checked;
+  const expanded = searching || expandedIds.has(String(node.id));
+  const color = node.color ? `#${node.color.replace(/^#/, "")}` : null;
+
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          minHeight: 36,
+          pl: depth * 2,
+          pr: 1,
+          borderRadius: 1,
+          "&:hover": { backgroundColor: "action.hover" },
+        }}
+      >
+        <IconButton
+          size="small"
+          disabled={!hasChildren}
+          onClick={() => onExpand(String(node.id))}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${node.name}`}
+          sx={{ visibility: hasChildren ? "visible" : "hidden" }}
+        >
+          {expanded ? <ExpandMore fontSize="small" /> : <ChevronRight fontSize="small" />}
+        </IconButton>
+        <Checkbox
+          size="small"
+          checked={checked}
+          indeterminate={indeterminate}
+          disabled={node.selectableIds.length === 0}
+          onChange={() => onToggle(node.selectableIds, !checked)}
+          inputProps={{ "aria-label": `Select ${node.name} bundle` }}
+        />
+        {color && (
+          <Box
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              bgcolor: color,
+              border: "1px solid rgba(0,0,0,0.18)",
+              mr: 1,
+              flex: "0 0 auto",
+            }}
+          />
+        )}
+        <Typography variant="body2" sx={{ minWidth: 0, flex: 1 }}>
+          {node.name}
+        </Typography>
+        {hasChildren && (
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+            {selectedCount > 0 ? `${selectedCount}/` : ""}{node.selectableIds.length}
+          </Typography>
+        )}
+      </Box>
+      {hasChildren && (
+        <Collapse in={expanded} timeout="auto" unmountOnExit>
+          {node.children.map((child) => (
+            <RegionTreeRow
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              selectedIds={selectedIds}
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+              onExpand={onExpand}
+              searching={searching}
+            />
+          ))}
+        </Collapse>
+      )}
+    </Box>
+  );
+};
+
+const RegionBundleSelector = ({ atlas, options, value, onChange, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [draftIds, setDraftIds] = useState(new Set());
+  const [expandedIds, setExpandedIds] = useState(new Set());
+
+  const optionsById = useMemo(
+    () => new Map(options.map((option) => [String(option.id), option])),
+    [options],
+  );
+  const tree = useMemo(
+    () => buildSelectableTree(regionTreesByAtlas[atlas] || [], optionsById),
+    [atlas, optionsById],
+  );
+  const visibleTree = useMemo(
+    () => filterRegionTree(tree, query.trim().toLowerCase()),
+    [tree, query],
+  );
+
+  const openDialog = () => {
+    setDraftIds(new Set(value.map((region) => String(region.id))));
+    setExpandedIds(new Set(tree.map((node) => String(node.id))));
+    setQuery("");
+    setOpen(true);
+  };
+
+  const toggleIds = (ids, select) => {
+    setDraftIds((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => (select ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
+
+  const toggleExpanded = (id) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const applySelection = () => {
+    onChange(
+      [...draftIds]
+        .map((id) => optionsById.get(id))
+        .filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    setOpen(false);
+  };
+
+  return (
+    <>
+      <Button
+        variant="outlined"
+        fullWidth
+        disabled={disabled}
+        onClick={openDialog}
+        startIcon={<AccountTreeOutlined />}
+        sx={{ minHeight: 48, justifyContent: "flex-start", textTransform: "none" }}
+      >
+        <Box sx={{ minWidth: 0, textAlign: "left" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+            Atlas region bundles (hierarchy)
+          </Typography>
+          <Typography variant="body2" noWrap>
+            {value.length === 0
+              ? "All regions (default)"
+              : `${value.length} region${value.length === 1 ? "" : "s"} selected`}
+          </Typography>
+        </Box>
+      </Button>
+
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle sx={{ pb: 1 }}>
+          Select atlas region bundles
+          <Typography variant="body2" color="text.secondary">
+            Select a branch to include every quantifiable region within it.
+          </Typography>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Box sx={{ p: 2, position: "sticky", top: 0, bgcolor: "background.paper", zIndex: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search regions and bundles"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: "center" }}>
+              <Button size="small" onClick={() => setDraftIds(new Set(optionsById.keys()))}>
+                Select all
+              </Button>
+              <Button size="small" onClick={() => setDraftIds(new Set())}>
+                Clear
+              </Button>
+              <Typography variant="caption" color="text.secondary" sx={{ ml: "auto !important" }}>
+                {draftIds.size} of {options.length} selected
+              </Typography>
+            </Stack>
+          </Box>
+          <Box sx={{ px: 1, pb: 2, minHeight: 360, maxHeight: "56vh", overflowY: "auto" }}>
+            {visibleTree.length > 0 ? (
+              visibleTree.map((node) => (
+                <RegionTreeRow
+                  key={node.id}
+                  node={node}
+                  depth={0}
+                  selectedIds={draftIds}
+                  expandedIds={expandedIds}
+                  onToggle={toggleIds}
+                  onExpand={toggleExpanded}
+                  searching={Boolean(query.trim())}
+                />
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ p: 3, textAlign: "center" }}>
+                No matching regions
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={applySelection}>Apply selection</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
 };
 
 const hemisphereLabels = {
@@ -433,9 +863,10 @@ const Nutil = ({ token }) => {
       const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
       if (!stored) return [];
       return JSON.parse(stored)
-        .filter((t) => t.status !== "completed" && t.status !== "failed")
+        .filter((task) => task?.id && !isTerminalTaskStatus(task.status))
         .map((task) => ({
           ...task,
+          id: String(task.id),
           createdAt: task.createdAt ? new Date(task.createdAt) : null,
           completedAt: task.completedAt ? new Date(task.completedAt) : null,
         }));
@@ -444,6 +875,10 @@ const Nutil = ({ token }) => {
     }
   });
   const [completedResults, setCompletedResults] = useState([]);
+  const [expandedResultPath, setExpandedResultPath] = useState(null);
+  const [resultDetails, setResultDetails] = useState({});
+  const [loadingResultDetails, setLoadingResultDetails] = useState({});
+  const [resultDetailErrors, setResultDetailErrors] = useState({});
   const [isPolling, setIsPolling] = useState(() => {
     try {
       const bucketName = localStorage.getItem("bucketName");
@@ -451,7 +886,9 @@ const Nutil = ({ token }) => {
       const stored = localStorage.getItem(`nutilTasks_${bucketName}`);
       if (!stored) return false;
       const tasks = JSON.parse(stored);
-      return tasks.some((t) => t.status !== "completed" && t.status !== "failed");
+      return tasks.some(
+        (task) => task?.id && !isTerminalTaskStatus(task.status),
+      );
     } catch {
       return false;
     }
@@ -669,23 +1106,40 @@ const Nutil = ({ token }) => {
         },
       });
 
+      const responseData = await response.json().catch(() => ({}));
+
+      if (response.status === 404 || isTaskNotFoundResponse(responseData)) {
+        logger.info("Removing stale Nutil task from the queue", { taskId });
+        return { disposition: "stale" };
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new Error(
           `Error fetching task status: ${response.status} - ${
-            errorData.detail || response.statusText
+            getTaskResponseMessage(responseData) || response.statusText
           }`,
         );
       }
 
-      const result = await response.json(); // result is { task: { ... } }
-      return result; // Return the full response object
+      if (!responseData?.task || !responseData.task.status) {
+        logger.warn("Removing Nutil task with an invalid status response", {
+          taskId,
+          responseData,
+        });
+        return { disposition: "stale" };
+      }
+
+      return {
+        disposition: isTerminalTaskStatus(responseData.task.status)
+          ? "terminal"
+          : "active",
+        task: responseData.task,
+      };
     } catch (error) {
       logger.error("Error polling task", { taskId, error });
-      // Return a structure consistent with a successful poll containing an error status
-      return {
-        task: { status: "failed", message: `Polling error: ${error.message}` },
-      };
+      // A temporary network/server problem is not evidence that the job failed.
+      // Keep it in the queue and retry on the next polling pass.
+      return { disposition: "retry" };
     }
   };
 
@@ -730,6 +1184,43 @@ const Nutil = ({ token }) => {
       setCompletedResults([]);
     }
   };
+
+  const toggleResultDetails = async (result) => {
+    const resultPath = result.path || result.name;
+    if (!resultPath) return;
+
+    if (expandedResultPath === resultPath) {
+      setExpandedResultPath(null);
+      return;
+    }
+
+    setExpandedResultPath(resultPath);
+    if (resultDetails[resultPath] || loadingResultDetails[resultPath]) return;
+
+    const bucketName = localStorage.getItem("bucketName");
+    if (!bucketName) return;
+
+    setLoadingResultDetails((current) => ({ ...current, [resultPath]: true }));
+    setResultDetailErrors((current) => ({ ...current, [resultPath]: null }));
+
+    try {
+      const settingsPath = `${resultPath.replace(/\/?$/, "/")}webnutil_settings.json`;
+      const settings = await downloadBucketJson(token, bucketName, settingsPath);
+      setResultDetails((current) => ({ ...current, [resultPath]: settings }));
+    } catch (detailsError) {
+      logger.warn("WebNutil settings are unavailable for this result", {
+        resultPath,
+        error: detailsError,
+      });
+      setResultDetailErrors((current) => ({
+        ...current,
+        [resultPath]: "Details are unavailable for this result.",
+      }));
+    } finally {
+      setLoadingResultDetails((current) => ({ ...current, [resultPath]: false }));
+    }
+  };
+
   const handleExportResults = async (resultPath) => {
     const bucketName = localStorage.getItem("bucketName");
     if (!bucketName) {
@@ -859,84 +1350,73 @@ const Nutil = ({ token }) => {
 
   useEffect(() => {
     let pollingInterval;
+    let pollingInProgress = false;
+    let cancelled = false;
 
     if (tasks.length > 0 && isPolling) {
       pollingInterval = setInterval(async () => {
-        let shouldContinuePolling = false;
+        if (pollingInProgress) return;
+        pollingInProgress = true;
 
-        const updatedTasks = await Promise.all(
-          tasks.map(async (task) => {
-            if (task.status !== "completed" && task.status !== "failed") {
+        try {
+          const taskUpdates = await Promise.all(
+            tasks.map(async (task) => {
+              if (isTerminalTaskStatus(task.status)) {
+                return { task: null, refreshResults: false };
+              }
+
               const statusResult = await pollTaskStatus(task.id);
 
-              // Ensure statusResult and statusResult.task exist
-              if (statusResult && statusResult.task) {
-                const currentTaskStatus = statusResult.task.status;
-                const currentTaskMessage = statusResult.task.message;
-
-                if (
-                  currentTaskStatus !== "completed" &&
-                  currentTaskStatus !== "failed"
-                ) {
-                  shouldContinuePolling = true;
-                }
-
-                if (
-                  (currentTaskStatus === "completed" ||
-                    currentTaskStatus === "failed") &&
-                  task.status !== "completed" && // Check against previous task status
-                  task.status !== "failed"
-                ) {
-                  fetchCompletedResults();
-                }
-
-                return {
-                  ...task,
-                  status: currentTaskStatus,
-                  message: currentTaskMessage || task.message, // Use new message or fallback to old
-                  completedAt:
-                    currentTaskStatus === "completed" ||
-                    currentTaskStatus === "failed"
-                      ? new Date()
-                      : null,
-                };
-              } else {
-                // Handle case where pollTaskStatus might not return the expected structure
-                // This could happen if the error return in pollTaskStatus isn't {task: {...}}
-                // or if the API returns an unexpected format.
-                logger.warn(
-                  `Unexpected statusResult for task ${task.id}:`,
-                  statusResult,
-                );
-                shouldContinuePolling = true; // Continue polling for this task for now
-                return task; // Return unmodified task
+              if (statusResult.disposition === "stale") {
+                return { task: null, refreshResults: false };
               }
-            }
-            return task; // Return task if already completed or failed
-          }),
-        );
 
-        setTasks(updatedTasks);
+              if (statusResult.disposition === "terminal") {
+                return {
+                  task: null,
+                  refreshResults:
+                    normalizeTaskStatus(statusResult.task.status) ===
+                    "completed",
+                };
+              }
 
-        if (
-          !shouldContinuePolling &&
-          tasks.some((t) => t.status !== "completed" && t.status !== "failed")
-        ) {
-          // If no tasks are actively being polled but some are still not terminal, ensure polling continues
-          // This case might be redundant if shouldContinuePolling is set correctly above.
-        }
+              if (statusResult.disposition === "retry") {
+                return { task, refreshResults: false };
+              }
 
-        // If no tasks are still in progress (pending, quantifying etc.), stop polling
-        const anyTaskInProgress = updatedTasks.some(
-          (t) => t.status !== "completed" && t.status !== "failed",
-        );
-        if (!anyTaskInProgress) {
-          setIsPolling(false);
+              return {
+                task: {
+                  ...task,
+                  status: normalizeTaskStatus(statusResult.task.status),
+                  message: statusResult.task.message || task.message,
+                },
+                refreshResults: false,
+              };
+            }),
+          );
+
+          if (cancelled) return;
+
+          const updatedTasks = taskUpdates
+            .map((update) => update.task)
+            .filter(Boolean);
+          setTasks(updatedTasks);
+
+          if (taskUpdates.some((update) => update.refreshResults)) {
+            fetchCompletedResults();
+          }
+
+          if (updatedTasks.length === 0) {
+            setIsPolling(false);
+          }
+        } finally {
+          pollingInProgress = false;
         }
       }, 3000); // Poll every 3 seconds
     }
 
     return () => {
+      cancelled = true;
       if (pollingInterval) clearInterval(pollingInterval);
     };
   }, [tasks, isPolling, token]); // Added token to dependencies as it's used in pollTaskStatus
@@ -946,7 +1426,7 @@ const Nutil = ({ token }) => {
     const bucketName = localStorage.getItem("bucketName");
     if (!bucketName) return;
     const activeTasks = tasks.filter(
-      (t) => t.status !== "completed" && t.status !== "failed",
+      (task) => task?.id && !isTerminalTaskStatus(task.status),
     );
     localStorage.setItem(`nutilTasks_${bucketName}`, JSON.stringify(activeTasks));
   }, [tasks]);
@@ -1059,6 +1539,10 @@ const Nutil = ({ token }) => {
       setSelectedRegions([]);
       setHemisphere("both");
       setLimitAtlasVolume(false);
+      setExpandedResultPath(null);
+      setResultDetails({});
+      setLoadingResultDetails({});
+      setResultDetailErrors({});
       setSegmentations([]);
       localStorage.setItem("selectedBrain", JSON.stringify(brain));
       await getSegmentations(brain);
@@ -1451,7 +1935,7 @@ const Nutil = ({ token }) => {
                 {registrationQuantification.missingRegistrationImages === 1
                   ? "image has"
                   : "images have"}{" "}
-                no marker or OUV registration data and cannot be quantified.
+                no atlas registration data and cannot be quantified.
                 Return to WebAlign and WebWarp to finish registration.
               </Alert>
             )}
@@ -1473,6 +1957,7 @@ const Nutil = ({ token }) => {
                     disabled={!registration.atlas || regionOptions.length === 0}
                   />
                 </Box>
+                {/* Atlas volume selection temporarily hidden.
                 <AtlasSliceSelector
                   enabled={limitAtlasVolume}
                   onEnabledChange={setLimitAtlasVolume}
@@ -1487,65 +1972,16 @@ const Nutil = ({ token }) => {
                     )
                   }
                 />
+                */}
               </Stack>
 
               <Stack spacing={1}>
-                <Autocomplete
-                  multiple
-                  size="small"
+                <RegionBundleSelector
+                  atlas={registration.atlas}
                   options={regionOptions}
                   value={selectedRegions}
                   disabled={regionOptions.length === 0}
-                  onChange={(_, regions) => setSelectedRegions(regions)}
-                  getOptionLabel={(option) => option.name}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  limitTags={1}
-                  renderOption={(props, option) => {
-                    const { key, ...optionProps } = props;
-                    return (
-                      <Box
-                        component="li"
-                        key={key}
-                        {...optionProps}
-                        sx={{ display: "flex", gap: 1 }}
-                      >
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            flex: "0 0 auto",
-                            borderRadius: "50%",
-                            backgroundColor: option.color,
-                            border: "1px solid rgba(0,0,0,0.2)",
-                          }}
-                        />
-                        <Typography variant="body2" noWrap>
-                          {option.name}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ ml: "auto" }}
-                        >
-                          {option.id}
-                        </Typography>
-                      </Box>
-                    );
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Atlas regions"
-                      placeholder="All regions"
-                      helperText={
-                        regionOptions.length === 0
-                          ? "Select a brain with a registered atlas"
-                          : selectedRegions.length === 0
-                            ? "Default: all regions selected"
-                            : `${selectedRegions.length} region${selectedRegions.length === 1 ? "" : "s"} selected`
-                      }
-                    />
-                  )}
+                  onChange={setSelectedRegions}
                 />
 
                 <Box
@@ -1849,6 +2285,20 @@ const Nutil = ({ token }) => {
                         >
                           Export
                         </Button>
+                        <Button
+                          size="small"
+                          endIcon={
+                            expandedResultPath === (result.path || result.name) ? (
+                              <ExpandLess />
+                            ) : (
+                              <ExpandMore />
+                            )
+                          }
+                          sx={{ fontSize: "0.75rem", py: 0.5 }}
+                          onClick={() => toggleResultDetails(result)}
+                        >
+                          Details
+                        </Button>
                         <MeshviewButton
                           atlas={registration.atlas}
                           clouds={[result.path]}
@@ -1863,6 +2313,27 @@ const Nutil = ({ token }) => {
                           Delete
                         </Button>
                       </Box>
+                      <Collapse
+                        in={expandedResultPath === (result.path || result.name)}
+                        timeout="auto"
+                        unmountOnExit
+                      >
+                        {loadingResultDetails[result.path || result.name] ? (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", mt: 1.25, textAlign: "left" }}
+                          >
+                            Loading analysis details…
+                          </Typography>
+                        ) : resultDetailErrors[result.path || result.name] ? (
+                          <Alert severity="info" sx={{ mt: 1.25, textAlign: "left" }}>
+                            {resultDetailErrors[result.path || result.name]}
+                          </Alert>
+                        ) : resultDetails[result.path || result.name] ? (
+                          <ResultDetails settings={resultDetails[result.path || result.name]} />
+                        ) : null}
+                      </Collapse>
                     </Box>
                   ))
                 ) : (

@@ -443,7 +443,7 @@ export async function checkBucketExists(
   }
 }
 
-export const downloadWalnJson = async (
+export const downloadBucketJson = async (
   token: string,
   bucketName: string,
   objectPath: string,
@@ -456,6 +456,8 @@ export const downloadWalnJson = async (
     { signal },
   );
   const contentResponse = await fetch(downloadUrl, { signal });
-  if (!contentResponse.ok) throw new Error("Failed to download WALN content");
+  if (!contentResponse.ok) throw new Error("Failed to download JSON content");
   return contentResponse.json();
 };
+
+export const downloadWalnJson = downloadBucketJson;

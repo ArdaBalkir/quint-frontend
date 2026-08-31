@@ -13,6 +13,7 @@ import {
   LinearProgress,
   Typography,
 } from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
 import { uploadToPath } from "../actions/handleCollabs";
 import UploadZone from "./UploadZone";
 
@@ -32,8 +33,9 @@ export default function UploadSegments({
   });
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDownloadingBackup, setIsDownloadingBackup] = useState(false);
 
-  const uploadPath = `${project?.name}/${brain?.name}/segments/`;
+  const segmentationPath = `${project?.name}/${brain?.name}/segmentations/`;
 
   const handleFilesSelected = (files) => {
     setFilesToUpload(files);
@@ -96,6 +98,58 @@ export default function UploadSegments({
     }
   };
 
+  const handleDownloadBackup = async () => {
+    const collabName = localStorage.getItem("bucketName");
+    if (!collabName || !project?.name || !brain?.name) {
+      setInfoMessage({
+        open: true,
+        message: "Unable to determine the segmentation folder.",
+        severity: "error",
+      });
+      return;
+    }
+
+    const baseUrl = "https://data-proxy-zipper.ebrains.eu/zip?container=";
+    const containerUrl = `https%3A%2F%2Fdata-proxy.ebrains.eu%2Fapi%2Fv1%2Fbuckets%2F${encodeURIComponent(
+      collabName,
+    )}%3Fprefix%3D${encodeURIComponent(segmentationPath)}`;
+    const zipperUrl = baseUrl + containerUrl;
+
+    setIsDownloadingBackup(true);
+    logger.info("Downloading segmentation backup", { zipperUrl });
+
+    try {
+      const response = await fetch(zipperUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Download failed: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.style.display = "none";
+      anchor.href = url;
+      anchor.download = `${brain.name}-segmentations-backup.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(anchor);
+    } catch (error) {
+      logger.error("Error downloading segmentation backup", error);
+      window.open(zipperUrl, "_blank");
+    } finally {
+      setIsDownloadingBackup(false);
+    }
+  };
+
   return (
     <>
       <Snackbar
@@ -120,8 +174,35 @@ export default function UploadSegments({
       >
         <DialogTitle>Upload your own segmentations</DialogTitle>
         <DialogContent sx={{ padding: "20px" }}>
-          <DialogContentText sx={{ marginBottom: "20px" }}>
-            upload segmentation files...
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="subtitle2" component="div" sx={{ mb: 0.5 }}>
+              Before uploading custom segmentations
+            </Typography>
+            <Typography variant="body2" component="div">
+              For best results, make sure filenames use the section suffix format
+              <strong> _s0000</strong> and that this folder contains only your
+              custom segmentations, <strong>no webilastik generated segmentations.</strong> 
+         
+               <br/>Download a backup of your current segmentations before making changes.
+               
+
+            </Typography>
+            <Button
+              color="warning"
+              size="small"
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadBackup}
+              disabled={isDownloadingBackup || !token}
+              sx={{ mt: 1.5 }}
+            >
+              {isDownloadingBackup
+                ? "Preparing backup…"
+                : "Download current segmentations"}
+            </Button>
+          </Alert>
+          <DialogContentText sx={{ marginBottom: "12px" }}>
+            Upload segmentation files to:
           </DialogContentText>
           <Typography
             variant="body2"
@@ -133,7 +214,7 @@ export default function UploadSegments({
               mb: 3,
             }}
           >
-            {uploadPath}
+            {segmentationPath}
           </Typography>
 
           <UploadZone onFilesSelected={handleFilesSelected} />
@@ -152,7 +233,12 @@ export default function UploadSegments({
         </DialogContent>
         <DialogActions sx={{ padding: "20px" }}>
           <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Upload</Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isUploading || filesToUpload.length === 0}
+          >
+            Upload
+          </Button>
         </DialogActions>
       </Dialog>
     </>

@@ -271,6 +271,12 @@ export default function QuintTable({ token, user }) {
             logger.debug("Bucket already exists (workspace init)");
           } else {
             try {
+              window.alert(
+                "We’re creating your private project bucket for the first time. " +
+                  "This private bucket is where your Online QUINT projects and data will be stored. " +
+                  "Setup can take a few seconds, so please wait a little longer and then refresh the page.",
+              );
+
               const response = await fetch(
                 "https://createzoom.apps.ebrains.eu/api/initialize-collab",
                 {
