@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   List,
@@ -75,7 +75,6 @@ const Meshview = ({ token }) => {
   const [activeMeshUrl, setActiveMeshUrl] = useState(null);
   const [activeResultLabel, setActiveResultLabel] = useState(null);
   const [activeResultDetails, setActiveResultDetails] = useState(null);
-  const resultSettingsCache = useRef({});
 
   useEffect(() => {
     try {
@@ -106,13 +105,6 @@ const Meshview = ({ token }) => {
             }));
             const resultsWithSettings = await Promise.all(
               results.map(async (result) => {
-                if (resultSettingsCache.current[result.path]) {
-                  return {
-                    ...result,
-                    settings: resultSettingsCache.current[result.path],
-                  };
-                }
-
                 try {
                   const normalizedPath = result.path.endsWith("/")
                     ? result.path
@@ -122,7 +114,6 @@ const Meshview = ({ token }) => {
                     collabName,
                     `${normalizedPath}webnutil_settings.json`,
                   );
-                  resultSettingsCache.current[result.path] = settings;
                   return { ...result, settings };
                 } catch (settingsError) {
                   logger.warn("WebNutil settings unavailable in Meshview", {

@@ -113,11 +113,11 @@ export const TabProvider = ({ children }) => {
     const params = new URLSearchParams({
       workdir,
       token,
-      server: "https://app.ilastik.org/api/",
-      allocator: "https://app.ilastik.org/allocator",
+      server: "https://webilastik.apps.ebrains.eu/api/",
+      allocator: "https://webilastik.apps.ebrains.eu/allocator",
     });
 
-    const url = `https://app.ilastik.org/app/?${params.toString()}`;
+    const url = `https://webilastik.apps.ebrains.eu/app/?${params.toString()}`;
     logger.debug("Ilastik URL", { url });
     handleFrameChange(url);
     setValidationError(null);

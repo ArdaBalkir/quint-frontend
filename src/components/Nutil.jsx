@@ -1195,7 +1195,7 @@ const Nutil = ({ token }) => {
     }
 
     setExpandedResultPath(resultPath);
-    if (resultDetails[resultPath] || loadingResultDetails[resultPath]) return;
+    if (loadingResultDetails[resultPath]) return;
 
     const bucketName = localStorage.getItem("bucketName");
     if (!bucketName) return;
@@ -1734,19 +1734,29 @@ const Nutil = ({ token }) => {
                 return;
               }
 
-              const bucketName = localStorage.getItem("bucketName");
-              const brainPath = selectedBrain.path;
-              const workdir = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}`;
+               const bucketName = localStorage.getItem("bucketName");
+               const brainPath = selectedBrain.path;
+               const workdir = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${brainPath}`;
+               const registrationPath = registration.alignment_json_path;
 
-              const params = new URLSearchParams({
-                mode: "viewer",
-                workdir,
-                token,
-                server: "https://app.ilastik.org/api/",
-              });
+               if (!selectedAtlasId || !registrationPath) {
+                 showWarning("No atlas registration found for this brain");
+                 return;
+               }
+
+               const registrationUrl = `https://data-proxy.ebrains.eu/api/v1/buckets/${bucketName}/${registrationPath}`;
+
+               const params = new URLSearchParams({
+                 mode: "viewer",
+                 workdir,
+                 atlas: selectedAtlasId,
+                 registration: registrationUrl,
+                 token,
+                 server: "https://webilastik.apps.ebrains.eu/api/",
+               });
 
               window.open(
-                `https://app.ilastik.org/app/?${params.toString()}`,
+                `https://webilastik.apps.ebrains.eu/app/?${params.toString()}`,
                 "_blank",
               );
             }}

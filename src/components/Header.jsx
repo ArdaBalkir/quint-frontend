@@ -19,15 +19,17 @@ import {
   Dialog,
   Snackbar,
   Alert,
+  Chip,
 } from "@mui/material";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import HelpRoundedIcon from "@mui/icons-material/HelpRounded";
 import DescriptionIcon from "@mui/icons-material/Description";
 
-import SecurityIcon from "@mui/icons-material/Security";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import TimerIcon from "@mui/icons-material/Timer";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
+import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 import Mainframe from "./Mainframe";
@@ -58,7 +60,7 @@ const tabs = [
   },
   {
     label: "WebIlastik",
-    url: "https://app.ilastik.org/app/",
+    url: "https://webilastik.apps.ebrains.eu/app/",
     disabled: false,
   },
   {
@@ -95,6 +97,8 @@ const Header = () => {
   } = useAuth();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [tokenCopied, setTokenCopied] = useState(false);
   const {
     currentTab,
     switchToTab,
@@ -118,6 +122,26 @@ const Header = () => {
     setDocsOpen(!docsOpen);
   };
 
+  const handleCopyToken = async () => {
+    if (!token) return;
+
+    try {
+      await navigator.clipboard.writeText(token);
+      setTokenCopied(true);
+      window.setTimeout(() => setTokenCopied(false), 2000);
+    } catch (error) {
+      logger.error("Unable to copy access token", { error });
+    }
+  };
+
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+
+    setNow(Date.now());
+    const intervalId = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(intervalId);
+  }, [drawerOpen]);
+
   const sharedListItemSx = {
     "&:hover": {
       backgroundColor: "rgba(0, 0, 0, 0.04)",
@@ -125,37 +149,25 @@ const Header = () => {
     },
   };
 
-  const formatUnixSeconds = (value) => {
-    if (!value || typeof value !== "number") return "—";
-    const date = new Date(value * 1000);
-    return Number.isNaN(date.getTime())
-      ? "—"
-      : date.toLocaleString("en-GB", {
-          dateStyle: "medium",
-          timeStyle: "short",
-        });
-  };
-
   const formatCountdown = (value) => {
-    if (!value || typeof value !== "number") return "—";
-    const diffMs = value * 1000 - Date.now();
-    if (!Number.isFinite(diffMs)) return "—";
-    if (diffMs <= 0) return "expired";
+    if (!value || typeof value !== "number") return "Expiry unavailable";
+    const diffMs = value * 1000 - now;
+    if (!Number.isFinite(diffMs)) return "Expiry unavailable";
+    if (diffMs <= 0) return "Session expired";
 
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    const totalMinutes = Math.ceil(diffMs / 60000);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
 
-    if (hours > 0) return `in ${hours}h ${minutes}m`;
-    if (minutes > 0) return `in ${minutes}m ${seconds}s`;
-    return `in ${seconds}s`;
+    if (days > 0) return `${days}d ${hours}h remaining`;
+    if (hours > 0) return `${hours}h ${minutes}m remaining`;
+    if (minutes > 1) return `${minutes} minutes remaining`;
+    return "Less than a minute remaining";
   };
 
-  const formatScope = (scope) => {
-    if (!scope) return "—";
-    return Array.isArray(scope) ? scope.join(" ") : String(scope);
-  };
+  const hasSessionExpiry = typeof user?.exp === "number";
+  const sessionExpired = hasSessionExpiry && user.exp * 1000 <= now;
 
   // All authentication logic is now handled by useAuth hook
 
@@ -533,108 +545,81 @@ const Header = () => {
               {user && (
                 <Box
                   sx={{
-                    px: 2,
-                    py: 1.5,
-                    bgcolor: "grey.50",
                     mx: 2,
-                    borderRadius: 1,
+                    pt: 0.75,
+                    pb: 1,
                   }}
                 >
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ fontWeight: 600, mb: 1, display: "block" }}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 1.5,
+                    }}
                   >
-                    Session Information
-                  </Typography>
-                  <ListItem sx={{ px: 0, py: 0.75 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <SecurityIcon fontSize="small" color="action" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Scope"
-                      secondary={formatScope(user?.scope)}
-                      primaryTypographyProps={{
-                        variant: "caption",
-                        color: "text.secondary",
-                        fontWeight: 500,
-                      }}
-                      secondaryTypographyProps={{
-                        variant: "body2",
-                        color: "text.primary",
-                        sx: {
-                          fontFamily: "monospace",
-                          fontSize: "0.75rem",
-                          wordBreak: "break-word",
-                          mt: 0.25,
-                        },
-                      }}
-                    />
-                  </ListItem>
-                  <ListItem sx={{ px: 0, py: 0.75 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <ScheduleIcon fontSize="small" color="action" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Issued"
-                      secondary={formatUnixSeconds(user?.iat)}
-                      primaryTypographyProps={{
-                        variant: "caption",
-                        color: "text.secondary",
-                        fontWeight: 500,
-                      }}
-                      secondaryTypographyProps={{
-                        variant: "body2",
-                        color: "text.primary",
-                        sx: { mt: 0.25 },
-                      }}
-                    />
-                  </ListItem>
-                  <ListItem sx={{ px: 0, py: 0.75 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <TimerIcon fontSize="small" color="action" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Expires"
-                      secondary={
-                        <Box component="span">
-                          <Box
-                            component="span"
-                            sx={{ fontWeight: 600, color: "primary.main" }}
-                          >
-                            {formatCountdown(user?.exp)}
-                          </Box>
-                          <Box
-                            component="span"
-                            sx={{
-                              color: "text.secondary",
-                              fontSize: "0.75rem",
-                              ml: 0.5,
-                            }}
-                          >
-                            ({formatUnixSeconds(user?.exp)})
-                          </Box>
-                        </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {sessionExpired ? (
+                        <ErrorOutlineRoundedIcon color="error" fontSize="small" />
+                      ) : (
+                        <CheckCircleRoundedIcon color="success" fontSize="small" />
+                      )}
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        Session
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={
+                        !hasSessionExpiry
+                          ? "Unknown"
+                          : sessionExpired
+                            ? "Expired"
+                            : "Active"
                       }
-                      primaryTypographyProps={{
-                        variant: "caption",
-                        color: "text.secondary",
-                        fontWeight: 500,
-                      }}
-                      secondaryTypographyProps={{
-                        variant: "body2",
-                        color: "text.primary",
-                        component: "div",
-                        sx: { mt: 0.25 },
-                      }}
+                      color={
+                        !hasSessionExpiry
+                          ? "default"
+                          : sessionExpired
+                            ? "error"
+                            : "success"
+                      }
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 24, fontWeight: 600 }}
                     />
-                  </ListItem>
+                  </Box>
+
+                  <Typography
+                    variant="body2"
+                    color={sessionExpired ? "error.main" : "text.primary"}
+                  >
+                    {formatCountdown(user?.exp)}
+                  </Typography>
+
+                  <Box sx={{ display: "flex", gap: 1, mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="text"
+                      startIcon={<ContentCopyRoundedIcon />}
+                      onClick={handleCopyToken}
+                      disabled={!token}
+                      sx={{ textTransform: "none" }}
+                    >
+                      {tokenCopied ? "Copied" : "Copy token"}
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="text"
+                      color={sessionExpired ? "error" : "primary"}
+                      startIcon={<RefreshRoundedIcon />}
+                      onClick={() => handleLogin()}
+                      sx={{ textTransform: "none" }}
+                    >
+                      {sessionExpired ? "Sign in again" : "Renew"}
+                    </Button>
+                  </Box>
                 </Box>
               )}
-
-              <ListItem sx={sharedListItemSx} onClick={() => handleLogin()}>
-                <ListItemText primary="Refresh token manually" />
-              </ListItem>
             </List>
             <Box sx={{ padding: "16px", marginTop: "auto" }}>
               <Typography variant="body2" color="textSecondary">

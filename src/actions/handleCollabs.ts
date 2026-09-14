@@ -6,7 +6,8 @@ const fetchJson = async <T = any>(
   url: string,
   options: FetchOptions = {},
 ): Promise<T> => {
-  const response = await fetch(url, options);
+  // Bucket listings and download URLs can change after registration edits.
+  const response = await fetch(url, { ...options, cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   return response.json();
 };
@@ -455,7 +456,7 @@ export const downloadBucketJson = async (
     token,
     { signal },
   );
-  const contentResponse = await fetch(downloadUrl, { signal });
+  const contentResponse = await fetch(downloadUrl, { signal, cache: "no-store" });
   if (!contentResponse.ok) throw new Error("Failed to download JSON content");
   return contentResponse.json();
 };
