@@ -1,3 +1,4 @@
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import React, { useState } from "react";
 import {
@@ -47,6 +48,7 @@ export default function UploadSegments({
     setUploadProgress(0);
 
     if (filesToUpload.length > 0) {
+      trackUsage("segments", "started", filesToUpload.length);
       try {
         let completedUploads = 0;
         const uploadedFiles = await Promise.all(
@@ -72,9 +74,11 @@ export default function UploadSegments({
           message: "Segmentations uploaded successfully!",
           severity: "success",
         });
+        trackUsage("segments", "succeeded", filesToUpload.length);
         return uploadedFiles;
       } catch (error) {
         setIsUploading(false);
+        trackUsage("segments", "failed", filesToUpload.length);
         logger.error("Error uploading segmentations", error);
         setInfoMessage({
           open: true,
@@ -115,6 +119,7 @@ export default function UploadSegments({
     )}%3Fprefix%3D${encodeURIComponent(segmentationPath)}`;
     const zipperUrl = baseUrl + containerUrl;
 
+    trackUsage("backupSegments", "started");
     setIsDownloadingBackup(true);
     logger.info("Downloading segmentation backup", { zipperUrl });
 
@@ -142,7 +147,9 @@ export default function UploadSegments({
       anchor.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(anchor);
+      trackUsage("backupSegments", "succeeded");
     } catch (error) {
+      trackUsage("backupSegments", "failed");
       logger.error("Error downloading segmentation backup", error);
       window.open(zipperUrl, "_blank");
     } finally {

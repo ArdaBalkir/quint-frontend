@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import netunzip from "../actions/atlasUtils";
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import { uploadToJson } from "../actions/handleCollabs";
 import desktopToWeb from "../actions/desktopToWeb";
@@ -73,6 +74,7 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
   const processedImages = Math.round(atlasProgress * imageCount);
 
   const createAtlas = async (atlasName, bucketName, dzips, token) => {
+    trackUsage("registration", "started", dzips.length);
     logger.info("Creating atlas", {
       atlasName,
       bucketName,
@@ -173,8 +175,10 @@ function Atlas({ bucketName, dzips, token, updateInfo, refreshBrain }) {
         }
       }
       const response = await uploadToJson(uploadObj, walnName, finalAtlas);
+      trackUsage("registration", "succeeded", finalAtlas.sections.length);
       return finalAtlas;
     } catch (error) {
+      trackUsage("registration", "failed");
       logger.error("Error creating atlas", error);
       throw error;
     }

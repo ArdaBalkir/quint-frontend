@@ -1,3 +1,4 @@
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import { useNotification } from "../contexts/NotificationContext";
 import { useTabContext } from "../contexts/TabContext";
@@ -998,6 +999,7 @@ const Nutil = ({ token }) => {
       return;
     }
 
+    trackUsage("quantification", "started", segmentations.length);
     setIsProcessing(true);
     try {
       const collabName = localStorage.getItem("bucketName");
@@ -1067,6 +1069,7 @@ const Nutil = ({ token }) => {
 
       // Add the new task to the tasks list with initial status
       if (result && result.task_id) {
+        trackUsage("quantification", "submitted", segmentations.length);
         const newTask = {
           id: result.task_id,
           status: "pending", // Initial status from schedule-task might be different, or use polling result
@@ -1083,10 +1086,12 @@ const Nutil = ({ token }) => {
           setIsPolling(true);
         }
       } else {
+        trackUsage("quantification", "failed");
         logger.error("Task ID not found in schedule-task response", result);
         setError("Failed to get Task ID from Nutil analysis request.");
       }
     } catch (error) {
+      trackUsage("quantification", "failed");
       logger.error("Error requesting Nutil analysis", error);
       setError(`Failed to process Nutil analysis request: ${error.message}`);
     } finally {
@@ -1235,6 +1240,7 @@ const Nutil = ({ token }) => {
     )}%3Fprefix%3D${encodeURIComponent(resultPath)}`;
     const zipperUrl = baseUrl + containerUrl;
 
+    trackUsage("exportResults", "started");
     logger.info("Downloading zipper results", { zipperUrl });
 
     try {
@@ -1263,7 +1269,9 @@ const Nutil = ({ token }) => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      trackUsage("exportResults", "succeeded");
     } catch (error) {
+      trackUsage("exportResults", "failed");
       logger.error("Error downloading results", error);
       // Fallback to opening in new tab if fetch fails
       window.open(zipperUrl, "_blank");
@@ -1277,6 +1285,7 @@ const Nutil = ({ token }) => {
       brainEntries: brainEntries,
     };
     localStorage.setItem("sandboxSettings", JSON.stringify(settings));
+    trackUsage("savePlots", "succeeded", completedResults.length);
     logger.info("Saved nutil results for plotting", {
       resultsCount: completedResults.length,
       brain: selectedBrain?.name,
@@ -1374,6 +1383,9 @@ const Nutil = ({ token }) => {
               if (statusResult.disposition === "terminal") {
                 return {
                   task: null,
+                  outcome: normalizeTaskStatus(statusResult.task.status) === "completed"
+                    ? "succeeded"
+                    : normalizeTaskStatus(statusResult.task.status) === "failed" ? "failed" : "cancelled",
                   refreshResults:
                     normalizeTaskStatus(statusResult.task.status) ===
                     "completed",
@@ -1396,6 +1408,10 @@ const Nutil = ({ token }) => {
           );
 
           if (cancelled) return;
+
+          taskUpdates.forEach((update) => {
+            if (update.outcome) trackUsage("quantification", update.outcome);
+          });
 
           const updatedTasks = taskUpdates
             .map((update) => update.task)

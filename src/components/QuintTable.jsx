@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import { useNotification } from "../contexts/NotificationContext";
 import {
@@ -572,6 +573,7 @@ export default function QuintTable({ token, user }) {
   };
 
   const createProjectCall = async (projectName) => {
+    trackUsage("createProject", "started");
     logger.info("Creating project", { projectName });
     try {
       let res = await createProject({
@@ -579,9 +581,11 @@ export default function QuintTable({ token, user }) {
         bucketName: bucketName,
         projectName: projectName,
       });
+      trackUsage("createProject", "succeeded");
       logger.info("Project created", res);
       fetchAndUpdateProjects(bucketName);
     } catch (error) {
+      trackUsage("createProject", "failed");
       logger.error("Error creating project", error);
     }
   };
@@ -1021,7 +1025,10 @@ export default function QuintTable({ token, user }) {
                             <DeleteIcon />
                           </IconButton>
                         }
-                        onClick={() => handleProjectSelect(project)}
+                        onClick={() => {
+                          trackUsage("project", "selected");
+                          handleProjectSelect(project);
+                        }}
                       >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: .5, pb: .5 }}>
                           <Typography fontWeight={400}>{project.name}</Typography>
@@ -1107,7 +1114,10 @@ export default function QuintTable({ token, user }) {
                   bucketName={bucketName}
                   token={token}
                   onAddBrainClick={handleOpenDialog}
-                  onBrainSelect={handleBrainSelect}
+                  onBrainSelect={(params) => {
+                    trackUsage("series", "selected");
+                    handleBrainSelect(params);
+                  }}
                   refreshProjectBrains={refreshProjectBrains}
                 />
                 <Box

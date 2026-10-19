@@ -1,4 +1,5 @@
 import logger from "../utils/logger.js";
+import { trackUsage } from "../utils/analytics.js";
 import React, { createContext, useContext, useState } from "react";
 
 const TabContext = createContext();
@@ -62,6 +63,7 @@ export const TabProvider = ({ children }) => {
     const validation = validateNavigation(customAlignment);
 
     if (!validation.valid) {
+      trackUsage("toolNavigation", "blocked");
       setValidationError(validation.error);
       logger.warn("Navigation validation failed", {
         error: validation.error,
@@ -101,6 +103,7 @@ export const TabProvider = ({ children }) => {
     const token = localStorage.getItem("token");
 
     if (!bucketName || !mainPath) {
+      trackUsage("toolNavigation", "blocked");
       setValidationError("Please select a project and an image series");
       logger.warn("WebIlastik navigation validation failed");
       return false;

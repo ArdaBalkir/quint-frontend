@@ -1,3 +1,4 @@
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import React, { useEffect, useState } from "react";
 import { useNotification } from "../contexts/NotificationContext";
@@ -66,6 +67,7 @@ export default function CreationDialog({
     setUploadProgress(0);
 
     if (filesToUpload.length > 0) {
+      trackUsage("images", "started", filesToUpload.length);
       try {
         // Calculate total size for granular progress
         const totalBytes = filesToUpload.reduce(
@@ -104,10 +106,12 @@ export default function CreationDialog({
         const allResults = await Promise.all(uploadPromises);
 
         setIsUploading(false);
+        trackUsage("images", "succeeded", filesToUpload.length);
         showSuccess("Files uploaded successfully");
         return allResults;
       } catch (error) {
         setIsUploading(false);
+        trackUsage("images", "failed", filesToUpload.length);
         logger.error("Error uploading files", error);
         showError("Error uploading files");
         throw error;

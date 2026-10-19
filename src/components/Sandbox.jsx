@@ -1,4 +1,5 @@
-﻿import logger from "../utils/logger.js";
+﻿import { trackUsage } from "../utils/analytics.js";
+import logger from "../utils/logger.js";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
@@ -216,6 +217,7 @@ const Sandbox = ({ token, user }) => {
 
   // fetch CSV data when a result is clicked
   const handleResultClick = async (result) => {
+    trackUsage("loadPlot", "started");
     const requestPath = result.path;
     activeResultRequest.current = requestPath;
     setSelectedResult(result);
@@ -286,9 +288,11 @@ const Sandbox = ({ token, user }) => {
       const settings = await settingsPromise;
       if (activeResultRequest.current !== requestPath) return;
       setSelectedResultSettings(settings);
+      trackUsage("loadPlot", "succeeded");
       setCsvData({ headers, rows });
     } catch (err) {
       if (activeResultRequest.current !== requestPath) return;
+      trackUsage("loadPlot", "failed");
       logger.error("Failed to fetch CSV data", err);
       setError(err.message);
     } finally {
@@ -736,7 +740,11 @@ const Sandbox = ({ token, user }) => {
               <ToggleButtonGroup
                 value={chartType}
                 exclusive
-                onChange={(_, val) => val && setChartType(val)}
+                onChange={(_, val) => {
+                  if (!val || val === chartType) return;
+                  setChartType(val);
+                  trackUsage("chart", "selected");
+                }}
                 size="small"
               >
                 <Tooltip title="Bar chart"><ToggleButton value="bar" aria-label="Bar chart"><BarChartIcon fontSize="small" /></ToggleButton></Tooltip>

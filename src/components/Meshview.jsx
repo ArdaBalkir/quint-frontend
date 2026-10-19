@@ -26,6 +26,7 @@ import {
 } from "../actions/handleCollabs";
 import { getBrainStats } from "../actions/brainRepository.ts";
 import mBrain from "../mBrain.ico";
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 
 const MESH_URL = "https://meshview.apps.ebrains.eu/collab.php";
@@ -219,6 +220,7 @@ const Meshview = ({ token }) => {
     const path = result.path;
     const normalizedPath = path.endsWith("/") ? path : `${path}/`;
     const url = `${MESH_URL}?atlas=${atlas}&cloud=${DATA_PROXY}${collabName}/${normalizedPath}whole_series_meshview/objects_meshview.json`;
+    trackUsage("mesh", "opened");
     setActiveMeshUrl(url);
     setActiveResultLabel(
       `${brain.name.split("/").pop()} — ${formatResultName(result.name)}`,

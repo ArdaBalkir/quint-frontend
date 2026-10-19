@@ -1,3 +1,4 @@
+import { trackScreen, trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import React, { useEffect, useState } from "react";
 import {
@@ -113,6 +114,14 @@ const Header = () => {
     setValidationError,
   } = useTabContext();
   const [docsOpen, setDocsOpen] = useState(false);
+
+  // Track the screen actually displayed, including authentication gates.
+  useEffect(() => {
+    if (isLoading) return;
+    const screen = needsAgreement ? "agreement" : !isAuthenticated ? "login" :
+      ["projects", "webalign", "webwarp", "webilastik", "nutil", "meshview", "plots"][currentTab];
+    trackScreen(screen);
+  }, [isLoading, needsAgreement, isAuthenticated, currentTab]);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -412,12 +421,13 @@ const Header = () => {
               QUINT Online
             </Typography>
             <Button
-              onClick={() =>
+              onClick={() => {
+                trackUsage("docs", "opened");
                 window.open(
                   "https://quint-webtools.readthedocs.io/en/latest/",
                   "_blank",
-                )
-              }
+                );
+              }}
               startIcon={
                 <DescriptionIcon sx={{ fontSize: "1rem !important" }} />
               }
@@ -507,6 +517,7 @@ const Header = () => {
               <ListItem
                 sx={sharedListItemSx}
                 onClick={() => {
+                  trackUsage("demo", "opened");
                   window.open(
                     // Fixed URL for downloading the example dataset
                     "https://data-proxy-zipper.ebrains.eu/zip?container=https://data-proxy.ebrains.eu/api/v1/buckets/quint?prefix=Online QUINT demo dataset/",

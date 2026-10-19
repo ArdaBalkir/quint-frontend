@@ -1,3 +1,4 @@
+import { trackUsage } from "../utils/analytics.js";
 import logger from "../utils/logger.js";
 import { useState, useEffect, useMemo } from "react";
 import { useNotification } from "../contexts/NotificationContext";
@@ -308,6 +309,7 @@ const QuickActions = ({
     }
 
     setIsProcessing(true);
+    trackUsage("conversion", "started", filesToProcess.length);
     const sourceBrain = braininfo.path;
 
     try {
@@ -397,10 +399,12 @@ const QuickActions = ({
 
       setPollingInterval(interval);
 
+      trackUsage("conversion", "submitted", filesToProcess.length);
       showSuccess(
         `Scheduled ${filesToProcess.length} files for conversion - you can leave this page.`,
       );
     } catch (error) {
+      trackUsage("conversion", "failed");
       logger.error("Error processing TIFF files", error);
       showError("Error processing TIFF files. Check the console for details.");
       setIsProcessing(false);
