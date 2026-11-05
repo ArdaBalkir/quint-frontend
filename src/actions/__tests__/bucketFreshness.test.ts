@@ -4,6 +4,30 @@ import { downloadBucketJson, downloadWalnJson, fetchBrainStatsNormalized } from 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("bucket data freshness", () => {
+  it("checks all raw image pages so later section conflicts are not missed", async () => {
+    const objects = Array.from({ length: 1000 }, (_, i) => ({
+      name: `project/brain/raw_images/image_s${String(i).padStart(4, "0")}.tif`, bytes: 1,
+    }));
+    const lastImage = { name: "project/brain/raw_images/later_s0021.tif", bytes: 2 };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ objects }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ objects: [lastImage] }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stats = await fetchBrainStatsNormalized("token", "bucket", "project/brain/", "raw_images");
+    expect(stats.rawImages?.tiffs).toHaveLength(1001);
+    expect(stats.rawImages?.tiffs?.[1000]).toEqual(lastImage);
+    expect(stats.rawImages?.size).toBe(1002);
+    expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get("marker")).toBe(objects[999].name);
+  });
+
+  it("fails closed if the service repeats a full page", async () => {
+    const objects = Array.from({ length: 1000 }, (_, i) => ({ name: `image_s${i}.tif`, bytes: 1 }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ objects }) }));
+    await expect(fetchBrainStatsNormalized("token", "bucket", "project/brain/", "raw_images"))
+      .rejects.toThrow("complete image list");
+  });
+
   it.each([
     ["registration.waln", downloadWalnJson],
     ["webnutil_settings.json", downloadBucketJson],

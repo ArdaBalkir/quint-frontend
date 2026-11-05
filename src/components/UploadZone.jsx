@@ -8,15 +8,16 @@ import {
   List,
   ListItem,
   IconButton,
+  Alert,
 } from "@mui/material";
 import { CloudUpload, Delete, InsertDriveFile } from "@mui/icons-material";
 import { formatFileSize } from "../utils/fileUtils";
 
-const FileList = ({ files, onRemove }) => (
+const FileList = ({ files, errors, onRemove, disabled }) => (
   <List sx={{ p: 0 }}>
-    {files.map((file) => (
+    {files.map((file, index) => (
       <ListItem
-        key={file.path}
+        key={index}
         sx={{
           py: 1,
           px: 2,
@@ -33,7 +34,9 @@ const FileList = ({ files, onRemove }) => (
         secondaryAction={
           <IconButton
             edge="end"
-            onClick={() => onRemove(file)}
+            onClick={() => onRemove(index)}
+            disabled={disabled}
+            aria-label={`Remove ${file.name}`}
             sx={{
               color: "grey.500",
               "&:hover": {
@@ -76,7 +79,7 @@ const FileList = ({ files, onRemove }) => (
                 whiteSpace: "nowrap",
               }}
             >
-              {file.path}
+              {file.path || file.name}
             </Typography>
             <Typography
               variant="caption"
@@ -88,6 +91,11 @@ const FileList = ({ files, onRemove }) => (
             >
               {formatFileSize(file.size)}
             </Typography>
+            {errors[index] && (
+              <Typography variant="caption" color="error" role="alert">
+                {errors[index]}
+              </Typography>
+            )}
           </Box>
         </Box>
       </ListItem>
@@ -101,25 +109,31 @@ const UploadZone = ({
     "image/*": [".tif", ".tiff", ".jpg", ".jpeg", ".png", ".dzip"],
   },
   isUploading = false,
+  files: selectedFiles,
+  fileErrors = [],
 }) => {
-  const [files, setFiles] = useState([]);
+  const [localFiles, setLocalFiles] = useState([]);
+  const [rejections, setRejections] = useState([]);
+  const files = selectedFiles ?? localFiles;
 
-  const handleRemove = useCallback((fileToRemove) => {
-    setFiles((prevFiles) =>
-      prevFiles.filter((file) => file.path !== fileToRemove.path)
-    );
-  }, []);
+  const updateFiles = useCallback((nextFiles) => {
+    setLocalFiles(nextFiles);
+    onFilesSelected(nextFiles);
+  }, [onFilesSelected]);
+
+  const handleRemove = (index) => {
+    updateFiles(files.filter((_, fileIndex) => fileIndex !== index));
+  };
 
   const onDrop = useCallback(
-    (acceptedFiles) => {
-      onFilesSelected(acceptedFiles);
-      setFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
+    (acceptedFiles, rejectedFiles) => {
+      setRejections(rejectedFiles);
+      updateFiles([...files, ...acceptedFiles]);
     },
-    [onFilesSelected]
+    [files, updateFiles]
   );
 
   const {
-    acceptedFiles,
     getRootProps,
     getInputProps,
     isDragActive,
@@ -127,6 +141,7 @@ const UploadZone = ({
   } = useDropzone({
     onDrop,
     accept: acceptedFileTypes,
+    disabled: isUploading,
   });
 
   const dropzoneStyle = useMemo(
@@ -180,6 +195,13 @@ const UploadZone = ({
         </Typography>
       </Box>
 
+      {rejections.length > 0 && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Some files were not added: {rejections.map(({ file }) => file.name).join(", ")}.
+          Please select a supported image format.
+        </Alert>
+      )}
+
       {isUploading && (
         <Box
           sx={{
@@ -197,7 +219,7 @@ const UploadZone = ({
         </Box>
       )}
 
-      {acceptedFiles.length > 0 && (
+      {files.length > 0 && (
         <Box sx={{ mt: 2 }}>
           <Typography
             variant="subtitle2"
@@ -226,7 +248,7 @@ const UploadZone = ({
               },
             }}
           >
-            <FileList files={files} onRemove={handleRemove} />
+            <FileList files={files} errors={fileErrors} onRemove={handleRemove} disabled={isUploading} />
           </Paper>
         </Box>
       )}

@@ -136,15 +136,30 @@ const fetchSingleBrainSubdir = async (
   if (brainPrefix) params.append("prefix", `${brainPrefix}${subdir}/`);
   params.append("limit", "1000");
   const url = `${BUCKET_URL}${bucketName}?${params}`;
-  const data = await fetchWithAuth<any>(url, token, { signal });
+  let data = await fetchWithAuth<any>(url, token, { signal });
+  const objects = [...data.objects];
+  // Series naming validation must include images beyond the first page.
+  if (subdir === "raw_images") {
+    const markers = new Set<string>();
+    while (data.objects.length === 1000) {
+      const marker = data.objects[data.objects.length - 1]?.name;
+      if (!marker || markers.has(marker)) {
+        throw new Error("Unable to retrieve the complete image list");
+      }
+      markers.add(marker);
+      params.set("marker", marker);
+      data = await fetchWithAuth<any>(`${BUCKET_URL}${bucketName}?${params}`, token, { signal });
+      objects.push(...data.objects);
+    }
+  }
   const base: BucketStats = {
     name: brainPrefix + subdir,
-    files: data.objects.length,
-    size: data.objects.reduce((acc: number, obj: any) => acc + obj.bytes, 0),
+    files: objects.length,
+    size: objects.reduce((acc: number, obj: any) => acc + obj.bytes, 0),
   };
   if (subdir === "raw_images") {
-    base.tiffs = data.objects.filter((o: any) =>
-      /\.(tif|tiff|png|jpe?g)$/i.test(o.name),
+    base.tiffs = objects.filter((o: any) =>
+      /\.(tif|tiff|png|jpe?g|dzip)$/i.test(o.name),
     );
   } else if (subdir === "zipped_images") {
     base.zips = data.objects.filter((o: any) => o.name.endsWith(".dzip"));

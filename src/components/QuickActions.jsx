@@ -18,6 +18,7 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Alert,
   FormControl,
   Select,
   MenuItem,
@@ -36,6 +37,7 @@ import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 // Project components and helper functions
 import { deleteItem } from "../actions/handleCollabs";
 import { formatFileSize } from "../utils/fileUtils";
+import { getSectionNumber, SECTION_NAMING_HELP, validateSectionNames } from "../utils/sectionNames.js";
 import ProgressPanel from "./ProgressPanel";
 import Atlas from "./Atlas";
 import RunningRatLoader from "./RunningRatLoader";
@@ -132,13 +134,16 @@ const QuickActions = ({
         hasMarkers: Boolean(registrationSection?.markers?.length),
       };
     }).sort((a, b) => {
-      const sNum = (name) => {
-        const m = name.match(/_s(\d+)[a-zA-Z]?/);
-        return m ? parseInt(m[1], 10) : Infinity;
-      };
+      const sNum = (name) => getSectionNumber(name) ?? Infinity;
       return sNum(a.fileName) - sNum(b.fileName);
     });
   }, [rawStats, pyramidStats, walnContent]);
+
+  const sectionErrors = useMemo(() => {
+    const errors = validateSectionNames(unifiedFiles.map((file) => file.fileName));
+    return new Map(unifiedFiles.map((file, index) => [file.id, errors[index]]));
+  }, [unifiedFiles]);
+  const hasNamingErrors = [...sectionErrors.values()].some(Boolean);
 
   let pyramidCount = pyramidStats?.zips?.length ?? 0;
   const [user, setUser] = useState(null);
@@ -292,6 +297,11 @@ const QuickActions = ({
   const processTiffFiles = async () => {
     if (!braininfo || !unifiedFiles.length) {
       showWarning("No TIFF files found to process");
+      return;
+    }
+
+    if (hasNamingErrors) {
+      showError("Resolve invalid or overlapping section numbers before converting images.");
       return;
     }
 
@@ -729,6 +739,11 @@ const QuickActions = ({
                 </Button>
               </Box>
               {/* Unified Image Table */}
+              {hasNamingErrors && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  Fix invalid or overlapping section numbers before converting. {SECTION_NAMING_HELP}
+                </Alert>
+              )}
               <TableContainer
                 component={Paper}
                 sx={{
@@ -742,6 +757,7 @@ const QuickActions = ({
                   <TableHead>
                     <TableRow>
                       <TableCell>File Name</TableCell>
+                      <TableCell>Section</TableCell>
                       <TableCell>Size</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Registration</TableCell>
@@ -756,6 +772,7 @@ const QuickActions = ({
                         return (
                           <TableRow
                             key={file.id}
+                            aria-invalid={Boolean(sectionErrors.get(file.id))}
                             sx={{
                               "&:last-child td, &:last-child th": {
                                 border: 0,
@@ -768,6 +785,11 @@ const QuickActions = ({
                             <TableCell>
                               <Typography variant="body2">
                                 {file.fileName}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color={sectionErrors.get(file.id) ? "error" : "text.primary"}>
+                                {sectionErrors.get(file.id) || getSectionNumber(file.fileName)}
                               </Typography>
                             </TableCell>
                             <TableCell>
@@ -863,7 +885,7 @@ const QuickActions = ({
                       })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} align="center">
+                        <TableCell colSpan={6} align="center">
                           <Box
                             sx={{
                               p: 4,
@@ -943,7 +965,7 @@ const QuickActions = ({
                 <Button
                   variant="outlined"
                   disabled={
-                    isProcessing || pyramidComplete || brainStats.files === 0
+                    isProcessing || pyramidComplete || brainStats.files === 0 || hasNamingErrors
                   }
                   onClick={() => {
                     processTiffFiles();

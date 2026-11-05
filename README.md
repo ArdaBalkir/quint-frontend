@@ -9,3 +9,6 @@ Currently, two official plugins are available:
 
 Matomo SPA tracking, event coverage and deployment verification are documented in
 [docs/matomo.md](docs/matomo.md).
+
+Image series filename rules and validation are documented in
+[docs/series-naming.md](docs/series-naming.md).
