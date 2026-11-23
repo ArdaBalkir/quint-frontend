@@ -197,8 +197,7 @@ const UploadZone = ({
 
       {rejections.length > 0 && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          Some files were not added: {rejections.map(({ file }) => file.name).join(", ")}.
-          Please select a supported image format.
+          Unsupported format, not added: {rejections.map(({ file }) => file.name).join(", ")}
         </Alert>
       )}
 

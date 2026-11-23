@@ -1,5 +1,5 @@
 export const SECTION_NAMING_HELP =
-  "Use _s + 1–4 digits before the extension (e.g. brain_s01.tif). Numbers must be unique regardless of leading zeros; gaps are allowed.";
+  "Name files like brain_s01.tif (_s + 1–4 digits). Section numbers must be unique.";
 
 export function getSectionNumber(name) {
   const filename = name.split(/[\\/]/).pop();
@@ -18,8 +18,8 @@ export function validateSectionNames(names, existingNames = []) {
   }
   return names.map((name) => {
     const number = getSectionNumber(name);
-    if (number === null) return "Use _s followed by 1–4 digits immediately before the extension.";
-    if (counts.get(number) > 1) return `Section ${number} is used by more than one file.`;
+    if (number === null) return "Needs _s + 1–4 digits before the extension.";
+    if (counts.get(number) > 1) return `Duplicate section ${number}.`;
     return null;
   });
 }

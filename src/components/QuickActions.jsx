@@ -37,7 +37,7 @@ import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 // Project components and helper functions
 import { deleteItem } from "../actions/handleCollabs";
 import { formatFileSize } from "../utils/fileUtils";
-import { getSectionNumber, SECTION_NAMING_HELP, validateSectionNames } from "../utils/sectionNames.js";
+import { getSectionNumber, validateSectionNames } from "../utils/sectionNames.js";
 import ProgressPanel from "./ProgressPanel";
 import Atlas from "./Atlas";
 import RunningRatLoader from "./RunningRatLoader";
@@ -301,7 +301,7 @@ const QuickActions = ({
     }
 
     if (hasNamingErrors) {
-      showError("Resolve invalid or overlapping section numbers before converting images.");
+      showError("Fix section naming errors first.");
       return;
     }
 
@@ -741,7 +741,7 @@ const QuickActions = ({
               {/* Unified Image Table */}
               {hasNamingErrors && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                  Fix invalid or overlapping section numbers before converting. {SECTION_NAMING_HELP}
+                  Fix highlighted section names before converting.
                 </Alert>
               )}
               <TableContainer

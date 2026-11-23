@@ -72,7 +72,7 @@ export default function CreationDialog({
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setExistingImages({ key: seriesKey, names: [], error: "Could not check existing section numbers. Retry before uploading." });
+          setExistingImages({ key: seriesKey, names: [], error: "Couldn't check existing sections." });
         }
       }
     }, 300);
@@ -180,7 +180,7 @@ export default function CreationDialog({
     }
 
     if (!inventoryReady || hasNamingErrors) {
-      showError("Resolve filename errors and check existing section numbers before uploading.");
+      showError("Fix filename errors first.");
       return;
     }
 
@@ -190,7 +190,7 @@ export default function CreationDialog({
       const names = await fetchSeriesImageNames(token, collabName, projectName, seriesName);
       setExistingImages({ key: seriesKey, names, error: null });
       if (validateSectionNames(filesToUpload.map((file) => file.name), names).some(Boolean)) {
-        showError("These section numbers are already in use. Resolve the highlighted conflicts.");
+        showError("Some section numbers are already in use.");
         return;
       }
       await uploadFiles();
@@ -198,7 +198,7 @@ export default function CreationDialog({
       onClose();
     } catch (error) {
       logger.error("Error in handleSubmit", error);
-      showError("Could not verify section numbers or upload files. Please retry.");
+      showError("Upload failed. Please retry.");
     } finally {
       setIsUploading(false);
     }
@@ -272,11 +272,11 @@ export default function CreationDialog({
             >
               {existingImages.key === seriesKey && existingImages.error
                 ? existingImages.error
-                : "Checking existing section numbers..."}
+                : "Checking existing sections…"}
             </Alert>
           )}
           {hasNamingErrors && (
-            <Alert severity="error" sx={{ mb: 2 }}>Fix or remove files with invalid or overlapping section numbers before submitting.</Alert>
+            <Alert severity="error" sx={{ mb: 2 }}>Fix or remove the highlighted files.</Alert>
           )}
           <UploadZone files={filesToUpload} fileErrors={fileErrors} onFilesSelected={handleFilesSelected} isUploading={isUploading} />
           {isUploading && (
